@@ -1,4 +1,4 @@
-import { Calendar, MapPin, Bookmark } from 'lucide-react';
+import { Calendar, MapPin, Bookmark, Clock } from 'lucide-react';
 
 interface CompactActivityCardProps {
   imageUrl: string;
@@ -121,14 +121,19 @@ export function CompactActivityCard({
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '15px minmax(0, 1fr)',
+                  gridTemplateColumns: 'minmax(0, 1fr)',
                   alignItems: 'center',
-                  columnGap: 7,
+                  marginTop: 5,
                 }}
               >
-                <span aria-hidden="true" />
-                <span className="text-[11px] text-[#b7b7b7] line-clamp-1 leading-[1.3]">
-                  {recruitmentDeadline}
+                <span
+                  className="inline-flex min-w-0 items-center gap-1.5 rounded-full bg-[#f8f8f5] px-2.5 py-1 text-[11px] text-[#9d9d9d] leading-none"
+                  style={{ width: 'fit-content', maxWidth: '100%' }}
+                >
+                  <Clock className="w-3 h-3 flex-shrink-0 text-[#c8c5bd]" strokeWidth={1.8} />
+                  <span className="line-clamp-1 leading-[1.2]">
+                    {recruitmentDeadline}
+                  </span>
                 </span>
               </div>
             )}

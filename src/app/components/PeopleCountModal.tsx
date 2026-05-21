@@ -1,5 +1,5 @@
 import { X, Minus, Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface PeopleCountModalProps {
   isOpen: boolean;
@@ -15,6 +15,12 @@ export function PeopleCountModal({
   initialCount = 1,
 }: PeopleCountModalProps) {
   const [count, setCount] = useState(initialCount);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    setCount(initialCount);
+  }, [initialCount, isOpen]);
 
   if (!isOpen) return null;
 
@@ -38,6 +44,7 @@ export function PeopleCountModal({
         <div className="sticky top-0 bg-white/95 backdrop-blur-sm px-6 py-4 border-b border-black/5 flex items-center justify-between z-10">
           <h3>인원</h3>
           <button
+            type="button"
             onClick={onClose}
             className="w-9 h-9 rounded-full bg-[#f8f8f5] flex items-center justify-center hover:bg-[#f0f0eb] transition-colors"
           >
@@ -55,6 +62,7 @@ export function PeopleCountModal({
 
             <div className="flex items-center gap-4">
               <button
+                type="button"
                 onClick={decrement}
                 disabled={count <= 1}
                 className="w-10 h-10 rounded-full bg-[#f8f8f5] flex items-center justify-center hover:bg-[#e8f5ed] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
@@ -67,6 +75,7 @@ export function PeopleCountModal({
               </div>
 
               <button
+                type="button"
                 onClick={increment}
                 disabled={count >= 10}
                 className="w-10 h-10 rounded-full bg-[#f8f8f5] flex items-center justify-center hover:bg-[#e8f5ed] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
@@ -78,6 +87,7 @@ export function PeopleCountModal({
 
           {/* Confirm Button */}
           <button
+            type="button"
             onClick={handleConfirm}
             className="w-full bg-[#2a2a2a] text-white py-4 rounded-2xl transition-all hover:bg-[#1a1a1a]"
           >

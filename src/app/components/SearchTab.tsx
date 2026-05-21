@@ -4,6 +4,7 @@ import { DefaultSearchState } from './DefaultSearchState';
 import { CalendarBottomSheet } from './CalendarBottomSheet';
 import { PeopleCountModal } from './PeopleCountModal';
 import { SearchSummaryCard } from './SearchSummaryCard';
+import { SearchConditionsBottomSheet } from './SearchConditionsBottomSheet';
 import { FilterChips } from './FilterChips';
 import { SortDropdown } from './SortDropdown';
 import { CompactActivityCard } from './CompactActivityCard';
@@ -25,6 +26,7 @@ export function SearchTab({ onNavigate }: SearchTabProps) {
   const [summaryPeople, setSummaryPeople] = useState('');
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isPeopleCountOpen, setIsPeopleCountOpen] = useState(false);
+  const [isSearchEditOpen, setIsSearchEditOpen] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
@@ -41,6 +43,7 @@ export function SearchTab({ onNavigate }: SearchTabProps) {
   const handleSearch = (dest: string, dates: string, people: number) => {
     setDestination(dest);
     setSummaryDateRange(dates);
+    setPeopleCount(people);
     setSummaryPeople(people > 0 ? `${people}명` : '');
     setHasSearched(true);
   };
@@ -56,6 +59,23 @@ export function SearchTab({ onNavigate }: SearchTabProps) {
 
   const handlePeopleConfirm = (count: number) => {
     setPeopleCount(count);
+  };
+
+  const handleSearchConditionsApply = (values: {
+    destination: string;
+    dateRange: string;
+    peopleCount: number;
+    startDate: Date | null;
+    endDate: Date | null;
+  }) => {
+    setDestination(values.destination);
+    setSummaryDateRange(values.dateRange);
+    setPeopleCount(values.peopleCount);
+    setSummaryPeople(values.peopleCount > 0 ? `${values.peopleCount}명` : '');
+    setStartDate(values.startDate);
+    setEndDate(values.endDate);
+    setIsSearchEditOpen(false);
+    setHasSearched(true);
   };
 
   const filters = ['오전', '오후', '실내', '실외', '2시간 이하', '모집중', '환경정화'];
@@ -109,6 +129,31 @@ export function SearchTab({ onNavigate }: SearchTabProps) {
     setIsDetailOpen(true);
   };
 
+  const parseActivityDate = (value: string) => {
+    const [year, month, day] = value.split('.').map(Number);
+    if (!year || !month || !day) return null;
+
+    return new Date(year, month - 1, day);
+  };
+
+  const normalizedDestination = destination.trim().toLowerCase();
+  const displayedActivities = activities.filter((activity) => {
+    const searchableText = `${activity.title} ${activity.location}`.toLowerCase();
+    const matchesDestination = normalizedDestination ? searchableText.includes(normalizedDestination) : true;
+    const activityDate = parseActivityDate(activity.date);
+    const matchesDate =
+      startDate && endDate && activityDate
+        ? activityDate >= startDate && activityDate <= endDate
+        : true;
+    const capacity = Number.parseInt(activity.capacity, 10) || 0;
+    const matchesPeople = peopleCount > 0 && capacity > 0 ? capacity >= peopleCount : true;
+
+    return matchesDestination && matchesDate && matchesPeople;
+  });
+
+  const currentSummaryDateRange = summaryDateRange || formatDateRangeFull();
+  const currentPeopleCount = summaryPeople ? Number.parseInt(summaryPeople, 10) || peopleCount : peopleCount;
+
   return (
     <>
       <PageShell>
@@ -137,8 +182,9 @@ export function SearchTab({ onNavigate }: SearchTabProps) {
             <div className="px-5 pb-4">
               <SearchSummaryCard
                 destination={destination}
-                dateRange={summaryDateRange || formatDateRangeFull()}
+                dateRange={currentSummaryDateRange}
                 people={summaryPeople}
+                onEdit={() => setIsSearchEditOpen(true)}
               />
             </div>
           )}
@@ -177,13 +223,13 @@ export function SearchTab({ onNavigate }: SearchTabProps) {
             {/* Results Count */}
             <div className="px-5 py-3">
               <p className="text-[13px] text-[#999]">
-                총 <span className="text-[#2a2a2a] font-semibold">{activities.length}개</span>의 활동을 찾았어요
+                총 <span className="text-[#2a2a2a] font-semibold">{displayedActivities.length}개</span>의 활동을 찾았어요
               </p>
             </div>
 
             {/* Activity Cards */}
             <div className="px-5 space-y-2.5 pb-8">
-              {activities.map((activity, index) => (
+              {displayedActivities.map((activity, index) => (
                 <CompactActivityCard
                   key={index}
                   imageUrl={activity.imageUrl}
@@ -197,6 +243,12 @@ export function SearchTab({ onNavigate }: SearchTabProps) {
                   onClick={() => handleActivityClick(activity)}
                 />
               ))}
+              {displayedActivities.length === 0 && (
+                <div className="rounded-3xl bg-white border border-black/5 px-5 py-8 text-center shadow-sm">
+                  <p className="text-[15px] font-medium text-[#2a2a2a]">조건에 맞는 활동이 아직 없어요</p>
+                  <p className="mt-1.5 text-[13px] text-[#999]">여행지나 일정을 조금 넓혀 다시 찾아보세요</p>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -217,6 +269,17 @@ export function SearchTab({ onNavigate }: SearchTabProps) {
         onClose={() => setIsPeopleCountOpen(false)}
         onConfirm={handlePeopleConfirm}
         initialCount={peopleCount || 1}
+      />
+
+      <SearchConditionsBottomSheet
+        isOpen={isSearchEditOpen}
+        destination={destination}
+        dateRange={currentSummaryDateRange}
+        peopleCount={currentPeopleCount}
+        startDate={startDate}
+        endDate={endDate}
+        onClose={() => setIsSearchEditOpen(false)}
+        onApply={handleSearchConditionsApply}
       />
 
       {/* Bottom Tab Bar */}

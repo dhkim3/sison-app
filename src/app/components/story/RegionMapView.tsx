@@ -1,6 +1,10 @@
-import { Heart, MessageCircle, Plus } from 'lucide-react';
+import { useState } from 'react';
+import { Plus } from 'lucide-react';
 import { BottomTabBar } from '../BottomTabBar';
 import { PageShell } from '../PageShell';
+import { StoryCard } from './StoryCard';
+import { StoryDetailSheet } from './StoryDetailSheet';
+import type { StoryItem } from './storyTypes';
 
 interface RegionMapViewProps {
   onNavigate: (screen: string) => void;
@@ -31,7 +35,7 @@ const regions = [
   { name: '제주',  count: 11, top: '88%', left: '22%' },
 ];
 
-const mockStories = [
+const mockStories: StoryItem[] = [
   {
     id: 1,
     title: '광안리 여름의 바다',
@@ -40,6 +44,8 @@ const mockStories = [
     likes: 12,
     comments: 3,
     imageUrl: 'https://images.unsplash.com/photo-1565803974275-dccd2f933cbb?w=400',
+    body: '아침 바다 앞에서 쓰레기를 주우며 오래 머물고 싶은 풍경에 대해 생각했어요. 여행지가 조금 더 깨끗해지는 순간을 직접 만지는 느낌이 조용히 남았습니다.',
+    relatedActivity: '광안리 해변 환경정화',
   },
   {
     id: 2,
@@ -49,6 +55,8 @@ const mockStories = [
     likes: 9,
     comments: 2,
     imageUrl: 'https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?w=400',
+    body: '숲길을 따라 천천히 걸으며 작은 표지판과 길가의 가지들을 정리했어요. 바람이 지나가는 소리가 좋아서 봉사라기보다 긴 산책처럼 느껴졌습니다.',
+    relatedActivity: '제주 숲길 산책로 정비',
   },
   {
     id: 3,
@@ -58,6 +66,8 @@ const mockStories = [
     likes: 7,
     comments: 1,
     imageUrl: 'https://images.unsplash.com/photo-1621478763597-11fb71047890?w=400',
+    body: '해가 막 올라온 안목해변은 생각보다 고요했어요. 짧은 플로깅을 마치고 나니 하루의 시작을 조금 더 단정하게 맞이한 기분이 들었습니다.',
+    relatedActivity: '강릉 안목해변 플로깅',
   },
 ];
 
@@ -67,6 +77,7 @@ export function RegionMapView({
   selectedRegion,
   onSelectRegion,
 }: RegionMapViewProps) {
+  const [selectedStory, setSelectedStory] = useState<StoryItem | null>(null);
   const visibleStories = selectedRegion
     ? mockStories.filter((s) => s.region === selectedRegion)
     : mockStories;
@@ -87,11 +98,12 @@ export function RegionMapView({
               </p>
             </div>
             <button
+              type="button"
               onClick={onCreateStory}
               className="w-10 h-10 rounded-full flex items-center justify-center transition-opacity hover:opacity-80"
               style={{
-                backgroundColor: '#a8d5ba',
-                boxShadow: '0 2px 8px rgba(168,213,186,0.45)',
+                backgroundColor: '#6fb58a',
+                boxShadow: '0 3px 10px rgba(111,181,138,0.38)',
               }}
             >
               <Plus className="w-5 h-5 text-white" strokeWidth={2.5} />
@@ -147,6 +159,7 @@ export function RegionMapView({
 
               return (
                 <button
+                  type="button"
                   key={region.name}
                   onClick={() => onSelectRegion(isSelected ? null : region.name)}
                   className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-200"
@@ -178,7 +191,7 @@ export function RegionMapView({
             <h3 className="text-[15px] font-semibold text-[#2a2a2a]">
               {selectedRegion ? `${selectedRegion}에서 남겨진 시선` : '최근 올라온 스토리'}
             </h3>
-            <button className="text-[12px] text-[#999]">더보기</button>
+            <button type="button" className="text-[12px] text-[#999]">더보기</button>
           </div>
 
           {visibleStories.length === 0 ? (
@@ -197,68 +210,22 @@ export function RegionMapView({
               }}
             >
               {visibleStories.map((story) => (
-                <div
+                <StoryCard
                   key={story.id}
-                  className="flex-shrink-0 rounded-2xl overflow-hidden"
-                  style={{
-                    width: '38vw',
-                    maxWidth: '160px',
-                    backgroundColor: '#ffffff',
-                    boxShadow: '0 2px 10px rgba(0,0,0,0.07)',
-                  }}
-                >
-                  {/* Image */}
-                  <div className="relative" style={{ paddingBottom: '100%' }}>
-                    <img
-                      src={story.imageUrl}
-                      alt={story.title}
-                      className="absolute inset-0 w-full h-full object-cover"
-                      style={{ borderRadius: '12px 12px 0 0' }}
-                    />
-                    {/* Region badge */}
-                    <span
-                      className="absolute top-2 left-2 text-[9px] font-semibold px-2 py-0.5 rounded-full"
-                      style={{
-                        backgroundColor: 'rgba(255,255,255,0.92)',
-                        color: '#2a2a2a',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.10)',
-                      }}
-                    >
-                      {story.region}
-                    </span>
-                  </div>
-
-                  {/* Info */}
-                  <div className="px-2.5 pt-2 pb-2.5">
-                    <p
-                      className="text-[13px] font-semibold text-[#2a2a2a] leading-snug mb-0.5"
-                      style={{
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      {story.title}
-                    </p>
-                    <p className="text-[11px] text-[#999] mb-2">{story.author}</p>
-                    <div className="flex items-center gap-2.5">
-                      <span className="flex items-center gap-1 text-[10px] text-[#999]">
-                        <Heart className="w-3 h-3" />
-                        {story.likes}
-                      </span>
-                      <span className="flex items-center gap-1 text-[10px] text-[#999]">
-                        <MessageCircle className="w-3 h-3" />
-                        {story.comments}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                  story={story}
+                  onClick={setSelectedStory}
+                />
               ))}
             </div>
           )}
         </section>
       </PageShell>
+
+      <StoryDetailSheet
+        story={selectedStory}
+        isOpen={selectedStory !== null}
+        onClose={() => setSelectedStory(null)}
+      />
 
       <BottomTabBar activeTab="story" onNavigate={onNavigate} />
     </>

@@ -8,6 +8,7 @@ interface SettingsItemProps {
 export function SettingsItem({ label, onClick }: SettingsItemProps) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className="w-full flex items-center justify-between py-4 border-b border-black/5 last:border-0 hover:bg-black/5 transition-colors"
     >

@@ -1,21 +1,31 @@
-interface TravelCard {
+export interface TravelCard {
   photoUrl: string;
   title: string;
   date: string;
   style: 'polaroid' | 'film' | 'minimal' | 'postcard';
+  period?: string;
+  memo?: string;
+  activities?: string[];
+  locationSummary?: string;
+  moodTags?: string[];
 }
 
 interface TravelCardCarouselProps {
   cards: TravelCard[];
+  onCardClick?: (card: TravelCard) => void;
 }
 
-export function TravelCardCarousel({ cards }: TravelCardCarouselProps) {
+export function TravelCardCarousel({ cards, onCardClick }: TravelCardCarouselProps) {
   return (
     <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-6 px-6">
       {cards.map((card, index) => (
         <div key={index} className="flex-shrink-0" style={{ width: '280px' }}>
           {/* Polaroid Style Card */}
-          <div className="bg-white rounded-lg shadow-md p-3 cursor-pointer hover:shadow-lg transition-shadow">
+          <button
+            type="button"
+            onClick={() => onCardClick?.(card)}
+            className="w-full bg-white rounded-lg shadow-md p-3 cursor-pointer hover:shadow-lg transition-shadow text-left"
+          >
             <div className="aspect-square bg-[#f0f0eb] mb-3 overflow-hidden">
               <img
                 src={card.photoUrl}
@@ -30,7 +40,7 @@ export function TravelCardCarousel({ cards }: TravelCardCarouselProps) {
                 <p className="text-xs text-[#999]">시선</p>
               </div>
             </div>
-          </div>
+          </button>
         </div>
       ))}
     </div>

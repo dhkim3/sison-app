@@ -113,7 +113,7 @@ export function EnhancedSearchCard({
                   );
                 })}
               </div>
-              <div className="pt-5 pb-4">
+              <div className="pt-5 pb-3">
                 <div className="h-px bg-black/5" />
               </div>
             </div>
@@ -122,7 +122,7 @@ export function EnhancedSearchCard({
 
         {/* Date and People Selectors */}
         <div
-          className="grid grid-cols-2 gap-3 mt-4"
+          className="grid grid-cols-2 gap-3"
         >
           {/* Date Selector */}
           <button

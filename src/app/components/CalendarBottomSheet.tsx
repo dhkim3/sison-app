@@ -1,5 +1,5 @@
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface CalendarBottomSheetProps {
   isOpen: boolean;
@@ -19,6 +19,16 @@ export function CalendarBottomSheet({
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [startDate, setStartDate] = useState<Date | null>(initialStartDate || null);
   const [endDate, setEndDate] = useState<Date | null>(initialEndDate || null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    setStartDate(initialStartDate || null);
+    setEndDate(initialEndDate || null);
+    if (initialStartDate) {
+      setCurrentMonth(new Date(initialStartDate.getFullYear(), initialStartDate.getMonth(), 1));
+    }
+  }, [initialEndDate, initialStartDate, isOpen]);
 
   if (!isOpen) return null;
 
@@ -127,6 +137,7 @@ export function CalendarBottomSheet({
         <div className="sticky top-0 bg-white/95 backdrop-blur-sm px-6 py-4 border-b border-black/5 flex items-center justify-between z-10">
           <h3>여행 일정</h3>
           <button
+            type="button"
             onClick={onClose}
             className="w-9 h-9 rounded-full bg-[#f8f8f5] flex items-center justify-center hover:bg-[#f0f0eb] transition-colors"
           >
@@ -138,6 +149,7 @@ export function CalendarBottomSheet({
           {/* Month Navigation */}
           <div className="flex items-center justify-between mb-6">
             <button
+              type="button"
               onClick={prevMonth}
               className="w-9 h-9 rounded-full bg-[#f8f8f5] flex items-center justify-center hover:bg-[#e8f5ed] transition-colors"
             >
@@ -149,6 +161,7 @@ export function CalendarBottomSheet({
             </h3>
 
             <button
+              type="button"
               onClick={nextMonth}
               className="w-9 h-9 rounded-full bg-[#f8f8f5] flex items-center justify-center hover:bg-[#e8f5ed] transition-colors"
             >
@@ -186,6 +199,7 @@ export function CalendarBottomSheet({
 
               return (
                 <button
+                  type="button"
                   key={date.toISOString()}
                   onClick={() => !isPast && handleDateClick(date)}
                   disabled={isPast}
@@ -216,6 +230,7 @@ export function CalendarBottomSheet({
 
           {/* Confirm Button */}
           <button
+            type="button"
             onClick={handleConfirm}
             disabled={!startDate || !endDate}
             className="w-full bg-[#2a2a2a] text-white py-4 rounded-2xl transition-all hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"

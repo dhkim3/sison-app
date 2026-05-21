@@ -156,7 +156,7 @@ export function DefaultSearchState({
                   );
                 })}
               </div>
-              <div className="pt-5 pb-4">
+              <div className="pt-5 pb-3">
                 <div className="h-px bg-black/5" />
               </div>
             </div>

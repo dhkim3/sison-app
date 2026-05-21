@@ -62,7 +62,7 @@ export function StoryUploadView({
               >
                 <ArrowLeft className="w-5 h-5 text-[#2a2a2a]" strokeWidth={2} />
               </button>
-              <h2>스토리 만들기</h2>
+              <h2>스토리 업로드</h2>
             </div>
           </div>
         </header>
@@ -196,7 +196,7 @@ export function StoryUploadView({
                 onClick={onSave}
                 className="w-full bg-[#2a2a2a] text-white py-3.5 rounded-xl transition-all hover:bg-[#1a1a1a] text-[14px] font-medium shadow-[0_1px_3px_rgba(0,0,0,0.1)]"
               >
-                스토리 저장하기
+                업로드
               </button>
 
               <button
