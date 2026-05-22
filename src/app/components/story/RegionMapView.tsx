@@ -4,13 +4,16 @@ import { BottomTabBar } from '../BottomTabBar';
 import { PageShell } from '../PageShell';
 import { StoryCard } from './StoryCard';
 import { StoryDetailSheet } from './StoryDetailSheet';
+import { StoryCommentSheet } from './StoryCommentSheet';
 import type { StoryItem } from './storyTypes';
+import type { StoryInteractionProps } from '../../storyInteractionState';
 
 interface RegionMapViewProps {
   onNavigate: (screen: string) => void;
   onCreateStory: () => void;
   selectedRegion: string | null;
   onSelectRegion: (region: string | null) => void;
+  storyInteractions: StoryInteractionProps;
 }
 
 const POPULAR_REGIONS = new Set(['서울', '부산', '제주', '강원']);
@@ -71,13 +74,17 @@ const mockStories: StoryItem[] = [
   },
 ];
 
+const masonryImageHeights = ['86%', '74%', '94%', '80%'];
+
 export function RegionMapView({
   onNavigate,
   onCreateStory,
   selectedRegion,
   onSelectRegion,
+  storyInteractions,
 }: RegionMapViewProps) {
   const [selectedStory, setSelectedStory] = useState<StoryItem | null>(null);
+  const [commentStory, setCommentStory] = useState<StoryItem | null>(null);
   const visibleStories = selectedRegion
     ? mockStories.filter((s) => s.region === selectedRegion)
     : mockStories;
@@ -201,19 +208,24 @@ export function RegionMapView({
             </div>
           ) : (
             <div
-              className="flex gap-3 overflow-x-auto"
+              className="px-5"
               style={{
-                paddingLeft: '20px',
-                paddingRight: '20px',
-                scrollbarWidth: 'none',
-                msOverflowStyle: 'none',
+                columnCount: 2,
+                columnGap: '12px',
               }}
             >
-              {visibleStories.map((story) => (
+              {visibleStories.map((story, index) => (
                 <StoryCard
                   key={story.id}
                   story={story}
+                  layout="grid"
+                  imageHeight={masonryImageHeights[index % masonryImageHeights.length]}
                   onClick={setSelectedStory}
+                  isLiked={storyInteractions.isStoryLiked(story.id)}
+                  likeCount={storyInteractions.getStoryLikeCount(story)}
+                  commentCount={storyInteractions.getStoryCommentCount(story)}
+                  onToggleLike={(nextStory) => storyInteractions.onToggleStoryLike(nextStory.id)}
+                  onOpenComments={setCommentStory}
                 />
               ))}
             </div>
@@ -225,6 +237,24 @@ export function RegionMapView({
         story={selectedStory}
         isOpen={selectedStory !== null}
         onClose={() => setSelectedStory(null)}
+        isLiked={selectedStory ? storyInteractions.isStoryLiked(selectedStory.id) : false}
+        likeCount={selectedStory ? storyInteractions.getStoryLikeCount(selectedStory) : undefined}
+        commentCount={selectedStory ? storyInteractions.getStoryCommentCount(selectedStory) : undefined}
+        comments={selectedStory ? storyInteractions.getStoryComments(selectedStory.id) : []}
+        onToggleLike={(story) => storyInteractions.onToggleStoryLike(story.id)}
+        onOpenComments={setCommentStory}
+        onAddComment={(story, body) => storyInteractions.onAddStoryComment(story.id, body)}
+      />
+
+      <StoryCommentSheet
+        story={commentStory}
+        isOpen={commentStory !== null}
+        comments={commentStory ? storyInteractions.getStoryComments(commentStory.id) : []}
+        onClose={() => setCommentStory(null)}
+        onAddComment={(body) => {
+          if (!commentStory) return;
+          storyInteractions.onAddStoryComment(commentStory.id, body);
+        }}
       />
 
       <BottomTabBar activeTab="story" onNavigate={onNavigate} />

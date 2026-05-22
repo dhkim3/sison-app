@@ -65,7 +65,7 @@ export function EnhancedSearchCard({
             }
           }}
         >
-          <div className="flex items-center gap-3 pb-4 border-b border-black/5">
+          <div className="relative flex items-center gap-3 pb-4">
             <Search className="w-5 h-5 text-[#5a5a5a]" />
             <input
               ref={destinationInputRef}
@@ -75,6 +75,11 @@ export function EnhancedSearchCard({
               onChange={(e) => onDestinationChange(e.target.value)}
               onClick={onDestinationClick}
               className="flex-1 outline-none bg-transparent placeholder:text-[#999] text-[#2a2a2a]"
+            />
+            <div
+              className={`absolute bottom-0 left-0 h-px w-full bg-black/5 transition-opacity duration-300 ease-out ${
+                isDiscoveryOpen ? 'opacity-100' : 'opacity-0'
+              }`}
             />
           </div>
 
@@ -113,7 +118,7 @@ export function EnhancedSearchCard({
                   );
                 })}
               </div>
-              <div className="pt-5 pb-3">
+              <div className="pt-4 pb-4">
                 <div className="h-px bg-black/5" />
               </div>
             </div>

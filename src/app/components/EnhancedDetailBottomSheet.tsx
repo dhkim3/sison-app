@@ -1,10 +1,11 @@
 import { X, Bookmark, Share2, MapPin, Clock, Sparkles } from 'lucide-react';
-import { useState } from 'react';
 
 interface EnhancedDetailBottomSheetProps {
   isOpen: boolean;
   onClose: () => void;
   onAIRecommendation?: () => void;
+  isSaved?: boolean;
+  onToggleSaved?: () => void;
   activity: {
     imageUrl: string;
     title: string;
@@ -27,10 +28,10 @@ export function EnhancedDetailBottomSheet({
   isOpen,
   onClose,
   onAIRecommendation,
+  isSaved = false,
+  onToggleSaved,
   activity,
 }: EnhancedDetailBottomSheetProps) {
-  const [isSaved, setIsSaved] = useState(false);
-
   if (!isOpen) return null;
 
   return (
@@ -56,11 +57,13 @@ export function EnhancedDetailBottomSheet({
           </button>
           <div className="flex gap-2">
             <button
-              onClick={() => setIsSaved(!isSaved)}
-              className="w-9 h-9 rounded-full bg-[#f8f8f5] flex items-center justify-center hover:bg-[#f0f0eb] transition-colors"
+              type="button"
+              onClick={onToggleSaved}
+              aria-label={isSaved ? '저장 취소' : '활동 저장'}
+              className="w-9 h-9 rounded-full bg-[#f8f8f5] flex items-center justify-center hover:bg-[#f0f0eb] active:scale-95 transition-all"
             >
               <Bookmark
-                className={`w-5 h-5 ${isSaved ? 'fill-[#a8d5ba] text-[#a8d5ba]' : 'text-[#5a5a5a]'}`}
+                className={`w-5 h-5 ${isSaved ? 'fill-[#a8d5ba] text-[#7fb894]' : 'text-[#5a5a5a]'}`}
                 strokeWidth={2}
               />
             </button>

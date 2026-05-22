@@ -5,14 +5,16 @@ import { RegionMapView } from './story/RegionMapView';
 import { MyActivitiesView } from './story/MyActivitiesView';
 import { StoryUploadView } from './story/StoryUploadView';
 import { CardCreationView } from './story/CardCreationView';
+import type { StoryInteractionProps } from '../storyInteractionState';
 
 interface StoryCreationProps {
   onNavigate: (screen: string) => void;
+  storyInteractions: StoryInteractionProps;
 }
 
 type StoryView = 'map' | 'my-activities' | 'upload' | 'card';
 
-export function StoryCreation({ onNavigate }: StoryCreationProps) {
+export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationProps) {
   const [currentView, setCurrentView] = useState<StoryView>('map');
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
@@ -75,6 +77,19 @@ export function StoryCreation({ onNavigate }: StoryCreationProps) {
     },
   ];
 
+  const isPastActivity = (activity: (typeof myActivities)[number]) => {
+    const match = activity.date.match(/^(\d{4})[.-](\d{1,2})[.-](\d{1,2})$/);
+    const activityDate = match
+      ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+      : null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return activity.status === '참여 완료' || activity.status === '종료됨' || (activityDate !== null && activityDate < today);
+  };
+
+  const storySelectableActivities = myActivities.filter(isPastActivity);
+
   const handleCreateStory = () => {
     setCurrentView('my-activities');
   };
@@ -123,12 +138,13 @@ export function StoryCreation({ onNavigate }: StoryCreationProps) {
           onCreateStory={handleCreateStory}
           selectedRegion={selectedRegion}
           onSelectRegion={setSelectedRegion}
+          storyInteractions={storyInteractions}
         />
       )}
 
       {currentView === 'my-activities' && (
         <MyActivitiesView
-          activities={myActivities}
+          activities={storySelectableActivities}
           onBack={handleBackToMap}
           onSelectActivity={handleSelectActivity}
           onNavigate={onNavigate}

@@ -24,6 +24,7 @@ export function FilterChips({ filters, selectedFilters = [], onFilterChange }: F
         return (
           <button
             key={filter}
+            type="button"
             onClick={() => toggleFilter(filter)}
             className={`h-9 px-3.5 rounded-full text-[13px] whitespace-nowrap transition-all flex items-center ${
               isSelected

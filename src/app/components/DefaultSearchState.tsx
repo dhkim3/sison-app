@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react';
 import { Search, Calendar, Users, MapPin } from 'lucide-react';
 import { SearchHistory } from './SearchHistory';
-import { CategoryCard } from './CategoryCard';
 import { DestinationCard } from './DestinationCard';
 
 interface DefaultSearchStateProps {
@@ -34,13 +33,6 @@ export function DefaultSearchState({
     { location: '강릉', dates: '5/14~5/16', people: '2명' },
   ];
 
-  const categories = [
-    { emoji: '🌿', label: '환경정화' },
-    { emoji: '🎪', label: '지역 행사' },
-    { emoji: '📚', label: '교육·문화' },
-    { emoji: '🚶', label: '산책형 활동' },
-  ];
-
   const destinations = [
     {
       imageUrl: 'https://images.unsplash.com/photo-1612977512598-3b8d6a498bbb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=600',
@@ -61,6 +53,21 @@ export function DefaultSearchState({
       imageUrl: 'https://images.unsplash.com/photo-1659083899422-b0c7230ef99e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=600',
       name: '여수',
       activityCount: 15,
+    },
+  ];
+
+  const recommendedRegions = [
+    {
+      name: '부산 수영구',
+      description: '바다 산책과 함께하는 가벼운 활동',
+    },
+    {
+      name: '강릉 안목',
+      description: '주말 여행에 어울리는 해변 활동',
+    },
+    {
+      name: '제주 서쪽',
+      description: '느린 일정 사이에 머무는 활동',
     },
   ];
 
@@ -109,7 +116,7 @@ export function DefaultSearchState({
             }
           }}
         >
-          <div className="flex items-center gap-3 pb-4 border-b border-black/5">
+          <div className="relative flex items-center gap-3 pb-4">
             <Search className="w-5 h-5 text-[#5a5a5a]" strokeWidth={2} />
             <input
               ref={destinationInputRef}
@@ -118,6 +125,11 @@ export function DefaultSearchState({
               value={destination}
               onChange={(e) => onDestinationChange(e.target.value)}
               className="flex-1 text-sm placeholder:text-[#999] outline-none bg-transparent"
+            />
+            <div
+              className={`absolute bottom-0 left-0 h-px w-full bg-black/5 transition-opacity duration-300 ease-out ${
+                isDiscoveryOpen ? 'opacity-100' : 'opacity-0'
+              }`}
             />
           </div>
 
@@ -156,7 +168,7 @@ export function DefaultSearchState({
                   );
                 })}
               </div>
-              <div className="pt-5 pb-3">
+              <div className="pt-4 pb-4">
                 <div className="h-px bg-black/5" />
               </div>
             </div>
@@ -214,16 +226,30 @@ export function DefaultSearchState({
         />
       </section>
 
-      {/* Categories */}
+      {/* Recommended Regions */}
       <section>
-        <h3 className="mb-3">활동 카테고리</h3>
-        <div className="flex gap-3 overflow-x-auto -mx-6 px-6 pb-2 scrollbar-hide">
-          {categories.map((category, index) => (
-            <CategoryCard
-              key={index}
-              {...category}
-              onClick={() => onSearch(category.label, '', 0)}
-            />
+        <div className="mb-3">
+          <h3 className="mb-1">추천 지역</h3>
+          <p className="text-[12px] text-[#aaa]">여행의 속도에 맞춰 둘러보세요</p>
+        </div>
+        <div className="space-y-2.5">
+          {recommendedRegions.map((region) => (
+            <button
+              key={region.name}
+              type="button"
+              onClick={() => onSearch(region.name, '', 0)}
+              className="w-full rounded-2xl bg-white border border-black/5 px-4 py-3.5 text-left shadow-sm hover:bg-[#fbfbf8] transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 flex-shrink-0 rounded-full bg-[#eef7f2] flex items-center justify-center">
+                  <MapPin className="w-4 h-4 text-[#6fa985]" strokeWidth={2} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[14px] font-medium leading-snug text-[#2a2a2a]">{region.name}</p>
+                  <p className="mt-0.5 text-[12px] leading-[18px] text-[#999]">{region.description}</p>
+                </div>
+              </div>
+            </button>
           ))}
         </div>
       </section>

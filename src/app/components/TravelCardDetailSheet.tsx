@@ -1,4 +1,5 @@
-import { Calendar, ChevronRight, Leaf, MapPin, X } from 'lucide-react';
+import { Calendar, Download, Leaf, MapPin, X } from 'lucide-react';
+import { useState } from 'react';
 import type { TravelCard } from './TravelCardCarousel';
 
 interface TravelCardDetailSheetProps {
@@ -8,6 +9,8 @@ interface TravelCardDetailSheetProps {
 }
 
 export function TravelCardDetailSheet({ card, isOpen, onClose }: TravelCardDetailSheetProps) {
+  const [didDownload, setDidDownload] = useState(false);
+
   if (!isOpen || !card) return null;
 
   const activities = card.activities ?? [];
@@ -100,13 +103,22 @@ export function TravelCardDetailSheet({ card, isOpen, onClose }: TravelCardDetai
 
             <button
               type="button"
+              onClick={() => {
+                setDidDownload(true);
+                window.setTimeout(() => setDidDownload(false), 1800);
+              }}
               className="w-full rounded-2xl bg-[#2a2a2a] px-5 py-4 text-[15px] font-medium text-white hover:bg-[#1a1a1a] transition-colors"
             >
               <span className="flex items-center justify-center gap-2">
-                이 일정 다시 보기
-                <ChevronRight className="w-4 h-4" strokeWidth={2} />
+                <Download className="w-4 h-4" strokeWidth={2} />
+                다운로드
               </span>
             </button>
+            {didDownload && (
+              <p className="text-center text-[12px] leading-none text-[#7fb894]">
+                여행 카드가 저장되었어요
+              </p>
+            )}
           </div>
         </div>
       </div>

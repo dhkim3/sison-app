@@ -5,15 +5,34 @@ interface StoryCardProps {
   story: StoryItem;
   onClick: (story: StoryItem) => void;
   layout?: 'rail' | 'grid';
+  imageHeight?: string;
+  isLiked?: boolean;
+  likeCount?: number;
+  commentCount?: number;
+  onToggleLike?: (story: StoryItem) => void;
+  onOpenComments?: (story: StoryItem) => void;
 }
 
-export function StoryCard({ story, onClick, layout = 'rail' }: StoryCardProps) {
+export function StoryCard({
+  story,
+  onClick,
+  layout = 'rail',
+  imageHeight,
+  isLiked = false,
+  likeCount = story.likes,
+  commentCount = story.comments,
+  onToggleLike,
+  onOpenComments,
+}: StoryCardProps) {
+  const isGrid = layout === 'grid';
+  const resolvedImageHeight = imageHeight || (isGrid ? '82%' : '100%');
   const cardStyle =
-    layout === 'grid'
+    isGrid
       ? {
           width: '100%',
           backgroundColor: '#ffffff',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.07)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.055)',
+          breakInside: 'avoid' as const,
         }
       : {
           width: '38vw',
@@ -23,13 +42,20 @@ export function StoryCard({ story, onClick, layout = 'rail' }: StoryCardProps) {
         };
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={() => onClick(story)}
-      className="flex-shrink-0 rounded-2xl overflow-hidden text-left transition-opacity hover:opacity-90"
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onClick(story);
+        }
+      }}
+      className={`${isGrid ? 'mb-3' : 'flex-shrink-0'} rounded-2xl overflow-hidden text-left transition-opacity hover:opacity-90`}
       style={cardStyle}
     >
-      <div className="relative" style={{ paddingBottom: '100%' }}>
+      <div className="relative" style={{ paddingBottom: resolvedImageHeight }}>
         <img
           src={story.imageUrl}
           alt={story.title}
@@ -53,25 +79,39 @@ export function StoryCard({ story, onClick, layout = 'rail' }: StoryCardProps) {
           className="text-[13px] font-semibold text-[#2a2a2a] leading-snug mb-0.5"
           style={{
             display: '-webkit-box',
-            WebkitLineClamp: 2,
+            WebkitLineClamp: isGrid ? 1 : 2,
             WebkitBoxOrient: 'vertical',
             overflow: 'hidden',
           }}
         >
           {story.title}
         </p>
-        <p className="text-[11px] text-[#999] mb-2">{story.author}</p>
-        <div className="flex items-center gap-2.5">
-          <span className="flex items-center gap-1 text-[10px] text-[#999]">
-            <Heart className="w-3 h-3" />
-            {story.likes}
-          </span>
-          <span className="flex items-center gap-1 text-[10px] text-[#999]">
-            <MessageCircle className="w-3 h-3" />
-            {story.comments}
-          </span>
+        <p className={`${isGrid ? 'mb-1.5' : 'mb-2'} text-[11px] text-[#999]`}>{story.author}</p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleLike?.(story);
+            }}
+            className={`flex items-center gap-1 text-[10px] transition-colors ${isLiked ? 'text-[#7fb894]' : 'text-[#999]'}`}
+          >
+            <Heart className={`w-3 h-3 ${isLiked ? 'fill-[#a8d5ba]' : ''}`} strokeWidth={1.8} />
+            {likeCount}
+          </button>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpenComments?.(story);
+            }}
+            className="flex items-center gap-1 text-[10px] text-[#999] transition-colors hover:text-[#6fa985]"
+          >
+            <MessageCircle className="w-3 h-3" strokeWidth={1.8} />
+            {commentCount}
+          </button>
         </div>
       </div>
-    </button>
+    </div>
   );
 }

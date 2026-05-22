@@ -50,6 +50,23 @@ Available screens: `'home' | 'search' | 'ai-recommendation' | 'story' | 'saved' 
 - **Border radius**: cards = rounded-2xl or rounded-3xl, buttons = rounded-2xl or rounded-full
 - **Font**: Pretendard Variable (loaded via fonts.css)
 
+## UX Rules
+- Home/Search tabs only show upcoming activities.
+- Story/Saved tabs may contain past activities because they support travel memories and archived experiences.
+- Stories can only be created from past activities.
+- Activity categories belong in filter/refine flows, not as primary search inputs.
+- Notifications should feel quiet, helpful, and non-SNS.
+- Avoid strong badge/capsule styling for ordinary metadata.
+- Metadata should feel editorial and lightweight.
+- Past activities use the label “지난 활동”; avoid closure/admin wording such as “모집 종료”, “마감됨”, or “종료”.
+- Keep the experience travel-memory first and volunteer-activity second, with a calm Korean travel-app atmosphere.
+
+## Important Principles
+- Reuse shared components whenever possible.
+- Avoid redesigning unrelated screens.
+- Preserve spacing and typography consistency.
+- Keep interactions calm and lightweight.
+
 ## Coding Rules
 
 ### Always

@@ -8,7 +8,7 @@ export function SearchCard({ onSearch }: SearchCardProps) {
   return (
     <div className="bg-white rounded-3xl p-6 shadow-sm border border-black/5">
       <div className="space-y-4">
-        <div className="flex items-center gap-3 pb-4 border-b border-black/5">
+        <div className="flex items-center gap-3 pb-4">
           <Search className="w-5 h-5 text-[#5a5a5a]" />
           <input
             type="text"
@@ -32,6 +32,7 @@ export function SearchCard({ onSearch }: SearchCardProps) {
         </div>
 
         <button
+          type="button"
           onClick={onSearch}
           className="w-full bg-[#2a2a2a] text-white py-4 rounded-2xl transition-all hover:bg-[#1a1a1a]"
         >

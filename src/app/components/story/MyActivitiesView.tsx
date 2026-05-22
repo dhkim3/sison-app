@@ -34,7 +34,7 @@ export function MyActivitiesView({
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<string>('전체');
 
-  const tabOptions = ['전체', '신청', '저장'];
+  const tabOptions = ['전체', '완료한 활동', '보관한 활동'];
 
   const filteredActivities = activities.filter((activity) => {
     const matchesSearch =
@@ -43,16 +43,26 @@ export function MyActivitiesView({
       activity.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
       activity.region.toLowerCase().includes(searchQuery.toLowerCase());
 
-    // Tab filtering logic
     let matchesTab = true;
-    if (activeTab === '신청') {
-      matchesTab = activity.status === '참여 예정' || activity.status === '참여 완료';
-    } else if (activeTab === '저장') {
-      matchesTab = activity.status === '종료됨'; // Mock: treat ended as "saved"
+    if (activeTab === '완료한 활동') {
+      matchesTab = activity.status === '참여 완료';
+    } else if (activeTab === '보관한 활동') {
+      matchesTab = activity.status === '종료됨';
     }
 
     return matchesSearch && matchesTab;
   });
+
+  const isPastActivity = (activity: Activity) => {
+    const match = activity.date.match(/^(\d{4})[.-](\d{1,2})[.-](\d{1,2})$/);
+    const activityDate = match
+      ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+      : null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return activity.status === '참여 완료' || activity.status === '종료됨' || (activityDate !== null && activityDate < today);
+  };
 
   return (
     <>
@@ -69,7 +79,7 @@ export function MyActivitiesView({
               </button>
               <h2>어떤 활동의 기록을 남길까요?</h2>
             </div>
-            <p className="text-[13px] text-[#bbb] pl-11">신청했던 활동을 선택해보세요</p>
+            <p className="text-[13px] text-[#bbb] pl-11">지난 여행의 활동을 선택해보세요</p>
           </div>
 
           {/* Search Bar */}
@@ -120,6 +130,7 @@ export function MyActivitiesView({
                   recruitmentEndDate={activity.recruitmentEndDate}
                   date={activity.date}
                   time={activity.time}
+                  isPastActivity={isPastActivity(activity)}
                   onClick={() => onSelectActivity(activity)}
                 />
               ))}
@@ -135,7 +146,7 @@ export function MyActivitiesView({
               <p className="text-[11px] text-[#bbb]">
                 {searchQuery || activeTab !== '전체'
                   ? '다른 조건으로 검색해보세요'
-                  : '여행지에서 참여할 수 있는 활동을 먼저 찾아보세요'}
+                  : '참여를 마친 활동이 생기면 이곳에 모아둘게요'}
               </p>
               {!searchQuery && activeTab === '전체' && (
                 <button

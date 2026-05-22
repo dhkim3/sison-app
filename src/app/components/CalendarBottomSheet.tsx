@@ -100,9 +100,6 @@ export function CalendarBottomSheet({
   const getTripSummary = () => {
     if (!startDate || !endDate) return null;
 
-    const nights = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    const days = nights + 1;
-
     const formatDate = (date: Date) => {
       const month = date.getMonth() + 1;
       const day = date.getDate();
@@ -111,7 +108,7 @@ export function CalendarBottomSheet({
       return `${month}월 ${day}일(${weekday})`;
     };
 
-    return `${formatDate(startDate)} ~ ${formatDate(endDate)} · ${nights}박 ${days}일`;
+    return `${formatDate(startDate)} ~ ${formatDate(endDate)}`;
   };
 
   const days = getDaysInMonth(currentMonth);
