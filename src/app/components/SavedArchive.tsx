@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { SegmentedTabs } from './SegmentedTabs';
 import { CompactActivityCard } from './CompactActivityCard';
-import { TravelCardCarousel } from './TravelCardCarousel';
 import type { TravelCard } from './TravelCardCarousel';
 import { TravelCardDetailSheet } from './TravelCardDetailSheet';
 import { EmptyState } from './EmptyState';
@@ -226,22 +225,63 @@ export function SavedArchive({
             </div>
           )}
 
-          {/* Travel Cards */}
+          {/* Travel Cards — monthly archive */}
           {activeTab === 2 && (
-            <div>
-              {travelCards.length > 0 ? (
-                <>
-                  <div className="px-5 mb-4">
-                    <p className="text-[12px] text-[#aaa]">
-                      {travelCards.length}개의 카드
-                    </p>
-                  </div>
-                  <TravelCardCarousel cards={travelCards} onCardClick={setSelectedTravelCard} />
-                </>
-              ) : (
-                <div className="px-5">
-                  <EmptyState type="cards" />
-                </div>
+            <div className="px-5">
+              {travelCards.length > 0 ? (() => {
+                const groups: Record<string, TravelCard[]> = {};
+                for (const card of travelCards) {
+                  const [year, month] = card.date.split('.');
+                  const key = `${year}.${month}`;
+                  if (!groups[key]) groups[key] = [];
+                  groups[key].push(card);
+                }
+                const sortedKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+                return sortedKeys.map((key) => {
+                  const [year, month] = key.split('.');
+                  return (
+                    <div key={key} className="mb-8">
+                      <p className="text-[13px] font-semibold text-[#2a2a2a] mb-3">
+                        {year}년 {Number(month)}월
+                      </p>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+                        {groups[key].map((card, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => setSelectedTravelCard(card)}
+                            className="text-left bg-white rounded-2xl overflow-hidden hover:opacity-90 transition-opacity"
+                            style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.055)' }}
+                          >
+                            <div style={{ height: '120px' }}>
+                              <img
+                                src={card.photoUrl}
+                                alt={card.title}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div className="px-2.5 pt-2 pb-2.5">
+                              <p
+                                className="text-[12px] font-semibold text-[#2a2a2a] leading-snug mb-0.5"
+                                style={{
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: 'vertical',
+                                  overflow: 'hidden',
+                                }}
+                              >
+                                {card.title}
+                              </p>
+                              <p className="text-[10px] text-[#bbb]">{card.period ?? card.date}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                });
+              })() : (
+                <EmptyState type="cards" />
               )}
             </div>
           )}

@@ -74,8 +74,6 @@ const mockStories: StoryItem[] = [
   },
 ];
 
-const masonryImageHeights = ['86%', '74%', '94%', '80%'];
-
 export function RegionMapView({
   onNavigate,
   onCreateStory,
@@ -210,16 +208,16 @@ export function RegionMapView({
             <div
               className="px-5"
               style={{
-                columnCount: 2,
-                columnGap: '12px',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: '12px',
               }}
             >
-              {visibleStories.map((story, index) => (
+              {visibleStories.map((story) => (
                 <StoryCard
                   key={story.id}
                   story={story}
                   layout="grid"
-                  imageHeight={masonryImageHeights[index % masonryImageHeights.length]}
                   onClick={setSelectedStory}
                   isLiked={storyInteractions.isStoryLiked(story.id)}
                   likeCount={storyInteractions.getStoryLikeCount(story)}

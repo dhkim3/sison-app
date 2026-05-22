@@ -5,7 +5,6 @@ interface StoryCardProps {
   story: StoryItem;
   onClick: (story: StoryItem) => void;
   layout?: 'rail' | 'grid';
-  imageHeight?: string;
   isLiked?: boolean;
   likeCount?: number;
   commentCount?: number;
@@ -17,7 +16,6 @@ export function StoryCard({
   story,
   onClick,
   layout = 'rail',
-  imageHeight,
   isLiked = false,
   likeCount = story.likes,
   commentCount = story.comments,
@@ -25,21 +23,18 @@ export function StoryCard({
   onOpenComments,
 }: StoryCardProps) {
   const isGrid = layout === 'grid';
-  const resolvedImageHeight = imageHeight || (isGrid ? '82%' : '100%');
-  const cardStyle =
-    isGrid
-      ? {
-          width: '100%',
-          backgroundColor: '#ffffff',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.055)',
-          breakInside: 'avoid' as const,
-        }
-      : {
-          width: '38vw',
-          maxWidth: '160px',
-          backgroundColor: '#ffffff',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.07)',
-        };
+  const cardStyle = isGrid
+    ? {
+        width: '100%',
+        backgroundColor: '#ffffff',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.055)',
+      }
+    : {
+        width: '38vw',
+        maxWidth: '160px',
+        backgroundColor: '#ffffff',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.07)',
+      };
 
   return (
     <div
@@ -52,15 +47,15 @@ export function StoryCard({
           onClick(story);
         }
       }}
-      className={`${isGrid ? 'mb-3' : 'flex-shrink-0'} rounded-2xl overflow-hidden text-left transition-opacity hover:opacity-90`}
+      className={`${isGrid ? '' : 'flex-shrink-0'} rounded-2xl overflow-hidden text-left transition-opacity hover:opacity-90`}
       style={cardStyle}
     >
-      <div className="relative" style={{ paddingBottom: resolvedImageHeight }}>
+      <div className="relative" style={{ height: isGrid ? '140px' : undefined, paddingBottom: isGrid ? undefined : '100%' }}>
         <img
           src={story.imageUrl}
           alt={story.title}
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{ borderRadius: '12px 12px 0 0' }}
+          className="w-full h-full object-cover"
+          style={{ borderRadius: '12px 12px 0 0', display: 'block' }}
         />
         <span
           className="absolute top-2 left-2 text-[9px] font-semibold px-2 py-0.5 rounded-full"
@@ -79,7 +74,7 @@ export function StoryCard({
           className="text-[13px] font-semibold text-[#2a2a2a] leading-snug mb-0.5"
           style={{
             display: '-webkit-box',
-            WebkitLineClamp: isGrid ? 1 : 2,
+            WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical',
             overflow: 'hidden',
           }}

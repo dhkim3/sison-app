@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" shape-rendering="geometricPrecision">
+  <defs>
+    <!-- Mint gradient: cool light top-left → warm deep bottom-right -->
+    <linearGradient id="mint" x1="0.08" y1="0" x2="0.92" y2="1">
+      <stop offset="0%"  stop-color="#d0ecde"/>
+      <stop offset="48%" stop-color="#a8d5ba"/>
+      <stop offset="100%" stop-color="#76b49e"/>
+    </linearGradient>
+    <!-- Subtle inner highlight for premium depth -->
+    <radialGradient id="glow" cx="30%" cy="20%" r="66%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.17"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Soft inner shadow at bottom-right edge -->
+    <radialGradient id="vignette" cx="72%" cy="78%" r="55%">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background: smooth mint gradient -->
+  <rect width="1024" height="1024" rx="228" fill="url(#mint)"/>
+  <!-- Top-left highlight -->
+  <rect width="1024" height="1024" rx="228" fill="url(#glow)"/>
+  <!-- Bottom-right vignette for depth -->
+  <rect width="1024" height="1024" rx="228" fill="url(#vignette)"/>
+
+  <!-- ── Circle + mountain + waves ── -->
+  <g fill="none" stroke="#ffffff" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+
+    <!--
+      Nearly-complete circle arc
+      Centre = (478, 516)  Radius = 258
+      Gap between ~25° and ~68° (clockwise from 12 o'clock)
+        25° → x = 478 + 258·sin25° = 478 + 109.0 = 587
+              y = 516 − 258·cos25° = 516 − 233.9 = 282
+        68° → x = 478 + 258·sin68° = 478 + 239.2 = 717
+              y = 516 − 258·cos68° = 516 −  96.7 = 419
+      Large clockwise arc: sweep=1 large-arc=1
+    -->
+    <path d="M 587 282 A 258 258 0 1 1 717 419"/>
+
+    <!--
+      Mountain silhouette (open ridge-line path)
+      Spans ~x228→670, sitting at circle mid-height y≈512
+      Two main peaks, smooth cubic bezier transitions
+    -->
+    <path d="
+      M 230 512
+      C 272 512 304 450 350 420
+      C 374 404 390 445 418 448
+      C 442 450 456 386 492 374
+      C 526 363 540 422 570 432
+      C 596 441 618 416 655 422
+      L 674 512
+    "/>
+
+    <!-- Wave lines (3 graceful S-curves inside circle) -->
+    <path d="M 232 558 Q 320 542 408 558 Q 496 574 584 558 Q 648 546 682 552"/>
+    <path d="M 234 598 Q 322 582 410 598 Q 498 614 586 598 Q 650 586 684 592"/>
+    <path d="M 236 636 Q 324 622 412 636 Q 500 650 588 636 Q 652 624 686 629"/>
+
+    <!-- Plant stem: curves up-right from gap-top (587, 282) -->
+    <path d="M 587 282 C 618 258 645 237 668 218 C 686 203 704 190 722 176"/>
+
+  </g>
+
+  <!--
+    Leaves: solid white filled shapes
+    Drawn after strokes so they sit on top cleanly
+    Small leaf branches off stem at ~(632, 248)
+    Large leaf branches off stem at ~(676, 218)
+  -->
+
+  <!-- Small leaf (lower, inner) -->
+  <path d="
+    M 632 250
+    C 648 226 678 220 702 232
+    C 714 240 712 256 698 264
+    C 678 272 650 270 632 250 Z
+  " fill="white"/>
+
+  <!-- Large leaf (upper, outer — more prominent) -->
+  <path d="
+    M 674 220
+    C 696 190 728 184 756 200
+    C 772 210 770 230 754 240
+    C 732 252 698 250 674 220 Z
+  " fill="white"/>
+
+</svg>

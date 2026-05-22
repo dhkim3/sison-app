@@ -97,20 +97,6 @@ export function CalendarBottomSheet({
     }
   };
 
-  const getTripSummary = () => {
-    if (!startDate || !endDate) return null;
-
-    const formatDate = (date: Date) => {
-      const month = date.getMonth() + 1;
-      const day = date.getDate();
-      const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
-      const weekday = weekdays[date.getDay()];
-      return `${month}월 ${day}일(${weekday})`;
-    };
-
-    return `${formatDate(startDate)} ~ ${formatDate(endDate)}`;
-  };
-
   const days = getDaysInMonth(currentMonth);
   const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -215,15 +201,6 @@ export function CalendarBottomSheet({
               );
             })}
           </div>
-
-          {/* Trip Summary */}
-          {getTripSummary() && (
-            <div className="bg-[#e8f5ed] rounded-2xl p-4 mb-4">
-              <p className="text-sm text-[#2a2a2a] text-center">
-                {getTripSummary()}
-              </p>
-            </div>
-          )}
 
           {/* Confirm Button */}
           <button

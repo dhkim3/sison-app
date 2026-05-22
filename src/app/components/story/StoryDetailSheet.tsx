@@ -92,21 +92,21 @@ export function StoryDetailSheet({
 
             <p className="mt-4 text-[15px] leading-7 text-[#5a5a5a]">{story.body}</p>
 
-            <div className="mt-5 flex items-center gap-3 text-[12px] text-[#999]">
+            <div className="mt-4 flex items-center gap-4 text-[12px]">
               <button
                 type="button"
                 onClick={() => onToggleLike?.(story)}
-                className={`flex items-center gap-1.5 rounded-full bg-[#f8f8f5] px-3 py-2 transition-colors ${isLiked ? 'text-[#7fb894]' : 'text-[#999]'}`}
+                className={`flex items-center gap-1.5 transition-colors ${isLiked ? 'text-[#7fb894]' : 'text-[#c0c0bc]'}`}
               >
-                <Heart className={`w-4 h-4 ${isLiked ? 'fill-[#a8d5ba]' : ''}`} strokeWidth={1.8} />
+                <Heart className={`w-4 h-4 ${isLiked ? 'fill-[#a8d5ba]' : ''}`} strokeWidth={1.6} />
                 {likeCount ?? story.likes}
               </button>
               <button
                 type="button"
                 onClick={() => onOpenComments?.(story)}
-                className="flex items-center gap-1.5 rounded-full bg-[#f8f8f5] px-3 py-2 text-[#999] transition-colors hover:text-[#6fa985]"
+                className="flex items-center gap-1.5 text-[#c0c0bc] transition-colors hover:text-[#6fa985]"
               >
-                <MessageCircle className="w-4 h-4 text-[#a8d5ba]" strokeWidth={1.8} />
+                <MessageCircle className="w-4 h-4" strokeWidth={1.6} />
                 {commentCount ?? story.comments}
               </button>
             </div>
