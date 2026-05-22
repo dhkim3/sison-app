@@ -20,13 +20,14 @@ export function SortDropdown({ options, defaultOption, onSelect }: SortDropdownP
   return (
     <div className="relative">
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="h-9 flex items-center gap-1.5 px-3.5 bg-white rounded-full border border-black/10 text-[13px] text-[#5a5a5a] hover:border-[#a8d5ba] transition-colors whitespace-nowrap"
+        className="flex h-9 items-center gap-1 px-1 text-[12px] font-medium text-[#999] transition-colors hover:text-[#6f8b78] whitespace-nowrap"
       >
         <span>{selected}</span>
         <ChevronDown
-          className={`w-3.5 h-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-          strokeWidth={2}
+          className={`h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          strokeWidth={1.8}
         />
       </button>
 
@@ -40,6 +41,7 @@ export function SortDropdown({ options, defaultOption, onSelect }: SortDropdownP
             {options.map((option) => (
               <button
                 key={option}
+                type="button"
                 onClick={() => handleSelect(option)}
                 className={`w-full px-4 py-2.5 text-[13px] text-left hover:bg-[#f8f8f5] transition-colors ${
                   option === selected ? 'text-[#a8d5ba] font-medium' : 'text-[#5a5a5a]'

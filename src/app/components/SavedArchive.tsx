@@ -97,6 +97,39 @@ export function SavedArchive({
       body: '비자림 안쪽으로 들어갈수록 말수가 줄어드는 기분이었어요. 길을 천천히 살피며 걷는 시간이 여행과 봉사 사이를 부드럽게 이어줬습니다.',
       relatedActivity: '제주 숲길 산책로 정비',
     },
+    {
+      id: 105,
+      imageUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
+      title: '안목해변 커피 향 사이로',
+      region: '강원',
+      author: '여행자',
+      likes: 9,
+      comments: 2,
+      body: '플로깅을 마치고 커피거리 쪽으로 걸어오니 바다 냄새와 커피 향이 섞였어요. 짧은 활동이 하루의 표정을 바꿔주었습니다.',
+      relatedActivity: '강릉 안목해변 아침 플로깅',
+    },
+    {
+      id: 106,
+      imageUrl: 'https://images.unsplash.com/photo-1519046904884-53103b34b206?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
+      title: '통영 항구의 느린 오후',
+      region: '경남',
+      author: '여행자',
+      likes: 10,
+      comments: 2,
+      body: '작은 항구 행사에서 방문객을 안내하고 의자를 정리했어요. 낯선 도시가 잠깐 생활처럼 가까워지는 시간이었습니다.',
+      relatedActivity: '통영 항구 마을 행사 도우미',
+    },
+    {
+      id: 107,
+      imageUrl: 'https://images.unsplash.com/photo-1528181304800-259b08848526?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
+      title: '경주 골목의 오후빛',
+      region: '경북',
+      author: '여행자',
+      likes: 8,
+      comments: 1,
+      body: '황리단길 작은 전시 안내를 돕는 동안 오래된 담벼락에 빛이 머물렀어요. 여행지의 이야기를 조금 더 가까이 들은 날이었습니다.',
+      relatedActivity: '경주 황리단길 작은 문화 안내',
+    },
   ];
 
   const travelCards: TravelCard[] = [
@@ -131,6 +164,39 @@ export function SavedArchive({
       activities: ['비자림 산책로 정비', '숲길 표지 정리'],
       locationSummary: '비자림 안쪽 산책로를 중심으로 머무는 시간이 긴 제주 숲 여행이에요.',
       moodTags: ['숲길', '고요함', '산책'],
+      style: 'polaroid' as const,
+    },
+    {
+      photoUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=600',
+      title: '안목해변의 이른 커피',
+      date: '2026.05.30',
+      period: '5월 30일',
+      memo: '아침 바다를 걷고 커피 향 사이로 돌아온 날',
+      activities: ['안목해변 아침 플로깅'],
+      locationSummary: '안목해변과 커피거리 주변을 천천히 걷는 강릉의 조용한 아침 기록이에요.',
+      moodTags: ['아침바다', '플로깅', '커피거리'],
+      style: 'polaroid' as const,
+    },
+    {
+      photoUrl: 'https://images.unsplash.com/photo-1519046904884-53103b34b206?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=600',
+      title: '통영 항구의 작은 인사',
+      date: '2026.04.26',
+      period: '4월 26일',
+      memo: '낯선 항구에서 지역의 하루를 잠깐 도왔던 오후',
+      activities: ['통영 항구 마을 행사 도우미'],
+      locationSummary: '강구안 항구와 골목 장터를 중심으로 이어지는 통영의 느린 오후 기록이에요.',
+      moodTags: ['항구', '마을행사', '느린오후'],
+      style: 'polaroid' as const,
+    },
+    {
+      photoUrl: 'https://images.unsplash.com/photo-1528181304800-259b08848526?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=600',
+      title: '경주 골목의 낮은 빛',
+      date: '2026.03.21',
+      period: '3월 21일 ~ 3월 22일',
+      memo: '오래된 골목을 안내하며 여행지가 생활처럼 다가온 시간',
+      activities: ['경주 황리단길 작은 문화 안내', '동궁과 월지 주변 안내 정리'],
+      locationSummary: '황리단길과 고분 주변을 천천히 걸으며 지역 이야기를 만난 경주 여행 카드예요.',
+      moodTags: ['골목', '문화안내', '오후빛'],
       style: 'polaroid' as const,
     },
   ];
@@ -225,7 +291,7 @@ export function SavedArchive({
             </div>
           )}
 
-          {/* Travel Cards — monthly archive */}
+          {/* Travel Cards */}
           {activeTab === 2 && (
             <div className="px-5">
               {travelCards.length > 0 ? (() => {
@@ -239,45 +305,62 @@ export function SavedArchive({
                 const sortedKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a));
                 return sortedKeys.map((key) => {
                   const [year, month] = key.split('.');
+                  const sortedCards = [...groups[key]].sort((a, b) => b.date.localeCompare(a.date));
                   return (
-                    <div key={key} className="mb-8">
+                    <section key={key} className="mb-7">
                       <p className="text-[13px] font-semibold text-[#2a2a2a] mb-3">
                         {year}년 {Number(month)}월
                       </p>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
-                        {groups[key].map((card, i) => (
+                      <div
+                        className="overflow-x-auto scrollbar-hide pb-4"
+                        style={{ display: 'flex', gap: '14px', scrollSnapType: 'x mandatory' }}
+                      >
+                        {sortedCards.map((card, i) => (
                           <button
                             key={i}
                             type="button"
                             onClick={() => setSelectedTravelCard(card)}
-                            className="text-left bg-white rounded-2xl overflow-hidden hover:opacity-90 transition-opacity"
-                            style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.055)' }}
+                            className="text-left bg-white rounded-3xl p-3 hover:opacity-90 transition-opacity"
+                            style={{
+                              flex: '0 0 min(62vw, 246px)',
+                              scrollSnapAlign: 'start',
+                              boxShadow: '0 8px 22px rgba(80,64,45,0.09)',
+                            }}
                           >
-                            <div style={{ height: '120px' }}>
+                            <div
+                              className="overflow-hidden bg-[#f4f1ed]"
+                              style={{ aspectRatio: '1 / 1', borderRadius: '16px' }}
+                            >
                               <img
                                 src={card.photoUrl}
                                 alt={card.title}
                                 className="w-full h-full object-cover"
                               />
                             </div>
-                            <div className="px-2.5 pt-2 pb-2.5">
+                            <div className="px-0.5 pt-3">
                               <p
-                                className="text-[12px] font-semibold text-[#2a2a2a] leading-snug mb-0.5"
+                                className="text-[15px] font-semibold text-[#2a2a2a]"
                                 style={{
                                   display: '-webkit-box',
                                   WebkitLineClamp: 2,
                                   WebkitBoxOrient: 'vertical',
                                   overflow: 'hidden',
+                                  lineHeight: '1.35',
                                 }}
                               >
                                 {card.title}
                               </p>
-                              <p className="text-[10px] text-[#bbb]">{card.period ?? card.date}</p>
+                              <p className="mt-1.5 text-[12px] leading-none text-[#9a9a9a]">
+                                {card.date}
+                              </p>
+                              <div className="mt-3 border-t border-black/5 pt-2.5">
+                                <p className="text-[11px] leading-none text-[#aaa]">시선</p>
+                              </div>
                             </div>
                           </button>
                         ))}
                       </div>
-                    </div>
+                    </section>
                   );
                 });
               })() : (

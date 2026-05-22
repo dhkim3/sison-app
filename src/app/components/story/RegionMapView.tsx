@@ -16,8 +16,6 @@ interface RegionMapViewProps {
   storyInteractions: StoryInteractionProps;
 }
 
-const POPULAR_REGIONS = new Set(['서울', '부산', '제주', '강원']);
-
 const regions = [
   { name: '인천',  count:  8, top: '14%', left: '12%' },
   { name: '서울',  count: 24, top: '14%', left: '30%' },
@@ -72,6 +70,61 @@ const mockStories: StoryItem[] = [
     body: '해가 막 올라온 안목해변은 생각보다 고요했어요. 짧은 플로깅을 마치고 나니 하루의 시작을 조금 더 단정하게 맞이한 기분이 들었습니다.',
     relatedActivity: '강릉 안목해변 플로깅',
   },
+  {
+    id: 4,
+    title: '성산 바람 아래에서',
+    region: '제주',
+    author: '하린',
+    likes: 15,
+    comments: 4,
+    imageUrl: 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=400',
+    body: '성산 바닷길은 바람이 먼저 말을 걸어오는 곳 같았어요. 해안 정리를 마치고 돌아보니 작은 봉투 하나만큼 마음도 가벼워졌습니다.',
+    relatedActivity: '성산 해안 쓰담 걷기',
+  },
+  {
+    id: 5,
+    title: '통영 항구의 느린 오후',
+    region: '경남',
+    author: '민서',
+    likes: 10,
+    comments: 2,
+    imageUrl: 'https://images.unsplash.com/photo-1519046904884-53103b34b206?w=400',
+    body: '작은 항구 행사에서 길을 안내하고 의자를 정리했어요. 바다 냄새와 사람들의 느린 발걸음이 오래 남는 오후였습니다.',
+    relatedActivity: '통영 항구 마을 행사 도우미',
+  },
+  {
+    id: 6,
+    title: '경주의 골목을 지나는 빛',
+    region: '경북',
+    author: '윤재',
+    likes: 8,
+    comments: 1,
+    imageUrl: 'https://images.unsplash.com/photo-1528181304800-259b08848526?w=400',
+    body: '황리단길 작은 전시를 돕는 동안 오래된 담벼락에 오후 빛이 내려앉았어요. 여행지가 풍경이 아니라 생활처럼 느껴진 시간이었습니다.',
+    relatedActivity: '경주 황리단길 작은 문화 안내',
+  },
+  {
+    id: 7,
+    title: '여수 노을 전 산책',
+    region: '전남',
+    author: '다온',
+    likes: 14,
+    comments: 3,
+    imageUrl: 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=400',
+    body: '돌산 해안길을 따라 쓰레기를 줍고 나니 노을이 천천히 내려왔어요. 여행의 끝에 무언가를 조금 남기고 온 기분이 들었습니다.',
+    relatedActivity: '여수 돌산 해안 쓰담 걷기',
+  },
+  {
+    id: 8,
+    title: '전주 골목 장터의 온기',
+    region: '전북',
+    author: '서윤',
+    likes: 11,
+    comments: 2,
+    imageUrl: 'https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?w=400',
+    body: '한옥마을 골목 장터에서 체험 부스를 정리했어요. 짧은 인사와 웃음이 모여 여행보다 조금 더 오래 남는 기억이 됐습니다.',
+    relatedActivity: '전주 한옥마을 골목 행사 도우미',
+  },
 ];
 
 export function RegionMapView({
@@ -120,28 +173,76 @@ export function RegionMapView({
         <section className="px-5 pt-3 pb-4">
           <div
             className="relative w-full rounded-2xl overflow-hidden"
-            style={{ height: '47vw', maxHeight: '260px', backgroundColor: '#f0ece4' }}
+            style={{
+              height: '47vw',
+              maxHeight: '260px',
+              background: 'linear-gradient(145deg, #f4f0e8 0%, #eef3ee 100%)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.72), inset 0 -18px 42px rgba(164,153,135,0.08)',
+            }}
           >
             {/* Map background SVG */}
             <svg
-              viewBox="0 0 200 280"
+              viewBox="0 0 360 220"
               className="absolute inset-0 w-full h-full"
               xmlns="http://www.w3.org/2000/svg"
+              preserveAspectRatio="none"
             >
               <path
-                d="M 70 15 L 80 12 L 95 13 L 110 16 L 125 22 L 135 30 L 140 42 L 142 55 L 140 68 L 135 80 L 128 92 L 120 104 L 110 115 L 100 124 L 92 130 L 85 128 L 78 120 L 72 110 L 67 98 L 64 86 L 63 74 L 64 62 L 66 50 L 67 38 L 68 26 Z"
-                fill="#ede8e0"
-                stroke="#d4cfc8"
-                strokeWidth="0.5"
+                d="M 153 25 C 177 14 213 13 235 28 C 256 42 267 65 264 88 C 260 118 236 140 226 165 C 216 190 187 197 160 184 C 134 172 116 150 102 125 C 88 99 83 70 97 49 C 111 29 130 35 153 25 Z"
+                fill="rgba(255,255,255,0.34)"
+                stroke="none"
+              />
+              <path
+                d="M 151 23
+                   C 169 17 196 17 216 23
+                   C 239 30 251 44 257 64
+                   C 264 85 256 103 247 119
+                   C 237 136 229 150 224 166
+                   C 219 184 202 192 184 189
+                   C 162 185 143 174 128 157
+                   C 111 138 98 113 92 87
+                   C 87 65 91 47 105 38
+                   C 119 29 134 29 151 23 Z"
+                fill="#e6ebe4"
+                stroke="#d9d4ca"
+                strokeWidth="1"
+              />
+              <path
+                d="M 111 56 C 135 61 158 66 184 64
+                   M 95 88 C 125 94 158 98 203 91
+                   M 108 123 C 141 118 176 122 215 134
+                   M 132 158 C 158 146 188 147 219 160
+                   M 153 24 C 147 56 145 91 150 128
+                   M 185 25 C 180 61 178 101 183 143
+                   M 220 36 C 211 74 208 113 214 164"
+                fill="none"
+                stroke="rgba(190,184,174,0.42)"
+                strokeWidth="0.8"
+                strokeLinecap="round"
+              />
+              <path
+                d="M 103 38 C 86 52 79 72 83 96 C 87 123 104 151 129 175"
+                fill="none"
+                stroke="rgba(255,255,255,0.46)"
+                strokeWidth="10"
+                strokeLinecap="round"
+              />
+              <path
+                d="M 253 60 C 271 83 269 114 251 139"
+                fill="none"
+                stroke="rgba(255,255,255,0.38)"
+                strokeWidth="8"
+                strokeLinecap="round"
               />
               <ellipse
-                cx="72"
-                cy="200"
-                rx="18"
-                ry="10"
-                fill="#ede8e0"
-                stroke="#d4cfc8"
-                strokeWidth="0.5"
+                cx="80"
+                cy="190"
+                rx="24"
+                ry="11"
+                transform="rotate(-4 80 190)"
+                fill="#e6ebe4"
+                stroke="#d9d4ca"
+                strokeWidth="1"
               />
             </svg>
 
@@ -149,18 +250,8 @@ export function RegionMapView({
             {regions.map((region) => {
               const isSelected = selectedRegion === region.name;
               const isOtherSelected = selectedRegion !== null && !isSelected;
-              const isPopular = POPULAR_REGIONS.has(region.name);
-
-              let bgColor = '#ffffff';
-              let textColor = '#2a2a2a';
-
-              if (isSelected) {
-                bgColor = '#2a2a2a';
-                textColor = '#ffffff';
-              } else if (isPopular) {
-                bgColor = '#f2c4c4';
-                textColor = '#8b4444';
-              }
+              const bgColor = isSelected ? '#6f9f83' : 'rgba(255,255,255,0.88)';
+              const textColor = isSelected ? '#ffffff' : '#6f6b63';
 
               return (
                 <button
@@ -179,7 +270,10 @@ export function RegionMapView({
                     style={{
                       backgroundColor: bgColor,
                       color: textColor,
-                      boxShadow: '0 1px 4px rgba(0,0,0,0.10)',
+                      border: isSelected ? '1px solid rgba(111,159,131,0.34)' : '1px solid rgba(120,112,99,0.08)',
+                      boxShadow: isSelected
+                        ? '0 2px 8px rgba(111,159,131,0.20)'
+                        : '0 1px 5px rgba(84,75,62,0.08)',
                     }}
                   >
                     {region.name} {region.count}

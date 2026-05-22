@@ -34,7 +34,7 @@ export function MyActivitiesView({
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<string>('전체');
 
-  const tabOptions = ['전체', '완료한 활동', '보관한 활동'];
+  const tabOptions = ['전체', '완료한 활동', '저장한 활동'];
 
   const filteredActivities = activities.filter((activity) => {
     const matchesSearch =
@@ -46,7 +46,7 @@ export function MyActivitiesView({
     let matchesTab = true;
     if (activeTab === '완료한 활동') {
       matchesTab = activity.status === '참여 완료';
-    } else if (activeTab === '보관한 활동') {
+    } else if (activeTab === '저장한 활동') {
       matchesTab = activity.status === '종료됨';
     }
 
