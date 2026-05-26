@@ -104,7 +104,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
       likes: 9,
       comments: 2,
       body: '해변을 걷고 돌아오는 길에 커피 향이 먼저 다가왔어요. 작은 봉투 하나를 채운 아침이 이상하게 오래 기억났습니다.',
-      relatedActivity: '강릉 안목해변 아침 플로깅',
+      relatedActivity: '안목해변 아침 플로깅',
       date: '2026.05.30',
     },
     {

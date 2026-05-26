@@ -1,4 +1,5 @@
 export interface ActivitySaveRecord {
+  id?: string;
   imageUrl: string;
   title: string;
   location: string;
@@ -18,10 +19,28 @@ export interface ActivitySaveRecord {
   difficulty?: string;
   indoorOutdoor?: string;
   category?: string;
+  volunteerPeriod?: string;
+  recruitmentPeriod?: string;
+  volunteerTime?: string;
+  volunteerField?: string;
+  volunteerTarget?: string;
+  recruitingOrganization?: string;
+  registrationOrganization?: string;
+  volunteerPlace?: string;
 }
 
-export const getActivitySaveKey = (activity: Pick<ActivitySaveRecord, 'title'> & { date?: string }) =>
-  `${activity.title}::${activity.date || ''}`;
+export type ActivitySaveLookup = Pick<ActivitySaveRecord, 'title'> & {
+  id?: string;
+  date?: string;
+  location?: string;
+  time?: string;
+};
+
+export const getActivitySaveKey = (activity: ActivitySaveLookup) => {
+  if (activity.id) return activity.id;
+
+  return activity.title.trim().toLowerCase();
+};
 
 export const initialSavedActivities: ActivitySaveRecord[] = [
   {
@@ -89,7 +108,7 @@ export const initialSavedActivities: ActivitySaveRecord[] = [
   },
   {
     imageUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
-    title: '강릉 안목해변 아침 플로깅',
+    title: '안목해변 아침 플로깅',
     location: '강원 강릉시 안목해변',
     recruitmentStartDate: '2026.05.22',
     recruitmentEndDate: '2026.05.28',

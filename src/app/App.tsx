@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Home } from './components/Home';
 import { SearchTab } from './components/SearchTab';
 import { AIRecommendation } from './components/AIRecommendation';
 import { StoryCreation } from './components/StoryCreation';
 import { SavedArchive } from './components/SavedArchive';
 import { ProfileScreen } from './components/ProfileScreen';
+import { EnhancedDetailBottomSheet } from './components/EnhancedDetailBottomSheet';
 import {
   getActivitySaveKey,
   initialSavedActivities,
+  type ActivitySaveLookup,
   type ActivitySaveRecord,
 } from './activitySaveState';
 import {
@@ -17,8 +19,10 @@ import {
 } from './storyInteractionState';
 import { initialSearchState, type SearchState } from './searchState';
 
+type Screen = 'home' | 'search' | 'ai-recommendation' | 'story' | 'saved' | 'profile';
+
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState<'home' | 'search' | 'ai-recommendation' | 'story' | 'saved' | 'profile'>('home');
+  const [currentScreen, setCurrentScreen] = useState<Screen>('home');
   const [savedActivityIds, setSavedActivityIds] = useState<string[]>(() =>
     initialSavedActivities.map(getActivitySaveKey)
   );
@@ -28,9 +32,56 @@ export default function App() {
   const [likedStoryIds, setLikedStoryIds] = useState<number[]>([]);
   const [storyComments, setStoryComments] = useState<Record<number, StoryComment[]>>(initialStoryComments);
   const [searchState, setSearchState] = useState<SearchState>(initialSearchState);
+  const [aiRecommendationActivity, setAiRecommendationActivity] = useState<ActivitySaveRecord | null>(null);
+  const [aiReturnScreen, setAiReturnScreen] = useState<Screen>('search');
+  const [restoredDetailActivity, setRestoredDetailActivity] = useState<ActivitySaveRecord | null>(null);
+  const [saveFeedback, setSaveFeedback] = useState<{ message: string; isVisible: boolean } | null>(null);
+  const saveFeedbackTimers = useRef<number[]>([]);
 
-  const handleNavigate = (screen: string) => {
-    setCurrentScreen(screen as any);
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    document.scrollingElement?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [currentScreen]);
+
+  useEffect(() => () => {
+    saveFeedbackTimers.current.forEach((timer) => window.clearTimeout(timer));
+  }, []);
+
+  const showSaveFeedback = (message: string) => {
+    saveFeedbackTimers.current.forEach((timer) => window.clearTimeout(timer));
+    saveFeedbackTimers.current = [];
+    setSaveFeedback({ message, isVisible: true });
+
+    const hideTimer = window.setTimeout(() => {
+      setSaveFeedback((currentFeedback) =>
+        currentFeedback ? { ...currentFeedback, isVisible: false } : currentFeedback
+      );
+    }, 1600);
+    const clearTimer = window.setTimeout(() => {
+      setSaveFeedback(null);
+    }, 1850);
+
+    saveFeedbackTimers.current = [hideTimer, clearTimer];
+  };
+
+  const handleNavigate = (
+    screen: string,
+    options?: { activity?: ActivitySaveRecord; returnScreen?: Screen }
+  ) => {
+    if (screen === 'ai-recommendation') {
+      setAiRecommendationActivity(options?.activity ?? null);
+      setAiReturnScreen(options?.returnScreen ?? currentScreen);
+      setRestoredDetailActivity(null);
+    }
+
+    setCurrentScreen(screen as Screen);
+  };
+
+  const handleAIRecommendationBack = () => {
+    setCurrentScreen(aiReturnScreen);
+    if (aiRecommendationActivity) {
+      setRestoredDetailActivity(aiRecommendationActivity);
+    }
   };
 
   const handleHomeSearchSubmit = (values: Omit<SearchState, 'hasSearched'>) => {
@@ -41,28 +92,65 @@ export default function App() {
     setCurrentScreen('search');
   };
 
-  const isActivitySaved = (activity: Pick<ActivitySaveRecord, 'title'> & { date?: string }) =>
-    savedActivityIds.includes(getActivitySaveKey(activity));
+  const isActivitySaved = (activity: ActivitySaveLookup) =>
+    savedActivityIds.some((savedId) => {
+      if (savedId === getActivitySaveKey(activity)) return true;
+
+      const savedActivity = savedActivityRecords[savedId];
+      return savedActivity ? getActivitySaveKey(savedActivity) === getActivitySaveKey(activity) : false;
+    });
 
   const handleToggleSavedActivity = (activity: ActivitySaveRecord) => {
     const activityKey = getActivitySaveKey(activity);
+    const matchingSavedIds = savedActivityIds.filter((savedId) => {
+      if (savedId === activityKey) return true;
+
+      const savedActivity = savedActivityRecords[savedId];
+      return savedActivity ? getActivitySaveKey(savedActivity) === activityKey : false;
+    });
+    const wasSaved = matchingSavedIds.length > 0;
 
     setSavedActivityIds((currentIds) => {
-      if (currentIds.includes(activityKey)) {
-        return currentIds.filter((id) => id !== activityKey);
+      const currentMatchingIds = currentIds.filter((savedId) => {
+        if (savedId === activityKey) return true;
+
+        const savedActivity = savedActivityRecords[savedId];
+        return savedActivity ? getActivitySaveKey(savedActivity) === activityKey : false;
+      });
+
+      if (currentMatchingIds.length > 0) {
+        return currentIds.filter((id) => !currentMatchingIds.includes(id));
       }
 
       return [...currentIds, activityKey];
     });
-    setSavedActivityRecords((currentRecords) => ({
-      ...currentRecords,
-      [activityKey]: activity,
-    }));
+    setSavedActivityRecords((currentRecords) => {
+      if (matchingSavedIds.length > 0) {
+        const nextRecords = { ...currentRecords };
+        matchingSavedIds.forEach((id) => {
+          delete nextRecords[id];
+        });
+        return nextRecords;
+      }
+
+      return {
+        ...currentRecords,
+        [activityKey]: activity,
+      };
+    });
+    showSaveFeedback(wasSaved ? '저장을 취소했어요.' : '보관함에 담았어요.');
   };
 
-  const savedActivities = savedActivityIds
-    .map((id) => savedActivityRecords[id])
-    .filter((activity): activity is ActivitySaveRecord => Boolean(activity));
+  const savedActivities = savedActivityIds.reduce<ActivitySaveRecord[]>((activities, id) => {
+    const activity = savedActivityRecords[id];
+    if (!activity) return activities;
+
+    const activityKey = getActivitySaveKey(activity);
+    const alreadyIncluded = activities.some((savedActivity) => getActivitySaveKey(savedActivity) === activityKey);
+    if (alreadyIncluded) return activities;
+
+    return [...activities, activity];
+  }, []);
 
   const storyInteractions: StoryInteractionProps = {
     isStoryLiked: (storyId) => likedStoryIds.includes(storyId),
@@ -115,7 +203,12 @@ export default function App() {
           onToggleSavedActivity={handleToggleSavedActivity}
         />
       )}
-      {currentScreen === 'ai-recommendation' && <AIRecommendation onNavigate={handleNavigate} />}
+      {currentScreen === 'ai-recommendation' && (
+        <AIRecommendation
+          activity={aiRecommendationActivity}
+          onBack={handleAIRecommendationBack}
+        />
+      )}
       {currentScreen === 'story' && <StoryCreation onNavigate={handleNavigate} storyInteractions={storyInteractions} />}
       {currentScreen === 'saved' && (
         <SavedArchive
@@ -127,6 +220,37 @@ export default function App() {
         />
       )}
       {currentScreen === 'profile' && <ProfileScreen onNavigate={handleNavigate} />}
+
+      {restoredDetailActivity && currentScreen !== 'ai-recommendation' && (
+        <EnhancedDetailBottomSheet
+          isOpen
+          onClose={() => setRestoredDetailActivity(null)}
+          onAIRecommendation={(activity) => {
+            setRestoredDetailActivity(null);
+            handleNavigate('ai-recommendation', {
+              activity,
+              returnScreen: currentScreen,
+            });
+          }}
+          isSaved={isActivitySaved(restoredDetailActivity)}
+          onToggleSaved={() => handleToggleSavedActivity(restoredDetailActivity)}
+          activity={restoredDetailActivity}
+        />
+      )}
+
+      {saveFeedback && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-[92px] z-[80] flex justify-center px-5">
+          <div
+            className={`rounded-full border border-white/45 bg-[#2f3430]/88 px-4 py-2 text-[12.5px] font-medium text-white shadow-[0_8px_24px_rgba(34,39,34,0.16)] backdrop-blur-md transition-all duration-200 ease-out ${
+              saveFeedback.isVisible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
+            }`}
+            role="status"
+            aria-live="polite"
+          >
+            {saveFeedback.message}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

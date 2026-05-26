@@ -11,14 +11,14 @@ import { CompactActivityCard } from './CompactActivityCard';
 import { EnhancedDetailBottomSheet } from './EnhancedDetailBottomSheet';
 import { BottomTabBar } from './BottomTabBar';
 import { PageShell } from './PageShell';
-import type { ActivitySaveRecord } from '../activitySaveState';
+import type { ActivitySaveLookup, ActivitySaveRecord } from '../activitySaveState';
 import type { SearchState } from '../searchState';
 
 interface SearchTabProps {
-  onNavigate: (screen: string) => void;
+  onNavigate: (screen: string, options?: { activity?: ActivitySaveRecord; returnScreen?: 'home' | 'search' | 'saved' }) => void;
   searchState: SearchState;
   onSearchStateChange: (state: SearchState) => void;
-  isActivitySaved: (activity: Pick<ActivitySaveRecord, 'title'> & { date?: string }) => boolean;
+  isActivitySaved: (activity: ActivitySaveLookup) => boolean;
   onToggleSavedActivity: (activity: ActivitySaveRecord) => void;
 }
 
@@ -187,7 +187,7 @@ export function SearchTab({
     },
     {
       imageUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=1080',
-      title: '강릉 안목해변 아침 플로깅',
+      title: '안목해변 아침 플로깅',
       location: '강원 강릉시 안목해변',
       distance: '도보 8분',
       recruitmentStartDate: '2026.05.22',
@@ -472,7 +472,7 @@ export function SearchTab({
         <EnhancedDetailBottomSheet
           isOpen={isDetailOpen}
           onClose={() => setIsDetailOpen(false)}
-          onAIRecommendation={() => onNavigate('ai-recommendation')}
+          onAIRecommendation={(activity) => onNavigate('ai-recommendation', { activity, returnScreen: 'search' })}
           isSaved={isActivitySaved(selectedActivity)}
           onToggleSaved={() => onToggleSavedActivity(selectedActivity)}
           activity={selectedActivity}

@@ -36,7 +36,7 @@ export function SearchCard({ onSearch }: SearchCardProps) {
           onClick={onSearch}
           className="w-full bg-[#2a2a2a] text-white py-4 rounded-2xl transition-all hover:bg-[#1a1a1a]"
         >
-          봉사활동 찾아보기
+          활동 찾기
         </button>
       </div>
     </div>

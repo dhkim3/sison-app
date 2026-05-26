@@ -26,7 +26,7 @@ export function NotificationSheet({ isOpen, onClose }: NotificationSheetProps) {
           <div>
             <h3 className="text-[20px] font-semibold leading-tight text-[#2a2a2a]">알림</h3>
             <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#8c8c8c]">
-              여행의 흐름에 맞춘 소식만 조용히 모았어요
+              필요한 소식만 모았어요
             </p>
           </div>
           <button
@@ -52,7 +52,7 @@ export function NotificationSheet({ isOpen, onClose }: NotificationSheetProps) {
 
             <NotificationSection title="이번 주">
               <NotificationItem
-                title="내 제주 여행 일정에 새로운 활동이 추가됐어요"
+                title="제주 여행 일정에 새 활동을 넣었어요"
                 description="숙소 근처에서 참여 가능한 짧은 활동을 확인해보세요."
                 time="화요일"
                 unread

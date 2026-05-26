@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bell } from 'lucide-react';
+import { Bell, Leaf } from 'lucide-react';
 import { EnhancedSearchCard } from './EnhancedSearchCard';
 import { CalendarBottomSheet } from './CalendarBottomSheet';
 import { PeopleCountModal } from './PeopleCountModal';
@@ -8,13 +8,14 @@ import { EnhancedDetailBottomSheet } from './EnhancedDetailBottomSheet';
 import { BottomTabBar } from './BottomTabBar';
 import { PageShell } from './PageShell';
 import { NotificationSheet } from './NotificationSheet';
-import type { ActivitySaveRecord } from '../activitySaveState';
+import { HomeAIRecommendationFlow } from './HomeAIRecommendationFlow';
+import type { ActivitySaveLookup, ActivitySaveRecord } from '../activitySaveState';
 import type { SearchState } from '../searchState';
 
 interface HomeProps {
-  onNavigate: (screen: string) => void;
+  onNavigate: (screen: string, options?: { activity?: ActivitySaveRecord; returnScreen?: 'home' | 'search' | 'saved' }) => void;
   onSearchSubmit: (values: Omit<SearchState, 'hasSearched'>) => void;
-  isActivitySaved: (activity: Pick<ActivitySaveRecord, 'title'> & { date?: string }) => boolean;
+  isActivitySaved: (activity: ActivitySaveLookup) => boolean;
   onToggleSavedActivity: (activity: ActivitySaveRecord) => void;
 }
 
@@ -43,6 +44,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isAIRecommendationFlowOpen, setIsAIRecommendationFlowOpen] = useState(false);
   const [activeHeroIndex, setActiveHeroIndex] = useState(0);
 
   useEffect(() => {
@@ -72,11 +74,11 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
 
   const handleSearch = () => {
     onSearchSubmit({
-      destination,
+      destination: destination.trim(),
       startDate,
       endDate,
       dateRangeLabel: formatDateRangeFull(),
-      peopleCount,
+      peopleCount: 0,
     });
   };
 
@@ -89,14 +91,14 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
     setPeopleCount(count);
   };
 
-  const recommendations = [
+  const lightweightActivities = [
     {
       imageUrl: 'https://images.unsplash.com/photo-1565803974275-dccd2f933cbb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
       title: '광안리 해변 환경정화',
       location: '부산 수영구 광안리해수욕장',
-      recruitmentStartDate: '2026.05.20',
-      recruitmentEndDate: '2026.05.23',
-      date: '2026.05.24',
+      recruitmentStartDate: '2026.06.01',
+      recruitmentEndDate: '2026.06.08',
+      date: '2026.06.10',
       time: '09:00 - 11:00',
       distance: '도보 10분',
       isRecruiting: true,
@@ -113,9 +115,9 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
       imageUrl: 'https://images.unsplash.com/photo-1775116259654-404b3376c02e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
       title: '수영 공원 산책로 정비',
       location: '부산 수영구 수영 근린공원',
-      recruitmentStartDate: '2026.05.20',
-      recruitmentEndDate: '2026.05.23',
-      date: '2026.05.24',
+      recruitmentStartDate: '2026.06.03',
+      recruitmentEndDate: '2026.06.10',
+      date: '2026.06.12',
       time: '14:00 - 16:00',
       distance: '차량 15분',
       isRecruiting: true,
@@ -132,9 +134,9 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
       imageUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
       title: '안목해변 아침 플로깅',
       location: '강원 강릉시 안목해변',
-      recruitmentStartDate: '2026.05.22',
-      recruitmentEndDate: '2026.05.28',
-      date: '2026.05.30',
+      recruitmentStartDate: '2026.06.05',
+      recruitmentEndDate: '2026.06.12',
+      date: '2026.06.14',
       time: '08:00 - 10:00',
       distance: '도보 8분',
       isRecruiting: true,
@@ -151,9 +153,9 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
       imageUrl: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
       title: '비자림 숲길 표지 정리',
       location: '제주 제주시 구좌읍 비자림',
-      recruitmentStartDate: '2026.06.02',
-      recruitmentEndDate: '2026.06.08',
-      date: '2026.06.11',
+      recruitmentStartDate: '2026.06.08',
+      recruitmentEndDate: '2026.06.16',
+      date: '2026.06.18',
       time: '09:30 - 12:00',
       distance: '차량 35분',
       isRecruiting: true,
@@ -166,6 +168,149 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
       difficulty: '보통',
       indoorOutdoor: '실외',
     },
+  ];
+
+  const recentActivities = [
+    {
+      imageUrl: 'https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
+      title: '통영 강구안 골목 안내',
+      location: '경남 통영시 강구안',
+      recruitmentStartDate: '2026.06.18',
+      recruitmentEndDate: '2026.06.24',
+      date: '2026.06.27',
+      time: '10:00 - 13:00',
+      distance: '도보 7분',
+      isRecruiting: true,
+      description: '항구 주변 골목을 찾는 여행자에게 길을 안내하고 작은 행사 동선을 돕는 활동입니다.',
+      materials: '안내 리플릿 제공',
+      capacity: '12명',
+      currentParticipants: '5명',
+      recommendation: '통영 산책 일정과 자연스럽게 이어가기 좋아요.',
+      duration: '3시간',
+      difficulty: '쉬움',
+      indoorOutdoor: '실외',
+    },
+    {
+      imageUrl: 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
+      title: '여수 돌산 해안 쓰담 걷기',
+      location: '전남 여수시 돌산읍',
+      recruitmentStartDate: '2026.07.01',
+      recruitmentEndDate: '2026.07.07',
+      date: '2026.07.09',
+      time: '16:00 - 18:00',
+      distance: '차량 20분',
+      isRecruiting: true,
+      description: '돌산 해안 산책길을 따라 걸으며 해변과 방파제 주변을 정리합니다.',
+      materials: '장갑, 집게, 물 제공',
+      capacity: '16명',
+      currentParticipants: '11명',
+      recommendation: '활동 후 해질녘 전망대 코스로 이어가기 좋습니다.',
+      duration: '2시간',
+      difficulty: '쉬움',
+      indoorOutdoor: '실외',
+    },
+    {
+      imageUrl: 'https://images.unsplash.com/photo-1528181304800-259b08848526?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
+      title: '애월 마을 플리마켓 정리',
+      location: '제주 제주시 애월읍',
+      recruitmentStartDate: '2026.07.03',
+      recruitmentEndDate: '2026.07.10',
+      date: '2026.07.12',
+      time: '13:00 - 16:00',
+      distance: '도보 12분',
+      isRecruiting: true,
+      description: '작은 마을 플리마켓에서 부스 정리와 방문객 안내를 돕는 활동입니다.',
+      materials: '활동 명찰 제공',
+      capacity: '10명',
+      currentParticipants: '4명',
+      recommendation: '애월 카페 거리와 함께 둘러보기 좋은 일정이에요.',
+      duration: '3시간',
+      difficulty: '쉬움',
+      indoorOutdoor: '실외',
+    },
+  ];
+
+  const hiddenPlaceActivities = [
+    {
+      imageUrl: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
+      title: '성산 작은 숲길 표지 닦기',
+      location: '제주 서귀포시 성산읍',
+      recruitmentStartDate: '2026.06.20',
+      recruitmentEndDate: '2026.06.26',
+      date: '2026.06.29',
+      time: '09:30 - 11:30',
+      distance: '차량 18분',
+      isRecruiting: true,
+      description: '조용한 숲길 입구의 안내 표지를 닦고 산책로 주변을 정리합니다.',
+      materials: '장갑, 손수건',
+      capacity: '8명',
+      currentParticipants: '3명',
+      recommendation: '사람이 많지 않은 길을 천천히 걷는 여행자에게 잘 맞아요.',
+      duration: '2시간',
+      difficulty: '쉬움',
+      indoorOutdoor: '실외',
+    },
+    {
+      imageUrl: 'https://images.unsplash.com/photo-1468581264429-2548ef9eb732?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
+      title: '해운대 뒷골목 화분 돌보기',
+      location: '부산 해운대구 우동',
+      recruitmentStartDate: '2026.06.22',
+      recruitmentEndDate: '2026.06.28',
+      date: '2026.06.30',
+      time: '15:00 - 17:00',
+      distance: '도보 15분',
+      isRecruiting: true,
+      description: '바닷가에서 조금 떨어진 골목의 작은 화분과 벤치 주변을 정리합니다.',
+      materials: '장갑, 물조리개 제공',
+      capacity: '9명',
+      currentParticipants: '2명',
+      recommendation: '붐비는 해변 너머의 동네 분위기를 발견하기 좋아요.',
+      duration: '2시간',
+      difficulty: '쉬움',
+      indoorOutdoor: '실외',
+    },
+    {
+      imageUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
+      title: '안목 작은 방파제 정리',
+      location: '강원 강릉시 견소동',
+      recruitmentStartDate: '2026.06.25',
+      recruitmentEndDate: '2026.07.01',
+      date: '2026.07.03',
+      time: '08:30 - 10:30',
+      distance: '도보 9분',
+      isRecruiting: true,
+      description: '커피거리 끝자락의 작은 방파제 주변을 천천히 걸으며 정리합니다.',
+      materials: '집게, 생분해 봉투 제공',
+      capacity: '7명',
+      currentParticipants: '2명',
+      recommendation: '아침 바다를 조용히 바라보는 일정과 잘 어울려요.',
+      duration: '2시간',
+      difficulty: '쉬움',
+      indoorOutdoor: '실외',
+    },
+  ];
+
+  const activitySections = [
+    {
+      title: '가벼운 활동',
+      description: '여행 중 산책하듯 참여하기 좋아요',
+      activities: lightweightActivities.slice(0, 3),
+    },
+    {
+      title: '최근 올라온 활동',
+      description: '새롭게 열린 일정을 모았어요',
+      activities: recentActivities.slice(0, 3),
+    },
+    {
+      title: '숨겨진 장소 발견',
+      description: '조금 덜 알려진 길에서 만나는 활동',
+      activities: hiddenPlaceActivities.slice(0, 3),
+    },
+  ];
+  const allHomeActivities = [
+    ...lightweightActivities,
+    ...recentActivities,
+    ...hiddenPlaceActivities,
   ];
 
   return (
@@ -210,18 +355,8 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
               여행의 작은 틈에서,<br />새로운 시선을 만나보세요.
             </h2>
             <p className="text-white/90 text-sm drop-shadow-sm">
-              여행 일정에 맞는 지역 봉사활동을 찾아보세요.
+              여행지 가까이의 작은 활동을 찾아보세요.
             </p>
-          </div>
-          <div className="absolute bottom-3 right-5 flex items-center gap-1.5" aria-hidden="true">
-            {heroImages.map((image, index) => (
-              <span
-                key={`${image.src}-indicator`}
-                className={`h-1 rounded-full bg-white transition-all duration-700 ${
-                  index === activeHeroIndex ? 'w-5 opacity-55' : 'w-1 opacity-25'
-                }`}
-              />
-            ))}
           </div>
         </section>
 
@@ -237,6 +372,40 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
             onSearch={handleSearch}
             onDestinationChange={setDestination}
           />
+        </section>
+
+        {/* AI Recommendation Entry */}
+        <section className="px-5 mt-4">
+          <button
+            type="button"
+            onClick={() => setIsAIRecommendationFlowOpen(true)}
+            className="relative block w-full overflow-hidden rounded-3xl border border-[#2e4260] bg-[#090f24] px-3.5 py-4 text-left shadow-[0_10px_24px_rgba(22,42,78,0.18)] transition-transform active:scale-[0.985]"
+          >
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_38%,rgba(74,114,255,0.16),transparent_28%),radial-gradient(circle_at_70%_70%,rgba(135,78,238,0.15),transparent_30%),linear-gradient(135deg,rgba(18,31,66,0.86),rgba(8,12,31,0.97))]" aria-hidden="true" />
+            <div className="absolute right-0 top-0 h-full w-[122px] overflow-hidden" aria-hidden="true">
+              <div className="absolute right-[9px] top-[12px] h-[86px] w-[86px] rounded-full bg-[radial-gradient(circle_at_42%_32%,rgba(92,173,255,0.32)_0%,rgba(75,67,201,0.20)_34%,rgba(21,18,63,0.05)_63%,transparent_74%)] blur-[3px]" />
+              <div className="absolute right-[25px] top-[22px] h-[62px] w-[62px] rounded-full border border-[#9165ff]/70 bg-[radial-gradient(circle_at_36%_30%,rgba(79,159,255,0.72)_0%,rgba(57,76,191,0.44)_30%,rgba(74,35,137,0.58)_62%,rgba(15,12,44,0.96)_100%)] shadow-[inset_9px_-11px_22px_rgba(7,9,34,0.58),inset_-12px_10px_20px_rgba(95,172,255,0.24),0_0_18px_rgba(71,148,255,0.34),0_0_28px_rgba(137,72,255,0.24)]" />
+              <div className="absolute right-[4px] top-[31px] h-[42px] w-[106px] rotate-[-22deg] rounded-full border border-[#8a5cff]/36 border-l-[#5ad4ff]/28 border-b-transparent border-r-[#7a5fff]/45" />
+              <div className="absolute right-[48px] top-[46px] h-[17px] w-[17px] rotate-45 rounded-[5px] bg-[linear-gradient(135deg,#f9ffff_5%,#9ffff3_42%,#ffb4fd_58%,#7b62ff_100%)] shadow-[0_0_14px_rgba(165,255,247,0.82),0_0_24px_rgba(149,91,255,0.46)]" />
+              <div className="absolute right-[2px] top-[34px] h-[5px] w-[5px] rounded-full bg-[#6c92ff] shadow-[0_0_10px_rgba(108,146,255,0.85)]" />
+              <div className="absolute right-[101px] top-[76px] h-[5px] w-[5px] rounded-full bg-[#8d66ff] shadow-[0_0_9px_rgba(141,102,255,0.78)]" />
+              <div className="absolute right-[86px] top-[47px] h-[3px] w-[3px] rounded-full bg-[#45c8ff] shadow-[0_0_7px_rgba(69,200,255,0.72)]" />
+              <div className="absolute right-[60px] top-[88px] h-[2px] w-[2px] rounded-full bg-[#6aa4ff]/70" />
+              <div className="absolute right-[34px] top-[73px] h-[2px] w-[2px] rounded-full bg-[#7e6cff]/60" />
+            </div>
+
+            <div className="relative flex items-start justify-between gap-4">
+              <div className="min-w-0 flex-1 pr-16">
+                <div className="mb-1.5 inline-flex items-center gap-1.5 rounded-full border border-[#5ee7dc]/30 bg-white/[0.06] px-2.5 py-0.5 text-[11px] font-medium text-[#c8fff8]">
+                  <Leaf className="h-3 w-3 text-[#78f2e8]" strokeWidth={2} />
+                  AI 추천
+                </div>
+                <h3 className="text-[15px] font-semibold leading-snug text-white">
+                  내 여행에 맞는<br />활동을 찾아볼까요?
+                </h3>
+              </div>
+            </div>
+          </button>
         </section>
 
         {/* Calendar Bottom Sheet */}
@@ -256,31 +425,35 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
           initialCount={peopleCount || 1}
         />
 
-        {/* Curated Recommendations */}
-        <section className="px-5 mt-9 mb-8">
-          <div className="mb-3.5">
-            <h3 className="text-[15px] font-semibold text-[#2a2a2a] mb-1">여행 중 가볍게 참여하기 좋은 활동</h3>
-            <p className="text-[12px] text-[#aaa]">부담 없이 시작할 수 있어요</p>
-          </div>
-          <div className="space-y-2.5">
-            {recommendations.map((rec, index) => (
-              <CompactActivityCard
-                key={index}
-                imageUrl={rec.imageUrl}
-                title={rec.title}
-                location={rec.location}
-                recruitmentStartDate={rec.recruitmentStartDate}
-                recruitmentEndDate={rec.recruitmentEndDate}
-                date={rec.date}
-                time={rec.time}
-                showBookmark
-                isSaved={isActivitySaved(rec)}
-                onBookmarkClick={() => onToggleSavedActivity(rec)}
-                onClick={() => { setSelectedActivity(rec); setIsDetailOpen(true); }}
-              />
-            ))}
-          </div>
-        </section>
+        {/* Home Activity Sections */}
+        <div className="px-5 mt-5 mb-8 space-y-8">
+          {activitySections.map((section) => (
+            <section key={section.title}>
+              <div className="mb-3.5">
+                <h3 className="text-[15px] font-semibold text-[#2a2a2a] mb-1">{section.title}</h3>
+                <p className="text-[12px] text-[#aaa]">{section.description}</p>
+              </div>
+              <div className="space-y-2.5">
+                {section.activities.map((activity) => (
+                  <CompactActivityCard
+                    key={`${section.title}-${activity.title}`}
+                    imageUrl={activity.imageUrl}
+                    title={activity.title}
+                    location={activity.location}
+                    recruitmentStartDate={activity.recruitmentStartDate}
+                    recruitmentEndDate={activity.recruitmentEndDate}
+                    date={activity.date}
+                    time={activity.time}
+                    showBookmark
+                    isSaved={isActivitySaved(activity)}
+                    onBookmarkClick={() => onToggleSavedActivity(activity)}
+                    onClick={() => { setSelectedActivity(activity); setIsDetailOpen(true); }}
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
       </PageShell>
 
       {/* Bottom Tab Bar */}
@@ -292,12 +465,25 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
         onClose={() => setIsNotificationOpen(false)}
       />
 
+      <HomeAIRecommendationFlow
+        isOpen={isAIRecommendationFlowOpen}
+        activities={allHomeActivities}
+        isActivitySaved={isActivitySaved}
+        onClose={() => setIsAIRecommendationFlowOpen(false)}
+        onToggleSavedActivity={onToggleSavedActivity}
+        onOpenActivity={(activity) => {
+          setIsAIRecommendationFlowOpen(false);
+          setSelectedActivity(activity);
+          setIsDetailOpen(true);
+        }}
+      />
+
       {/* Activity Detail Bottom Sheet */}
       {selectedActivity && (
         <EnhancedDetailBottomSheet
           isOpen={isDetailOpen}
           onClose={() => setIsDetailOpen(false)}
-          onAIRecommendation={() => { setIsDetailOpen(false); onNavigate('ai-recommendation'); }}
+          onAIRecommendation={(activity) => { setIsDetailOpen(false); onNavigate('ai-recommendation', { activity, returnScreen: 'home' }); }}
           isSaved={isActivitySaved(selectedActivity)}
           onToggleSaved={() => onToggleSavedActivity(selectedActivity)}
           activity={selectedActivity}

@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { Search, Calendar, Users, MapPin } from 'lucide-react';
+import { useLayoutEffect, useRef, useState } from 'react';
+import { Search, Calendar, Users, MapPin, ChevronRight } from 'lucide-react';
 
 interface EnhancedSearchCardProps {
   destination: string;
@@ -23,7 +23,14 @@ export function EnhancedSearchCard({
   onDestinationChange,
 }: EnhancedSearchCardProps) {
   const [isDiscoveryOpen, setIsDiscoveryOpen] = useState(false);
+  const [discoveryHeight, setDiscoveryHeight] = useState(0);
   const destinationInputRef = useRef<HTMLInputElement>(null);
+  const discoveryContentRef = useRef<HTMLDivElement>(null);
+  const autocompleteLocations = ['광안리', '안목해변', '애월', '성산일출봉', '해운대', '여수', '통영'];
+  const normalizedDestination = destination.trim().toLowerCase();
+  const autocompleteItems = normalizedDestination
+    ? autocompleteLocations.filter((location) => location.toLowerCase().includes(normalizedDestination))
+    : [];
 
   const discoverySections = [
     {
@@ -38,10 +45,22 @@ export function EnhancedSearchCard({
     },
   ];
 
+  useLayoutEffect(() => {
+    const content = discoveryContentRef.current;
+    if (!content) return;
+
+    setDiscoveryHeight(isDiscoveryOpen ? content.scrollHeight : 0);
+  }, [isDiscoveryOpen, normalizedDestination, autocompleteItems.length]);
+
   const handleDiscoverySelect = (value: string) => {
     onDestinationChange(value);
     destinationInputRef.current?.blur();
     setIsDiscoveryOpen(false);
+  };
+
+  const handleDestinationChange = (value: string) => {
+    onDestinationChange(value);
+    setIsDiscoveryOpen(true);
   };
 
   const transitionToSelection = (openSelection: () => void) => {
@@ -72,7 +91,7 @@ export function EnhancedSearchCard({
               type="text"
               placeholder="어디로 떠나시나요?"
               value={destination}
-              onChange={(e) => onDestinationChange(e.target.value)}
+              onChange={(e) => handleDestinationChange(e.target.value)}
               onClick={onDestinationClick}
               className="flex-1 outline-none bg-transparent placeholder:text-[#999] text-[#2a2a2a]"
             />
@@ -84,40 +103,77 @@ export function EnhancedSearchCard({
           </div>
 
           <div
-            className={`overflow-hidden transition-all duration-300 ease-out ${
-              isDiscoveryOpen ? 'max-h-[260px] opacity-100 translate-y-0' : 'max-h-0 opacity-0 -translate-y-1'
+            className={`overflow-hidden transition-[height,opacity,transform] duration-[220ms] ease-out ${
+              isDiscoveryOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1.5'
             }`}
+            style={{ height: discoveryHeight }}
           >
-            <div className="pt-4">
-              <div className="space-y-4">
-                {discoverySections.map((section) => {
-                  const Icon = section.icon;
+            <div
+              ref={discoveryContentRef}
+              className={`pt-4 transition-[opacity,transform] duration-200 ease-out ${
+                isDiscoveryOpen ? 'opacity-100 translate-y-0 delay-75' : 'opacity-0 -translate-y-2 delay-0'
+              }`}
+            >
+              {normalizedDestination ? (
+                <section>
+                  <div className="mb-2 flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-[#bbb]" strokeWidth={2} />
+                    <h4 className="text-[12px] font-semibold text-[#5a5a5a] leading-none">
+                      여행지 제안
+                    </h4>
+                  </div>
+                  <div className="overflow-hidden rounded-2xl bg-[#fbfaf6] border border-black/5 shadow-[0_8px_18px_rgba(65,78,66,0.04)]">
+                    {autocompleteItems.length > 0 ? (
+                      autocompleteItems.map((item) => (
+                        <button
+                          key={item}
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => handleDiscoverySelect(item)}
+                          className="flex w-full items-center justify-between gap-3 border-b border-black/[0.04] px-3.5 py-3 text-left text-[13px] text-[#4f5b53] transition-colors last:border-b-0 hover:bg-[#f1f8f3]"
+                        >
+                          <span className="font-medium">{item}</span>
+                          <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-[#c8d8cd]" strokeWidth={2} />
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-3.5 py-3 text-[12.5px] text-[#9a9a9a]">
+                        어울리는 여행지를 찾고 있어요
+                      </div>
+                    )}
+                  </div>
+                </section>
+              ) : (
+                <div className="space-y-4">
+                  {discoverySections.map((section) => {
+                    const Icon = section.icon;
 
-                  return (
-                    <section key={section.title}>
-                      <div className="mb-2 flex items-center gap-1.5">
-                        <Icon className="w-3.5 h-3.5 text-[#bbb]" strokeWidth={2} />
-                        <h4 className="text-[12px] font-semibold text-[#5a5a5a] leading-none">
-                          {section.title}
-                        </h4>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {section.items.map((item) => (
-                          <button
-                            key={item}
-                            type="button"
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={() => handleDiscoverySelect(item)}
-                            className="px-3 py-2 rounded-full bg-[#f8f8f5] text-[12px] text-[#5a5a5a] hover:bg-[#e8f5ed] hover:text-[#2a2a2a] transition-colors"
-                          >
-                            {item}
-                          </button>
-                        ))}
-                      </div>
-                    </section>
-                  );
-                })}
-              </div>
+                    return (
+                      <section key={section.title}>
+                        <div className="mb-2 flex items-center gap-1.5">
+                          <Icon className="w-3.5 h-3.5 text-[#bbb]" strokeWidth={2} />
+                          <h4 className="text-[12px] font-semibold text-[#5a5a5a] leading-none">
+                            {section.title}
+                          </h4>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {section.items.map((item) => (
+                            <button
+                              key={item}
+                              type="button"
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={() => handleDiscoverySelect(item)}
+                              className="px-3 py-2 rounded-full bg-[#f8f8f5] text-[12px] text-[#5a5a5a] hover:bg-[#e8f5ed] hover:text-[#2a2a2a] transition-colors"
+                            >
+                              {item}
+                            </button>
+                          ))}
+                        </div>
+                      </section>
+                    );
+                  })}
+                </div>
+              )}
               <div className="pt-4 pb-4">
                 <div className="h-px bg-black/5" />
               </div>
@@ -170,7 +226,7 @@ export function EnhancedSearchCard({
           onClick={onSearch}
           className="w-full bg-[#2a2a2a] text-white py-4 rounded-2xl transition-all hover:bg-[#1a1a1a] mt-4"
         >
-          봉사활동 찾아보기
+          활동 찾기
         </button>
       </div>
     </div>

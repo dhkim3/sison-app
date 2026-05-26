@@ -8,12 +8,19 @@ import { SearchResultCard } from './SearchResultCard';
 import { EnhancedDetailBottomSheet } from './EnhancedDetailBottomSheet';
 import { BottomTabBar } from './BottomTabBar';
 import { PageShell } from './PageShell';
+import type { ActivitySaveLookup, ActivitySaveRecord } from '../activitySaveState';
 
 interface SearchResultsProps {
-  onNavigate: (screen: string) => void;
+  onNavigate: (screen: string, options?: { activity?: ActivitySaveRecord; returnScreen?: 'home' | 'search' | 'saved' }) => void;
+  isActivitySaved?: (activity: ActivitySaveLookup) => boolean;
+  onToggleSavedActivity?: (activity: ActivitySaveRecord) => void;
 }
 
-export function SearchResults({ onNavigate }: SearchResultsProps) {
+export function SearchResults({
+  onNavigate,
+  isActivitySaved = () => false,
+  onToggleSavedActivity,
+}: SearchResultsProps) {
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
@@ -155,6 +162,8 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
             <SearchResultCard
               key={index}
               {...activity}
+              isSaved={isActivitySaved(activity)}
+              onBookmarkClick={() => onToggleSavedActivity?.(activity)}
               onClick={() => handleActivityClick(activity)}
             />
           ))}
@@ -168,7 +177,9 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
         <EnhancedDetailBottomSheet
           isOpen={isDetailOpen}
           onClose={() => setIsDetailOpen(false)}
-          onAIRecommendation={() => onNavigate('ai-recommendation')}
+          onAIRecommendation={(activity) => onNavigate('ai-recommendation', { activity, returnScreen: 'search' })}
+          isSaved={isActivitySaved(selectedActivity)}
+          onToggleSaved={() => onToggleSavedActivity?.(selectedActivity)}
           activity={selectedActivity}
         />
       )}

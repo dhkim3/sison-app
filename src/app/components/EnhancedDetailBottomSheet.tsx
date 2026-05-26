@@ -1,15 +1,17 @@
+import { useEffect, useState } from 'react';
 import { X, Bookmark, Share2, MapPin, Clock, Sparkles } from 'lucide-react';
 
 interface EnhancedDetailBottomSheetProps {
   isOpen: boolean;
   onClose: () => void;
-  onAIRecommendation?: () => void;
+  onAIRecommendation?: (activity: EnhancedDetailBottomSheetProps['activity']) => void;
   isSaved?: boolean;
   onToggleSaved?: () => void;
   activity: {
     imageUrl: string;
     title: string;
     location: string;
+    date?: string;
     time: string;
     description: string;
     materials: string;
@@ -21,6 +23,17 @@ interface EnhancedDetailBottomSheetProps {
     duration?: string;
     difficulty?: string;
     indoorOutdoor?: string;
+    recruitmentStartDate?: string;
+    recruitmentEndDate?: string;
+    volunteerPeriod?: string;
+    recruitmentPeriod?: string;
+    volunteerTime?: string;
+    volunteerField?: string;
+    volunteerTarget?: string;
+    recruitingOrganization?: string;
+    registrationOrganization?: string;
+    volunteerPlace?: string;
+    category?: string;
   };
 }
 
@@ -32,6 +45,116 @@ export function EnhancedDetailBottomSheet({
   onToggleSaved,
   activity,
 }: EnhancedDetailBottomSheetProps) {
+  const [shareMessage, setShareMessage] = useState('');
+  const formatShortDate = (value?: string) => {
+    if (!value) return '';
+
+    const match = value.match(/^(\d{4})[.-](\d{1,2})[.-](\d{1,2})$/);
+    if (!match) return value;
+
+    return `${match[2].padStart(2, '0')}.${match[3].padStart(2, '0')}`;
+  };
+
+  const formatDateWithWeekday = (value?: string) => {
+    if (!value) return '';
+
+    const match = value.match(/^(\d{4})[.-](\d{1,2})[.-](\d{1,2})$/);
+    if (!match) return value;
+
+    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
+
+    return `${match[1]}.${match[2].padStart(2, '0')}.${match[3].padStart(2, '0')} (${weekdays[date.getDay()]})`;
+  };
+
+  const formatShortPeriod = (start?: string, end?: string, fallback?: string) => {
+    if (start && end) return `${formatShortDate(start)} - ${formatShortDate(end)}`;
+    if (fallback) return fallback.replace(/(\d{4})[.-](\d{1,2})[.-](\d{1,2})/g, (_, _year, month, day) => (
+      `${String(month).padStart(2, '0')}.${String(day).padStart(2, '0')}`
+    ));
+
+    return '신청기간 확인 필요';
+  };
+
+  const formatVolunteerPeriod = (period?: string, date?: string) => {
+    if (date) return formatDateWithWeekday(date);
+    if (period) {
+      const singleDateMatch = period.match(/^(\d{4})[.-](\d{1,2})[.-](\d{1,2})$/);
+      if (singleDateMatch) return formatDateWithWeekday(period);
+
+      return period;
+    }
+
+    return '활동일 확인 필요';
+  };
+
+  const volunteerPeriod = formatVolunteerPeriod(activity.volunteerPeriod, activity.date);
+  const recruitmentPeriod =
+    formatShortPeriod(activity.recruitmentStartDate, activity.recruitmentEndDate, activity.recruitmentPeriod);
+  const volunteerTime = activity.volunteerTime || activity.time;
+  const volunteerField = activity.volunteerField || activity.category || '지역사회 봉사';
+  const volunteerTarget = activity.volunteerTarget || '지역 주민 및 여행지 환경';
+  const recruitingOrganization = activity.recruitingOrganization || '지역 자원봉사센터';
+  const volunteerPlace = activity.volunteerPlace || activity.location;
+  const recruitmentStatus = activity.isRecruiting ? '모집중' : '지난 활동';
+
+  const basicInfoRows = [
+    ['신청기간', recruitmentPeriod],
+    ['활동일', volunteerPeriod],
+    ['활동시간', volunteerTime],
+    ['봉사대상', volunteerTarget],
+    ['봉사분야', volunteerField],
+  ];
+
+  const organizationInfoRows = [
+    ['모집기관', recruitingOrganization],
+  ];
+
+  useEffect(() => {
+    if (!shareMessage) return;
+
+    const timer = window.setTimeout(() => setShareMessage(''), 1800);
+    return () => window.clearTimeout(timer);
+  }, [shareMessage]);
+
+  const copyShareUrl = async (url: string) => {
+    await navigator.clipboard.writeText(url);
+  };
+
+  const handleShare = async () => {
+    const shareUrl = window.location.href;
+    const shareData = {
+      title: activity.title,
+      text: `${activity.title} - ${activity.location}`,
+      url: shareUrl,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        return;
+      }
+
+      await copyShareUrl(shareUrl);
+      setShareMessage('링크를 복사했어요.');
+    } catch (error) {
+      if ((error as DOMException).name === 'AbortError') return;
+
+      try {
+        await copyShareUrl(shareUrl);
+        setShareMessage('링크를 복사했어요.');
+      } catch {
+        setShareMessage('링크 복사에 실패했어요.');
+        window.alert('링크 복사에 실패했어요.');
+      }
+    }
+  };
+
+  const handleKakaoMapOpen = () => {
+    const kakaoMapUrl = `https://map.kakao.com/link/search/${encodeURIComponent(volunteerPlace)}`;
+    window.open(kakaoMapUrl, '_blank', 'noopener,noreferrer');
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -40,6 +163,12 @@ export function EnhancedDetailBottomSheet({
         className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity"
         onClick={onClose}
       />
+
+      {shareMessage && (
+        <div className="fixed left-1/2 top-6 z-[60] -translate-x-1/2 rounded-full bg-[#2a2a2a] px-4 py-2 text-[13px] text-white shadow-lg">
+          {shareMessage}
+        </div>
+      )}
 
       <div className="fixed inset-x-0 bottom-0 bg-white rounded-t-[2rem] z-50 max-h-[85vh] overflow-y-auto shadow-2xl animate-slide-up">
         {/* Drag Handle */}
@@ -67,7 +196,12 @@ export function EnhancedDetailBottomSheet({
                 strokeWidth={2}
               />
             </button>
-            <button className="w-9 h-9 rounded-full bg-[#f8f8f5] flex items-center justify-center hover:bg-[#f0f0eb] transition-colors">
+            <button
+              type="button"
+              onClick={handleShare}
+              aria-label="활동 공유"
+              className="w-9 h-9 rounded-full bg-[#f8f8f5] flex items-center justify-center hover:bg-[#f0f0eb] transition-colors"
+            >
               <Share2 className="w-5 h-5 text-[#5a5a5a]" strokeWidth={2} />
             </button>
           </div>
@@ -89,69 +223,74 @@ export function EnhancedDetailBottomSheet({
               <h2 className="mb-1">{activity.title}</h2>
             </div>
 
-            {/* 2. Location */}
+            {/* Summary */}
             <div className="flex items-start gap-3">
               <MapPin className="w-5 h-5 text-[#5a5a5a] mt-0.5 flex-shrink-0" strokeWidth={2} />
-              <div>
-                <p className="text-[#2a2a2a]">{activity.location}</p>
-                {activity.distance && (
-                  <p className="text-sm text-[#999] mt-1">{activity.distance}</p>
-                )}
+              <div className="min-w-0 flex-1">
+                <p className="text-[#2a2a2a] leading-relaxed">{volunteerPlace}</p>
               </div>
+              <button
+                type="button"
+                onClick={handleKakaoMapOpen}
+                className="flex-shrink-0 rounded-full bg-[#f8f8f5] px-3 py-1.5 text-[12px] font-medium text-[#5a5a5a] transition-colors hover:bg-[#e8f5ed] hover:text-[#2a2a2a]"
+              >
+                카카오맵
+              </button>
             </div>
 
-            {/* 3. Time */}
             <div className="flex items-center gap-3">
               <Clock className="w-5 h-5 text-[#5a5a5a] flex-shrink-0" strokeWidth={2} />
-              <p className="text-[#2a2a2a]">{activity.time}</p>
+              <p className="text-[#2a2a2a]">{volunteerPeriod} · {volunteerTime}</p>
             </div>
 
-            {/* 4. Recruitment Status */}
             <div className="flex items-center gap-3">
               <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
                 <span className={`w-2.5 h-2.5 rounded-full ${activity.isRecruiting ? 'bg-[#a8d5ba]' : 'bg-[#999]'}`} />
               </div>
               <div className="flex-1">
                 <p className={`${activity.isRecruiting ? 'text-[#a8d5ba]' : 'text-[#999]'}`}>
-                  {activity.isRecruiting ? '모집중' : '마감'}
+                  {recruitmentStatus}
                 </p>
-                {activity.isRecruiting && activity.capacity && (
-                  <p className="text-sm text-[#999] mt-1">
-                    {activity.capacity} · 현재 {activity.currentParticipants} 참여
-                  </p>
-                )}
+                <p className="text-sm text-[#999] mt-1">
+                  모집인원 {activity.capacity} · 신청인원 {activity.currentParticipants}
+                </p>
               </div>
             </div>
 
             {/* Divider */}
             <div className="border-t border-black/5" />
 
-            {/* 5. Recommendation Reason */}
-            <div className="bg-[#e8f5ed] rounded-2xl p-5">
-              <p className="text-sm text-[#2a2a2a] leading-relaxed">
-                "{activity.recommendation}"
-              </p>
-            </div>
+            {/* Basic Information */}
+            <section>
+              <h3 className="mb-3 text-[16px] font-semibold text-[#2a2a2a]">기본 정보</h3>
+              <div className="rounded-2xl bg-[#fbfaf6] px-4 py-1">
+                {basicInfoRows.map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="grid grid-cols-[82px_minmax(0,1fr)] gap-3 border-b border-black/[0.04] py-3 last:border-b-0"
+                  >
+                    <span className="text-[12.5px] text-[#999]">{label}</span>
+                    <span className="text-[13px] leading-relaxed text-[#2a2a2a]">{value}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
 
-            {/* 6. Key Information */}
-            <div className="space-y-3">
-              <div className="flex items-start justify-between py-3 border-b border-black/5">
-                <span className="text-sm text-[#999]">준비물</span>
-                <span className="text-sm text-[#2a2a2a] text-right">{activity.materials}</span>
+            {/* Organization Information */}
+            <section>
+              <h3 className="mb-3 text-[16px] font-semibold text-[#2a2a2a]">기관 정보</h3>
+              <div className="rounded-2xl bg-[#fbfaf6] px-4 py-1">
+                {organizationInfoRows.map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="grid grid-cols-[82px_minmax(0,1fr)] gap-3 border-b border-black/[0.04] py-3 last:border-b-0"
+                  >
+                    <span className="text-[12.5px] text-[#999]">{label}</span>
+                    <span className="text-[13px] leading-relaxed text-[#2a2a2a]">{value}</span>
+                  </div>
+                ))}
               </div>
-              <div className="flex items-start justify-between py-3 border-b border-black/5">
-                <span className="text-sm text-[#999]">활동 시간</span>
-                <span className="text-sm text-[#2a2a2a]">{activity.duration || '2시간'}</span>
-              </div>
-              <div className="flex items-start justify-between py-3 border-b border-black/5">
-                <span className="text-sm text-[#999]">활동 장소</span>
-                <span className="text-sm text-[#2a2a2a]">{activity.indoorOutdoor || '실외'}</span>
-              </div>
-              <div className="flex items-start justify-between py-3">
-                <span className="text-sm text-[#999]">난이도</span>
-                <span className="text-sm text-[#2a2a2a]">{activity.difficulty || '쉬움'}</span>
-              </div>
-            </div>
+            </section>
 
             {/* Detailed Description */}
             {activity.description && (
@@ -159,6 +298,9 @@ export function EnhancedDetailBottomSheet({
                 <div className="border-t border-black/5 pt-6">
                   <h3 className="mb-3">상세 설명</h3>
                   <p className="text-sm text-[#5a5a5a] leading-relaxed">{activity.description}</p>
+                  <p className="mt-3 text-[12.5px] leading-relaxed text-[#999]">
+                    자세한 내용은 공식 페이지에서 확인해주세요.
+                  </p>
                 </div>
               </>
             )}
@@ -174,9 +316,9 @@ export function EnhancedDetailBottomSheet({
               <button
                 onClick={() => {
                   onClose();
-                  onAIRecommendation?.();
+                  onAIRecommendation?.(activity);
                 }}
-                className="w-full bg-[#e8f5ed] text-[#2a2a2a] py-4 rounded-2xl transition-all hover:bg-[#d8e5dd] flex items-center justify-center gap-2"
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/55 bg-[linear-gradient(135deg,#6fb4ff,#7b7cff_52%,#b763ec)] py-4 text-white shadow-[0_14px_30px_rgba(112,126,255,0.22)] transition-all active:scale-[0.99]"
               >
                 <Sparkles className="w-5 h-5" strokeWidth={2} />
                 <span>AI 일정 추천 받기</span>

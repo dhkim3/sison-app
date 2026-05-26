@@ -1,157 +1,314 @@
-import { useState } from 'react';
-import { ArrowLeft, Bookmark, Share2, MapPin, Clock } from 'lucide-react';
-import { BottomTabBar } from './BottomTabBar';
+import { useMemo, useRef } from 'react';
+import { ArrowLeft, Download, MapPin, Clock } from 'lucide-react';
 import { PageShell } from './PageShell';
+import type { ActivitySaveRecord } from '../activitySaveState';
 
 interface AIRecommendationProps {
-  onNavigate: (screen: string) => void;
+  activity: ActivitySaveRecord | null;
+  onBack: () => void;
 }
 
-export function AIRecommendation({ onNavigate }: AIRecommendationProps) {
-  const [isSaved, setIsSaved] = useState(false);
+const defaultActivity: ActivitySaveRecord = {
+  imageUrl: '',
+  title: '여행지 가까이의 작은 활동',
+  location: '여행지 근처',
+  date: '2026.06.27',
+  time: '09:00 - 11:00',
+  description: '여행 일정에 맞춰 가볍게 참여할 수 있는 활동입니다.',
+  materials: '',
+  capacity: '12명',
+  currentParticipants: '4명',
+  recommendation: '',
+  isRecruiting: true,
+};
 
-  const selectedActivity = {
-    title: '함덕해수욕장 해양 환경 정화 봉사',
-    location: '제주 제주시',
-    time: '09:00 - 11:00',
+const getRegionPlan = (activity: ActivitySaveRecord) => {
+  const sourceText = `${activity.title} ${activity.location}`;
+  const activityTitle = activity.title;
+  const activityPlace = activity.volunteerPlace || activity.location;
+  const startTime = activity.time?.split('-')[0]?.trim() || '09:00';
+
+  if (sourceText.includes('광안리') || sourceText.includes('수영') || sourceText.includes('해운대') || sourceText.includes('부산')) {
+    return {
+      note: '바다와 골목이 가까운 일정이에요. 활동 뒤에는 멀리 이동하기보다 근처를 천천히 걷는 흐름이 잘 맞아요.',
+      itinerary: [
+        { time: startTime, title: activityTitle, location: activityPlace },
+        { time: '12:10', title: '수변최고돼지국밥 민락본점', location: '부산 수영구 민락동' },
+        { time: '14:00', title: '민락수변공원 산책', location: '부산 수영구 민락동' },
+        { time: '16:20', title: 'F1963 카페 테라로사', location: '부산 수영구 망미동' },
+      ],
+      nearbySpots: [
+        { title: '민락수변공원', distance: '도보 12분' },
+        { title: '광안리해수욕장', distance: '도보 8분' },
+        { title: 'F1963', distance: '차량 14분' },
+      ],
+    };
+  }
+
+  if (sourceText.includes('안목') || sourceText.includes('강릉')) {
+    return {
+      note: '아침 바다를 중심으로 가볍게 이어지는 일정이에요. 활동 후 커피거리와 해변을 부담 없이 둘러보기 좋아요.',
+      itinerary: [
+        { time: startTime, title: activityTitle, location: activityPlace },
+        { time: '10:40', title: '보사노바 커피로스터스', location: '강릉 안목해변' },
+        { time: '12:30', title: '초당할머니순두부', location: '강릉 초당동' },
+        { time: '15:00', title: '강문해변 쉬어가기', location: '강릉 강문동' },
+      ],
+      nearbySpots: [
+        { title: '안목커피거리', distance: '도보 4분' },
+        { title: '강문해변', distance: '차량 9분' },
+        { title: '초당두부마을', distance: '차량 12분' },
+      ],
+    };
+  }
+
+  if (sourceText.includes('제주') || sourceText.includes('애월') || sourceText.includes('성산') || sourceText.includes('비자림')) {
+    return {
+      note: '숲이나 바다를 오래 바라보기 좋은 제주 일정이에요. 활동 전후로 이동을 줄이고 한 지역에 머무는 흐름을 추천해요.',
+      itinerary: [
+        { time: startTime, title: activityTitle, location: activityPlace },
+        { time: '12:20', title: '명진전복', location: '제주 구좌읍' },
+        { time: '14:10', title: '비자림 산책', location: '제주 구좌읍' },
+        { time: '16:30', title: '월정리 해변', location: '제주 구좌읍' },
+      ],
+      nearbySpots: [
+        { title: '비자림', distance: '차량 10분' },
+        { title: '월정리해변', distance: '차량 16분' },
+        { title: '세화해변', distance: '차량 13분' },
+      ],
+    };
+  }
+
+  if (sourceText.includes('여수')) {
+    return {
+      note: '해안길을 따라 천천히 이어가기 좋은 일정이에요. 늦은 오후 활동이라 노을 전후의 여유를 살리기 좋아요.',
+      itinerary: [
+        { time: startTime, title: activityTitle, location: activityPlace },
+        { time: '18:20', title: '돌산공원 산책', location: '여수 돌산읍' },
+        { time: '19:10', title: '좌수영바게트버거', location: '여수 중앙동' },
+        { time: '20:00', title: '여수해상케이블카 야경', location: '여수 돌산읍' },
+      ],
+      nearbySpots: [
+        { title: '돌산공원', distance: '차량 8분' },
+        { title: '여수해상케이블카', distance: '차량 10분' },
+        { title: '고소동 벽화마을', distance: '차량 12분' },
+      ],
+    };
+  }
+
+  if (sourceText.includes('통영')) {
+    return {
+      note: '항구와 골목을 중심으로 천천히 걷기 좋은 일정이에요. 활동 후에는 가까운 시장과 바다 풍경을 이어보세요.',
+      itinerary: [
+        { time: startTime, title: activityTitle, location: activityPlace },
+        { time: '13:20', title: '통영중앙시장 점심', location: '통영 중앙동' },
+        { time: '15:00', title: '동피랑 벽화마을 산책', location: '통영 태평동' },
+        { time: '16:40', title: '강구안 항구 쉬어가기', location: '통영 항남동' },
+      ],
+      nearbySpots: [
+        { title: '강구안', distance: '도보 6분' },
+        { title: '동피랑 벽화마을', distance: '도보 14분' },
+        { title: '통영중앙시장', distance: '도보 8분' },
+      ],
+    };
+  }
+
+  return {
+    note: '활동 전후로 가까운 명소를 천천히 이어보는 일정이에요. 실제 장소 기반 추천은 이후 API로 더 정교하게 연결할 예정이에요.',
+    itinerary: [
+      { time: startTime, title: activityTitle, location: activityPlace },
+      { time: '12:30', title: '지역 식당에서 점심', location: '원도심 식당가' },
+      { time: '14:00', title: '지역 문화거리 산책', location: '중앙로 문화거리' },
+      { time: '16:00', title: '로컬 카페 쉬어가기', location: '시청 앞 카페거리' },
+    ],
+    nearbySpots: [
+      { title: '중앙로 문화거리', distance: '도보 10분' },
+      { title: '원도심 시장', distance: '도보 12분' },
+      { title: '시청 앞 카페거리', distance: '차량 8분' },
+    ],
+  };
+};
+
+export function AIRecommendation({ activity, onBack }: AIRecommendationProps) {
+  const captureRef = useRef<HTMLDivElement>(null);
+  const selectedActivity = activity ?? defaultActivity;
+  const plan = useMemo(() => getRegionPlan(selectedActivity), [selectedActivity]);
+
+  const handleSaveScreenshot = async () => {
+    const sourceElement = captureRef.current;
+    if (!sourceElement) return;
+
+    await document.fonts?.ready;
+
+    const clone = sourceElement.cloneNode(true) as HTMLElement;
+    const copyComputedStyles = (source: Element, target: Element) => {
+      const computedStyle = window.getComputedStyle(source);
+
+      Array.from(computedStyle).forEach((property) => {
+        (target as HTMLElement).style.setProperty(
+          property,
+          computedStyle.getPropertyValue(property),
+          computedStyle.getPropertyPriority(property)
+        );
+      });
+
+      Array.from(source.children).forEach((child, index) => {
+        const targetChild = target.children[index];
+        if (targetChild) copyComputedStyles(child, targetChild);
+      });
+    };
+
+    copyComputedStyles(sourceElement, clone);
+
+    const width = Math.ceil(sourceElement.scrollWidth);
+    const height = Math.ceil(sourceElement.scrollHeight);
+    clone.style.width = `${width}px`;
+    clone.style.minHeight = `${height}px`;
+    clone.style.background = '#fdfcfa';
+    clone.style.boxSizing = 'border-box';
+
+    const wrapper = document.createElement('div');
+    wrapper.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+    wrapper.style.width = `${width}px`;
+    wrapper.style.minHeight = `${height}px`;
+    wrapper.style.background = '#fdfcfa';
+    wrapper.appendChild(clone);
+
+    const serializedHtml = new XMLSerializer().serializeToString(wrapper);
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+        <foreignObject width="100%" height="100%">
+          ${serializedHtml}
+        </foreignObject>
+      </svg>
+    `;
+
+    const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+    const svgUrl = URL.createObjectURL(svgBlob);
+    const image = new Image();
+
+    image.onload = () => {
+      const scale = 2;
+      const canvas = document.createElement('canvas');
+      canvas.width = width * scale;
+      canvas.height = height * scale;
+      const context = canvas.getContext('2d');
+      if (!context) {
+        URL.revokeObjectURL(svgUrl);
+        return;
+      }
+
+      context.fillStyle = '#fdfcfa';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+      const link = document.createElement('a');
+      link.download = `${selectedActivity.title.replace(/[\\/:*?"<>|]/g, '').slice(0, 20) || 'sison'}-itinerary.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      URL.revokeObjectURL(svgUrl);
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(svgUrl);
+    };
+
+    image.src = svgUrl;
   };
 
-  const itinerary = [
-    { time: '09:00', title: '함덕해수욕장 해양 환경 정화 봉사', location: '함덕해수욕장' },
-    { time: '12:30', title: '고등어회국수', location: '봉사장소 도보 5분' },
-    { time: '14:00', title: '비자림 산책', location: '차로 20분' },
-    { time: '16:30', title: '김녕해수욕장 석양', location: '차로 15분' },
-  ];
-
-  const nearbySpots = [
-    { title: '함덕 오션뷰 카페', distance: '도보 3분' },
-    { title: '월정리 해변', distance: '차로 5분' },
-    { title: '절물 자연휴양림', distance: '차로 12분' },
-  ];
-
   return (
-    <>
-      <PageShell>
-        {/* Header */}
-        <header className="sticky top-0 z-20 bg-[#fdfcfa]/95 backdrop-blur-sm border-b border-black/5">
-          <div className="px-6 py-5 flex items-center justify-between">
-            <div className="flex-1">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => onNavigate('search')}
-                  className="p-2 -ml-2 hover:bg-black/5 rounded-full transition-colors"
-                >
-                  <ArrowLeft className="w-5 h-5 text-[#2a2a2a]" strokeWidth={2} />
-                </button>
-                <h3>여행 일정</h3>
-              </div>
-            </div>
+    <PageShell reserveBottomTabSpace={false}>
+      <header className="sticky top-0 z-20 bg-[#fdfcfa]/95 backdrop-blur-sm border-b border-black/5">
+        <div className="px-6 py-5">
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setIsSaved(!isSaved)}
-              className="p-2 hover:bg-black/5 rounded-full transition-colors"
+              type="button"
+              onClick={onBack}
+              aria-label="상세 화면으로 돌아가기"
+              className="p-2 -ml-2 hover:bg-black/5 rounded-full transition-colors"
             >
-              <Bookmark
-                className={`w-5 h-5 ${isSaved ? 'fill-[#a8d5ba] text-[#a8d5ba]' : 'text-[#5a5a5a]'}`}
-                strokeWidth={2}
-              />
+              <ArrowLeft className="w-5 h-5 text-[#2a2a2a]" strokeWidth={2} />
             </button>
+            <h3>여행 일정</h3>
           </div>
-        </header>
+        </div>
+      </header>
 
-        <div className="px-6 py-6 space-y-8">
-          {/* 1. Selected Activity Summary */}
-          <section>
-            <div className="bg-white rounded-3xl p-5 shadow-sm border border-black/5">
-              <h3 className="mb-4">{selectedActivity.title}</h3>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2.5">
-                  <MapPin className="w-4 h-4 text-[#5a5a5a]" strokeWidth={2} />
-                  <span className="text-sm text-[#5a5a5a]">{selectedActivity.location}</span>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <Clock className="w-4 h-4 text-[#5a5a5a]" strokeWidth={2} />
-                  <span className="text-sm text-[#5a5a5a]">{selectedActivity.time}</span>
-                </div>
+      <div ref={captureRef} className="px-6 py-6 space-y-8">
+        <section>
+          <div className="bg-white rounded-3xl p-5 shadow-sm border border-black/5">
+            <h3 className="mb-4">{selectedActivity.title}</h3>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2.5">
+                <MapPin className="w-4 h-4 text-[#5a5a5a]" strokeWidth={2} />
+                <span className="text-sm text-[#5a5a5a]">
+                  {selectedActivity.volunteerPlace || selectedActivity.location}
+                </span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <Clock className="w-4 h-4 text-[#5a5a5a]" strokeWidth={2} />
+                <span className="text-sm text-[#5a5a5a]">
+                  {[selectedActivity.date, selectedActivity.time].filter(Boolean).join(' · ')}
+                </span>
               </div>
             </div>
-          </section>
+          </div>
+        </section>
 
-          {/* 2. Short Emotional Recommendation */}
-          <section>
-            <div className="bg-[#e8f5ed] rounded-2xl p-5">
-              <p className="text-sm text-[#2a2a2a] leading-relaxed">
-                오전 봉사 후 가까운 맛집에서 점심을 즐기고, 오후엔 여유롭게 비자림을 산책해보세요.
-                석양 무렵 김녕해수욕장에서 하루를 마무리하면 좋을 거예요.
-              </p>
-            </div>
-          </section>
+        <section>
+          <div className="bg-[#e8f5ed] rounded-2xl p-5">
+            <p className="text-sm text-[#2a2a2a] leading-relaxed">{plan.note}</p>
+          </div>
+        </section>
 
-          {/* 3. Vertical Timeline */}
-          <section>
-            <h3 className="mb-4">추천 일정</h3>
-            <div className="space-y-3">
-              {itinerary.map((item, index) => (
-                <div
-                  key={index}
-                  className="bg-white rounded-2xl p-4 shadow-sm border border-black/5"
-                >
-                  <div className="flex gap-4">
-                    <div className="text-sm text-[#a8d5ba] font-medium min-w-[45px]">
-                      {item.time}
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-[#2a2a2a] mb-1">{item.title}</h4>
-                      <p className="text-sm text-[#999]">{item.location}</p>
-                    </div>
+        <section>
+          <h3 className="mb-4">추천 일정</h3>
+          <div className="space-y-3">
+            {plan.itinerary.map((item, index) => (
+              <div
+                key={`${item.time}-${index}`}
+                className="bg-white rounded-2xl p-4 shadow-sm border border-black/5"
+              >
+                <div className="flex gap-4">
+                  <div className="text-sm text-[#a8d5ba] font-medium min-w-[45px]">
+                    {item.time}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-[#2a2a2a] mb-1">{item.title}</h4>
+                    <p className="text-sm text-[#999]">{item.location}</p>
                   </div>
                 </div>
-              ))}
-            </div>
-          </section>
+              </div>
+            ))}
+          </div>
+        </section>
 
-          {/* 4. Nearby Places */}
-          <section>
-            <h3 className="mb-5">근처 추천 장소</h3>
-            <div className="space-y-2">
-              {nearbySpots.map((spot, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between py-3 px-4 bg-white rounded-2xl border border-black/5"
-                >
-                  <span className="text-sm text-[#2a2a2a]">{spot.title}</span>
-                  <span className="text-sm text-[#999]">{spot.distance}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* 5. Save and Share Buttons */}
-          <section className="pt-2">
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setIsSaved(true);
-                  setTimeout(() => {
-                    alert('일정이 저장되었습니다');
-                  }, 100);
-                }}
-                className="flex-1 bg-[#2a2a2a] text-white py-4 rounded-2xl transition-all hover:bg-[#1a1a1a]"
+        <section>
+          <h3 className="mb-5">근처 추천 장소</h3>
+          <div className="space-y-2">
+            {plan.nearbySpots.map((spot, index) => (
+              <div
+                key={`${spot.title}-${index}`}
+                className="flex items-center justify-between gap-4 py-3 px-4 bg-white rounded-2xl border border-black/5"
               >
-                일정 저장하기
-              </button>
-              <button
-                onClick={() => alert('공유 기능 준비중입니다')}
-                className="w-14 h-14 bg-white border border-black/10 rounded-2xl flex items-center justify-center hover:bg-[#f8f8f5] transition-colors"
-              >
-                <Share2 className="w-5 h-5 text-[#5a5a5a]" strokeWidth={2} />
-              </button>
-            </div>
-          </section>
-        </div>
-      </PageShell>
+                <span className="text-sm text-[#2a2a2a]">{spot.title}</span>
+                <span className="text-sm text-[#999] flex-shrink-0">{spot.distance}</span>
+              </div>
+            ))}
+          </div>
+        </section>
 
-      {/* Bottom Tab Bar */}
-      <BottomTabBar activeTab="search" onNavigate={onNavigate} />
-    </>
+        <section className="pt-2 pb-3">
+          <button
+            type="button"
+            onClick={handleSaveScreenshot}
+            className="w-full bg-[#2a2a2a] text-white py-4 rounded-2xl transition-all hover:bg-[#1a1a1a] flex items-center justify-center gap-2"
+          >
+            <Download className="w-5 h-5" strokeWidth={2} />
+            <span>스크린샷 저장하기</span>
+          </button>
+        </section>
+      </div>
+    </PageShell>
   );
 }

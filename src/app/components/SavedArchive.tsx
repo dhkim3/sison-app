@@ -11,13 +11,13 @@ import { StoryCard } from './story/StoryCard';
 import { StoryDetailSheet } from './story/StoryDetailSheet';
 import { StoryCommentSheet } from './story/StoryCommentSheet';
 import type { StoryItem } from './story/storyTypes';
-import { getActivitySaveKey, type ActivitySaveRecord } from '../activitySaveState';
+import { getActivitySaveKey, type ActivitySaveLookup, type ActivitySaveRecord } from '../activitySaveState';
 import type { StoryInteractionProps } from '../storyInteractionState';
 
 interface SavedArchiveProps {
-  onNavigate: (screen: string) => void;
+  onNavigate: (screen: string, options?: { activity?: ActivitySaveRecord; returnScreen?: 'home' | 'search' | 'saved' }) => void;
   savedActivities: ActivitySaveRecord[];
-  isActivitySaved: (activity: Pick<ActivitySaveRecord, 'title'> & { date?: string }) => boolean;
+  isActivitySaved: (activity: ActivitySaveLookup) => boolean;
   onToggleSavedActivity: (activity: ActivitySaveRecord) => void;
   storyInteractions: StoryInteractionProps;
 }
@@ -106,7 +106,7 @@ export function SavedArchive({
       likes: 9,
       comments: 2,
       body: '플로깅을 마치고 커피거리 쪽으로 걸어오니 바다 냄새와 커피 향이 섞였어요. 짧은 활동이 하루의 표정을 바꿔주었습니다.',
-      relatedActivity: '강릉 안목해변 아침 플로깅',
+      relatedActivity: '안목해변 아침 플로깅',
     },
     {
       id: 106,
@@ -378,7 +378,7 @@ export function SavedArchive({
         <EnhancedDetailBottomSheet
           isOpen={isDetailOpen}
           onClose={() => setIsDetailOpen(false)}
-          onAIRecommendation={() => onNavigate('ai-recommendation')}
+          onAIRecommendation={(activity) => onNavigate('ai-recommendation', { activity, returnScreen: 'saved' })}
           isSaved={isActivitySaved(selectedActivity)}
           onToggleSaved={() => onToggleSavedActivity(selectedActivity)}
           activity={selectedActivity}

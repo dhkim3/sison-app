@@ -64,7 +64,7 @@ export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationPr
     },
     {
       id: 4,
-      title: '강릉 안목해변 플로깅',
+      title: '안목해변 플로깅',
       location: '강원 강릉시 안목해변',
       region: '강원',
       recruitmentStartDate: '2026.07.28',

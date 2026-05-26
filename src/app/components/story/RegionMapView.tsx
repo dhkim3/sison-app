@@ -68,7 +68,7 @@ const mockStories: StoryItem[] = [
     comments: 1,
     imageUrl: 'https://images.unsplash.com/photo-1621478763597-11fb71047890?w=400',
     body: '해가 막 올라온 안목해변은 생각보다 고요했어요. 짧은 플로깅을 마치고 나니 하루의 시작을 조금 더 단정하게 맞이한 기분이 들었습니다.',
-    relatedActivity: '강릉 안목해변 플로깅',
+    relatedActivity: '안목해변 플로깅',
   },
   {
     id: 4,

@@ -8,6 +8,8 @@ interface SearchResultCardProps {
   time: string;
   reason: string;
   isRecruiting: boolean;
+  isSaved?: boolean;
+  onBookmarkClick?: () => void;
   onClick?: () => void;
 }
 
@@ -19,6 +21,8 @@ export function SearchResultCard({
   time,
   reason,
   isRecruiting,
+  isSaved = false,
+  onBookmarkClick,
   onClick,
 }: SearchResultCardProps) {
   return (
@@ -32,8 +36,19 @@ export function SearchResultCard({
           alt={title}
           className="w-full h-full object-cover"
         />
-        <button className="absolute top-3 right-3 w-9 h-9 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm hover:bg-white transition-colors">
-          <Bookmark className="w-4 h-4 text-[#5a5a5a]" strokeWidth={2} />
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onBookmarkClick?.();
+          }}
+          aria-label={isSaved ? '저장 취소' : '활동 저장'}
+          className="absolute top-3 right-3 w-9 h-9 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm hover:bg-white active:scale-95 transition-all"
+        >
+          <Bookmark
+            className={`w-4 h-4 ${isSaved ? 'fill-[#a8d5ba] text-[#7fb894]' : 'text-[#5a5a5a]'}`}
+            strokeWidth={2}
+          />
         </button>
       </div>
 
