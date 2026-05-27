@@ -489,7 +489,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
     },
     {
       title: '숨겨진 장소 발견',
-      description: '조금 덜 알려진 길에서 만나는 활동',
+      description: '조금 덜 알려진 장소에서 만나는 활동',
       activities: hiddenPlaceActivities.slice(0, 3),
     },
   ];

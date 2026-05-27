@@ -159,7 +159,7 @@ export default function App() {
         [activityKey]: activity,
       };
     });
-    showSaveFeedback(wasSaved ? '저장을 취소했어요.' : '보관함에 담았어요.');
+    showSaveFeedback(wasSaved ? '저장을 취소했어요.' : '저장했어요.');
   };
 
   const savedActivities = savedActivityIds.reduce<ActivitySaveRecord[]>((activities, id) => {
@@ -259,6 +259,7 @@ export default function App() {
           }}
           isSaved={isActivitySaved(restoredDetailActivity)}
           onToggleSaved={() => handleToggleSavedActivity(restoredDetailActivity)}
+          disableEntryAnimation
           activity={restoredDetailActivity}
         />
       )}

@@ -8,6 +8,7 @@ interface EnhancedDetailBottomSheetProps {
   onAIRecommendation?: (activity: EnhancedDetailBottomSheetProps['activity']) => void;
   isSaved?: boolean;
   onToggleSaved?: () => void;
+  disableEntryAnimation?: boolean;
   activity: {
     imageUrl: string;
     title: string;
@@ -44,6 +45,7 @@ export function EnhancedDetailBottomSheet({
   onAIRecommendation,
   isSaved = false,
   onToggleSaved,
+  disableEntryAnimation = false,
   activity,
 }: EnhancedDetailBottomSheetProps) {
   const [shareMessage, setShareMessage] = useState('');
@@ -160,60 +162,66 @@ export function EnhancedDetailBottomSheet({
   if (!isOpen) return null;
 
   return (
-    <>
+    <div className="fixed inset-0 z-[90] flex items-end justify-center overflow-hidden">
       <div
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity"
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
       {shareMessage && (
-        <div className="fixed left-1/2 top-6 z-[60] -translate-x-1/2 rounded-full bg-[#2a2a2a] px-4 py-2 text-[13px] text-white shadow-lg">
+        <div className="fixed left-1/2 top-6 z-[100] -translate-x-1/2 rounded-full bg-[#2a2a2a] px-4 py-2 text-[13px] text-white shadow-lg">
           {shareMessage}
         </div>
       )}
 
       <div
-        className="bottom-sheet-panel fixed inset-x-0 bottom-0 bg-white rounded-t-[2rem] z-50 max-h-[85vh] overflow-y-auto shadow-2xl animate-slide-up"
-        data-bottom-sheet-scrollable="true"
+        className={`bottom-sheet-panel relative flex h-auto max-h-[85vh] max-h-[min(88svh,88dvh)] w-full max-w-[430px] flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl ${
+          disableEntryAnimation ? '' : 'animate-slide-up'
+        }`}
       >
-        {/* Drag Handle */}
-        <div className="sticky top-0 bg-white z-10 pt-3 pb-4">
-          <div className="w-10 h-1 bg-[#e0e0e0] rounded-full mx-auto" />
-        </div>
+        <div className="flex-shrink-0 bg-white">
+          {/* Drag Handle */}
+          <div className="pt-3 pb-4">
+            <div className="w-10 h-1 bg-[#e0e0e0] rounded-full mx-auto" />
+          </div>
 
-        {/* Top Actions */}
-        <div className="px-6 pb-4 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-9 h-9 rounded-full bg-[#f8f8f5] flex items-center justify-center hover:bg-[#f0f0eb] transition-colors"
-          >
-            <X className="w-5 h-5 text-[#5a5a5a]" strokeWidth={2} />
-          </button>
-          <div className="flex gap-2">
+          {/* Top Actions */}
+          <div className="px-6 pb-4 flex items-center justify-between">
             <button
               type="button"
-              onClick={onToggleSaved}
-              aria-label={isSaved ? '저장 취소' : '활동 저장'}
-              className="w-9 h-9 rounded-full bg-[#f8f8f5] flex items-center justify-center hover:bg-[#f0f0eb] active:scale-95 transition-all"
-            >
-              <Bookmark
-                className={`w-5 h-5 ${isSaved ? 'fill-[#a8d5ba] text-[#7fb894]' : 'text-[#5a5a5a]'}`}
-                strokeWidth={2}
-              />
-            </button>
-            <button
-              type="button"
-              onClick={handleShare}
-              aria-label="활동 공유"
+              onClick={onClose}
               className="w-9 h-9 rounded-full bg-[#f8f8f5] flex items-center justify-center hover:bg-[#f0f0eb] transition-colors"
             >
-              <Share2 className="w-5 h-5 text-[#5a5a5a]" strokeWidth={2} />
+              <X className="w-5 h-5 text-[#5a5a5a]" strokeWidth={2} />
             </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={onToggleSaved}
+                aria-label={isSaved ? '저장 취소' : '활동 저장'}
+                className="w-9 h-9 rounded-full bg-[#f8f8f5] flex items-center justify-center hover:bg-[#f0f0eb] active:scale-95 transition-all"
+              >
+                <Bookmark
+                  className={`w-5 h-5 ${isSaved ? 'fill-[#a8d5ba] text-[#7fb894]' : 'text-[#5a5a5a]'}`}
+                  strokeWidth={2}
+                />
+              </button>
+              <button
+                type="button"
+                onClick={handleShare}
+                aria-label="활동 공유"
+                className="w-9 h-9 rounded-full bg-[#f8f8f5] flex items-center justify-center hover:bg-[#f0f0eb] transition-colors"
+              >
+                <Share2 className="w-5 h-5 text-[#5a5a5a]" strokeWidth={2} />
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="pb-safe">
+        <div
+          className="bottom-sheet-scrollable flex-1 overflow-y-auto pb-safe"
+          data-bottom-sheet-scrollable="true"
+        >
           {/* Compact Hero Image */}
           <div className="relative aspect-[2/1] mx-6 rounded-2xl overflow-hidden mb-6">
             <img
@@ -251,7 +259,11 @@ export function EnhancedDetailBottomSheet({
 
             <div className="flex items-center gap-3">
               <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
-                <span className={`w-2.5 h-2.5 rounded-full ${activity.isRecruiting ? 'bg-[#a8d5ba]' : 'bg-[#999]'}`} />
+                <span
+                  className={`w-2.5 h-2.5 rounded-full ${
+                    activity.isRecruiting ? 'recruiting-status-dot bg-[#a8d5ba]' : 'bg-[#999]'
+                  }`}
+                />
               </div>
               <div className="flex-1">
                 <p className={`${activity.isRecruiting ? 'text-[#a8d5ba]' : 'text-[#999]'}`}>
@@ -334,6 +346,6 @@ export function EnhancedDetailBottomSheet({
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

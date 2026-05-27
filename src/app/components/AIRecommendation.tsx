@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Download, MapPin, Clock } from 'lucide-react';
 import { PageShell } from './PageShell';
 import { useBottomSheetScrollLock } from './useBottomSheetScrollLock';
@@ -132,21 +132,46 @@ const getRegionPlan = (activity: ActivitySaveRecord) => {
   };
 };
 
-const aiOpenTransitionDuration = 420;
-const aiCloseTransitionDuration = 340;
-const aiOpenTransitionEasing = 'cubic-bezier(0.22, 1, 0.36, 1)';
-const aiCloseTransitionEasing = 'cubic-bezier(0.4, 0, 0.2, 1)';
+const aiPreparationMessages = [
+  'AI가 여행 흐름을 정리하고 있어요',
+  '근처에서 이어가기 좋은 곳을 살펴보고 있어요',
+  '활동 뒤에 무리 없는 동선을 맞춰보고 있어요',
+];
 
 export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: AIRecommendationProps) {
   const captureRef = useRef<HTMLDivElement>(null);
   const [shouldRender, setShouldRender] = useState(isOpen);
-  const [isPresented, setIsPresented] = useState(false);
+  const [isPreparing, setIsPreparing] = useState(true);
+  const [isRevealing, setIsRevealing] = useState(false);
+  const [preparationMessageIndex, setPreparationMessageIndex] = useState(0);
+  const preparationMessageTimerRef = useRef<number | null>(null);
+  const preparationCompleteTimerRef = useRef<number | null>(null);
   const selectedActivity = activity ?? defaultActivity;
   const plan = useMemo(() => getRegionPlan(selectedActivity), [selectedActivity]);
   useBottomSheetScrollLock(shouldRender);
 
+  const clearPreparationTimers = () => {
+    if (preparationMessageTimerRef.current) {
+      window.clearInterval(preparationMessageTimerRef.current);
+      preparationMessageTimerRef.current = null;
+    }
+
+    if (preparationCompleteTimerRef.current) {
+      window.clearTimeout(preparationCompleteTimerRef.current);
+      preparationCompleteTimerRef.current = null;
+    }
+  };
+
+  const getPrefersReducedMotion = () => (
+    typeof window !== 'undefined' &&
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  );
+
+  const getRevealStyle = (delayMs: number): CSSProperties => ({
+    '--reveal-delay': `${delayMs}ms`,
+  } as CSSProperties);
+
   const handleBack = () => {
-    setIsPresented(false);
     onBack();
   };
 
@@ -154,33 +179,45 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
     if (!isOpen) return;
 
     setShouldRender(true);
-    // Double rAF: first frame lets the DOM node appear with its initial
-    // translate-y-full state; second frame triggers the CSS transition.
-    let outerFrameId: number;
-    let innerFrameId: number;
-    outerFrameId = window.requestAnimationFrame(() => {
-      innerFrameId = window.requestAnimationFrame(() => {
-        setIsPresented(true);
-      });
-    });
-
-    return () => {
-      window.cancelAnimationFrame(outerFrameId);
-      window.cancelAnimationFrame(innerFrameId);
-    };
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      clearPreparationTimers();
+      return undefined;
+    }
+
+    clearPreparationTimers();
+    setIsPreparing(true);
+    setIsRevealing(false);
+    setPreparationMessageIndex(0);
+
+    preparationMessageTimerRef.current = window.setInterval(() => {
+      setPreparationMessageIndex((currentIndex) =>
+        Math.min(currentIndex + 1, aiPreparationMessages.length - 1)
+      );
+    }, 760);
+
+    preparationCompleteTimerRef.current = window.setTimeout(() => {
+      clearPreparationTimers();
+      setIsPreparing(false);
+      setIsRevealing(!getPrefersReducedMotion());
+    }, 2350);
+
+    return clearPreparationTimers;
+  }, [isOpen, selectedActivity.title]);
 
   useEffect(() => {
     if (isOpen || !shouldRender) return undefined;
 
-    setIsPresented(false);
-    const timer = window.setTimeout(() => {
-      setShouldRender(false);
-      onExitComplete?.();
-    }, aiCloseTransitionDuration);
-
-    return () => window.clearTimeout(timer);
+    setShouldRender(false);
+    onExitComplete?.();
+    return undefined;
   }, [isOpen, onExitComplete, shouldRender]);
+
+  useEffect(() => () => {
+    clearPreparationTimers();
+  }, []);
 
   const handleSaveScreenshot = async () => {
     const sourceElement = captureRef.current;
@@ -269,23 +306,11 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center overflow-hidden">
       <div
-        className={`absolute inset-0 bg-[#2a2a2a]/[0.08] backdrop-blur-[1.5px] transition-opacity ${
-          isPresented ? 'opacity-100' : 'opacity-0'
-        }`}
-        style={{
-          transitionDuration: `${isPresented ? aiOpenTransitionDuration : aiCloseTransitionDuration}ms`,
-          transitionTimingFunction: isPresented ? aiOpenTransitionEasing : aiCloseTransitionEasing,
-        }}
+        className="absolute inset-0 bg-[#2a2a2a]/[0.08] backdrop-blur-[1.5px]"
         aria-hidden="true"
       />
       <div
-        className={`bottom-sheet-panel relative h-[100dvh] w-full max-w-[430px] transform-gpu overflow-y-auto bg-[#fdfcfa] shadow-[0_-18px_46px_rgba(39,45,40,0.12)] transition-[transform,opacity] will-change-transform ${
-          isPresented ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
-        }`}
-        style={{
-          transitionDuration: `${isPresented ? aiOpenTransitionDuration : aiCloseTransitionDuration}ms`,
-          transitionTimingFunction: isPresented ? aiOpenTransitionEasing : aiCloseTransitionEasing,
-        }}
+        className="bottom-sheet-panel relative h-[100dvh] w-full max-w-[430px] overflow-y-auto bg-[#fdfcfa] shadow-[0_-18px_46px_rgba(39,45,40,0.12)]"
         data-bottom-sheet-scrollable="true"
       >
         <PageShell reserveBottomTabSpace={false}>
@@ -305,81 +330,174 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
             </div>
           </header>
 
-      <div ref={captureRef} className="px-6 py-6 space-y-8">
-        <section>
-          <div className="bg-white rounded-3xl p-5 shadow-sm border border-black/5">
-            <h3 className="mb-4">{selectedActivity.title}</h3>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2.5">
-                <MapPin className="w-4 h-4 text-[#5a5a5a]" strokeWidth={2} />
-                <span className="text-sm text-[#5a5a5a]">
-                  {selectedActivity.volunteerPlace || selectedActivity.location}
-                </span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <Clock className="w-4 h-4 text-[#5a5a5a]" strokeWidth={2} />
-                <span className="text-sm text-[#5a5a5a]">
-                  {[selectedActivity.date, selectedActivity.time].filter(Boolean).join(' · ')}
-                </span>
-              </div>
+          {isPreparing ? (
+            <div className="px-6 py-6 space-y-7">
+              <section>
+                <div className="bg-white rounded-3xl p-5 shadow-sm border border-black/5">
+                  <p className="mb-2 text-[13px] font-medium text-[#6f8b78]">
+                    여행 일정 준비 중
+                  </p>
+                  <h3 className="mb-3 text-[#2a2a2a]">
+                    {aiPreparationMessages[preparationMessageIndex]}
+                  </h3>
+                  <p className="text-sm leading-relaxed text-[#777]">
+                    {selectedActivity.title} 이후의 이동과 머무는 시간을 차분히 맞춰보고 있어요.
+                  </p>
+                </div>
+              </section>
+
+              <section>
+                <div className="rounded-2xl bg-[#e8f5ed] p-5">
+                  <div className="ai-loading-shimmer mb-3 h-3.5 w-4/5 rounded-full" />
+                  <div className="ai-loading-shimmer mb-3 h-3.5 w-full rounded-full" />
+                  <div className="ai-loading-shimmer h-3.5 w-2/3 rounded-full" />
+                </div>
+              </section>
+
+              <section>
+                <h3 className="mb-4">추천 일정</h3>
+                <div className="space-y-3">
+                  {[0, 1, 2, 3].map((item) => (
+                    <div
+                      key={item}
+                      className="ai-loading-step bg-white rounded-2xl p-4 shadow-sm border border-black/5"
+                    >
+                      <div className="flex gap-4">
+                        <div className="relative min-w-[45px] pt-1">
+                          <div className="h-2.5 w-2.5 rounded-full bg-[#cfe7d9]" />
+                          {item < 3 && <div className="ai-loading-line ml-[4px] mt-1 h-10 w-px bg-[#e3efe8]" />}
+                        </div>
+                        <div className="flex-1 pt-0.5">
+                          <div className="ai-loading-shimmer mb-3 h-4 w-3/4 rounded-full" />
+                          <div className="ai-loading-shimmer h-3.5 w-1/2 rounded-full" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section>
+                <h3 className="mb-5">근처 추천 장소</h3>
+                <div className="space-y-2">
+                  {[0, 1, 2].map((item) => (
+                    <div
+                      key={item}
+                      className="ai-loading-step flex items-center justify-between gap-4 rounded-2xl border border-black/5 bg-white px-4 py-3"
+                    >
+                      <div className="ai-loading-shimmer h-3.5 w-28 rounded-full" />
+                      <div className="ai-loading-shimmer h-3.5 w-14 rounded-full" />
+                    </div>
+                  ))}
+                </div>
+              </section>
             </div>
-          </div>
-        </section>
+          ) : (
+            <div ref={captureRef} className="ai-wave-reveal-stage relative px-6 py-6 space-y-8">
+              {isRevealing && (
+                <div
+                  className="ai-result-wave"
+                  aria-hidden="true"
+                  onAnimationEnd={() => setIsRevealing(false)}
+                />
+              )}
 
-        <section>
-          <div className="bg-[#e8f5ed] rounded-2xl p-5">
-            <p className="text-sm text-[#2a2a2a] leading-relaxed">{plan.note}</p>
-          </div>
-        </section>
-
-        <section>
-          <h3 className="mb-4">추천 일정</h3>
-          <div className="space-y-3">
-            {plan.itinerary.map((item, index) => (
-              <div
-                key={`${item.time}-${index}`}
-                className="bg-white rounded-2xl p-4 shadow-sm border border-black/5"
+              <section
+                className="ai-wave-reveal-item"
+                style={getRevealStyle(120)}
               >
-                <div className="flex gap-4">
-                  <div className="text-sm text-[#a8d5ba] font-medium min-w-[45px]">
-                    {item.time}
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="text-[#2a2a2a] mb-1">{item.title}</h4>
-                    <p className="text-sm text-[#999]">{item.location}</p>
+                <div className="bg-white rounded-3xl p-5 shadow-sm border border-black/5">
+                  <h3 className="mb-4">{selectedActivity.title}</h3>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2.5">
+                      <MapPin className="w-4 h-4 text-[#5a5a5a]" strokeWidth={2} />
+                      <span className="text-sm text-[#5a5a5a]">
+                        {selectedActivity.volunteerPlace || selectedActivity.location}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      <Clock className="w-4 h-4 text-[#5a5a5a]" strokeWidth={2} />
+                      <span className="text-sm text-[#5a5a5a]">
+                        {[selectedActivity.date, selectedActivity.time].filter(Boolean).join(' · ')}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </section>
+              </section>
 
-        <section>
-          <h3 className="mb-5">근처 추천 장소</h3>
-          <div className="space-y-2">
-            {plan.nearbySpots.map((spot, index) => (
-              <div
-                key={`${spot.title}-${index}`}
-                className="flex items-center justify-between gap-4 py-3 px-4 bg-white rounded-2xl border border-black/5"
+              <section
+                className="ai-wave-reveal-item"
+                style={getRevealStyle(280)}
               >
-                <span className="text-sm text-[#2a2a2a]">{spot.title}</span>
-                <span className="text-sm text-[#999] flex-shrink-0">{spot.distance}</span>
-              </div>
-            ))}
-          </div>
-        </section>
+                <div className="bg-[#e8f5ed] rounded-2xl p-5">
+                  <p className="text-sm text-[#2a2a2a] leading-relaxed">{plan.note}</p>
+                </div>
+              </section>
 
-        <section className="pt-2 pb-3">
-          <button
-            type="button"
-            onClick={handleSaveScreenshot}
-            className="w-full bg-[#2a2a2a] text-white py-4 rounded-2xl transition-all hover:bg-[#1a1a1a] flex items-center justify-center gap-2"
-          >
-            <Download className="w-5 h-5" strokeWidth={2} />
-            <span>스크린샷 저장하기</span>
-          </button>
-        </section>
-      </div>
+              <section>
+                <h3
+                  className="ai-wave-reveal-item mb-4"
+                  style={getRevealStyle(400)}
+                >
+                  추천 일정
+                </h3>
+                <div className="space-y-3">
+                  {plan.itinerary.map((item, index) => (
+                    <div
+                      key={`${item.time}-${index}`}
+                      className="ai-wave-reveal-item bg-white rounded-2xl p-4 shadow-sm border border-black/5"
+                      style={getRevealStyle(460 + index * 150)}
+                    >
+                      <div className="flex gap-4">
+                        <div className="text-sm text-[#a8d5ba] font-medium min-w-[45px]">
+                          {item.time}
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-[#2a2a2a] mb-1">{item.title}</h4>
+                          <p className="text-sm text-[#999]">{item.location}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section>
+                <h3
+                  className="ai-wave-reveal-item mb-5"
+                  style={getRevealStyle(1020)}
+                >
+                  근처 추천 장소
+                </h3>
+                <div className="space-y-2">
+                  {plan.nearbySpots.map((spot, index) => (
+                    <div
+                      key={`${spot.title}-${index}`}
+                      className="ai-wave-reveal-item flex items-center justify-between gap-4 py-3 px-4 bg-white rounded-2xl border border-black/5"
+                      style={getRevealStyle(1100 + index * 120)}
+                    >
+                      <span className="text-sm text-[#2a2a2a]">{spot.title}</span>
+                      <span className="text-sm text-[#999] flex-shrink-0">{spot.distance}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section
+                className="ai-wave-reveal-item pt-2 pb-3"
+                style={getRevealStyle(1500)}
+              >
+                <button
+                  type="button"
+                  onClick={handleSaveScreenshot}
+                  className="w-full bg-[#2a2a2a] text-white py-4 rounded-2xl transition-all hover:bg-[#1a1a1a] flex items-center justify-center gap-2"
+                >
+                  <Download className="w-5 h-5" strokeWidth={2} />
+                  <span>스크린샷 저장하기</span>
+                </button>
+              </section>
+            </div>
+          )}
         </PageShell>
       </div>
     </div>

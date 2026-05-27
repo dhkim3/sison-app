@@ -4,6 +4,7 @@ let lockCount = 0;
 let lockedScrollY = 0;
 let lastTouchY = 0;
 let lockMode: 'ios-fixed' | 'standard' | null = null;
+const lockClassName = 'bottom-sheet-scroll-locked';
 
 const originalBodyStyle = {
   height: '',
@@ -66,8 +67,43 @@ const handleTouchMove = (event: TouchEvent) => {
   }
 };
 
+const clearStaleScrollLock = () => {
+  if (typeof window === 'undefined') return;
+
+  const activeSheet = document.querySelector('.bottom-sheet-panel');
+  if (lockCount > 0 && activeSheet) return;
+
+  const { body, documentElement } = document;
+  const hasStaleLock =
+    body.classList.contains(lockClassName) ||
+    documentElement.classList.contains(lockClassName) ||
+    body.style.overflow === 'hidden' ||
+    documentElement.style.overflow === 'hidden';
+
+  if (!hasStaleLock) return;
+
+  lockCount = 0;
+  document.removeEventListener('touchstart', handleTouchStart);
+  document.removeEventListener('touchmove', handleTouchMove);
+  documentElement.classList.remove(lockClassName);
+  body.classList.remove(lockClassName);
+  documentElement.style.overflow = '';
+  documentElement.style.scrollbarGutter = '';
+  body.style.height = '';
+  body.style.position = '';
+  body.style.top = '';
+  body.style.left = '';
+  body.style.right = '';
+  body.style.width = '';
+  body.style.overflow = '';
+  body.style.paddingRight = '';
+  lockMode = null;
+};
+
 const lockBodyScroll = () => {
   if (typeof window === 'undefined') return;
+
+  clearStaleScrollLock();
 
   lockCount += 1;
   if (lockCount > 1) return;
@@ -91,8 +127,8 @@ const lockBodyScroll = () => {
 
   documentElement.style.overflow = 'hidden';
   documentElement.style.scrollbarGutter = 'stable both-edges';
-  documentElement.classList.add('bottom-sheet-scroll-locked');
-  body.classList.add('bottom-sheet-scroll-locked');
+  documentElement.classList.add(lockClassName);
+  body.classList.add(lockClassName);
   body.style.overflow = 'hidden';
 
   if (shouldUseFixedLock) {
@@ -127,8 +163,8 @@ const unlockBodyScroll = () => {
 
   documentElement.style.overflow = originalHtmlStyle.overflow;
   documentElement.style.scrollbarGutter = originalHtmlStyle.scrollbarGutter;
-  documentElement.classList.remove('bottom-sheet-scroll-locked');
-  body.classList.remove('bottom-sheet-scroll-locked');
+  documentElement.classList.remove(lockClassName);
+  body.classList.remove(lockClassName);
   body.style.height = originalBodyStyle.height;
   body.style.position = originalBodyStyle.position;
   body.style.top = originalBodyStyle.top;
@@ -146,7 +182,10 @@ const unlockBodyScroll = () => {
 
 export function useBottomSheetScrollLock(isOpen: boolean) {
   useLayoutEffect(() => {
-    if (!isOpen) return undefined;
+    if (!isOpen) {
+      clearStaleScrollLock();
+      return undefined;
+    }
 
     lockBodyScroll();
     return unlockBodyScroll;

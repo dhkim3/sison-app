@@ -405,36 +405,6 @@ export function HomeAIRecommendationFlow({
 
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center overflow-hidden">
-      <style>
-        {`
-          @keyframes sisonAiFlowIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-
-          @keyframes sisonAiLoadingSweep {
-            0% { transform: translateX(-42%); opacity: 0.2; }
-            45% { opacity: 0.82; }
-            100% { transform: translateX(42%); opacity: 0.2; }
-          }
-
-          @keyframes sisonAiLoadingPulse {
-            0%, 100% { transform: scale(0.92); opacity: 0.36; }
-            50% { transform: scale(1.08); opacity: 0.92; }
-          }
-
-          @keyframes sisonAiAmbientFlow {
-            0%, 100% { transform: translate3d(-2%, -1%, 0) scale(1); opacity: 0.58; }
-            45% { transform: translate3d(3%, 2%, 0) scale(1.04); opacity: 0.76; }
-            72% { transform: translate3d(1%, -2%, 0) scale(1.02); opacity: 0.64; }
-          }
-
-          @keyframes sisonAiAmbientDrift {
-            0%, 100% { transform: translate3d(2%, 1%, 0) rotate(-2deg); opacity: 0.34; }
-            50% { transform: translate3d(-3%, -1.5%, 0) rotate(2deg); opacity: 0.48; }
-          }
-        `}
-      </style>
       <div
         className={`absolute inset-0 bg-[#eef3ff]/62 backdrop-blur-[3px] transition-opacity ${
           isPresented ? 'opacity-100' : 'opacity-0'
@@ -454,16 +424,14 @@ export function HomeAIRecommendationFlow({
           transitionTimingFunction: isPresented ? aiFlowOpenTransitionEasing : aiFlowCloseTransitionEasing,
         }}
       >
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_84%_6%,rgba(130,112,255,0.13),transparent_30%),radial-gradient(circle_at_12%_10%,rgba(107,184,255,0.16),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,255,0.98))]" />
+        <div className="sison-ai-gradient-base pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_84%_6%,rgba(130,112,255,0.13),transparent_30%),radial-gradient(circle_at_12%_10%,rgba(107,184,255,0.16),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,255,0.98))]" />
         <div
-          className="pointer-events-none absolute inset-[-18%] bg-[radial-gradient(ellipse_at_18%_18%,rgba(118,187,255,0.22),transparent_34%),radial-gradient(ellipse_at_82%_14%,rgba(169,142,255,0.18),transparent_32%),radial-gradient(ellipse_at_48%_76%,rgba(160,232,255,0.14),transparent_38%)] blur-2xl"
-          style={{ animation: 'sisonAiAmbientFlow 18s ease-in-out infinite' }}
+          className="sison-ai-gradient-breathe pointer-events-none absolute inset-[-18%] bg-[radial-gradient(ellipse_at_18%_18%,rgba(118,187,255,0.22),transparent_34%),radial-gradient(ellipse_at_82%_14%,rgba(169,142,255,0.18),transparent_32%),radial-gradient(ellipse_at_48%_76%,rgba(160,232,255,0.14),transparent_38%)] blur-2xl"
         />
         <div
-          className="pointer-events-none absolute inset-[-10%] bg-[linear-gradient(115deg,transparent_16%,rgba(116,172,255,0.08)_34%,transparent_52%,rgba(178,143,255,0.08)_70%,transparent_88%)] blur-xl"
-          style={{ animation: 'sisonAiAmbientDrift 22s ease-in-out infinite' }}
+          className="sison-ai-gradient-drift pointer-events-none absolute inset-[-10%] bg-[linear-gradient(115deg,transparent_16%,rgba(116,172,255,0.08)_34%,transparent_52%,rgba(178,143,255,0.08)_70%,transparent_88%)] blur-xl"
         />
-        <div className="pointer-events-none absolute right-[-50px] top-[-54px] h-40 w-40 rounded-full bg-[#a39bff]/14 blur-3xl" />
+        <div className="sison-ai-gradient-halo pointer-events-none absolute right-[-50px] top-[-54px] h-40 w-40 rounded-full bg-[#a39bff]/14 blur-3xl" />
         <header className="sticky top-0 z-10 flex flex-shrink-0 items-center justify-between border-b border-[#eef1fb] bg-white/72 px-5 pb-3 pt-4 backdrop-blur-md">
           <button
             type="button"
