@@ -21,6 +21,7 @@ import { initialSearchState, type SearchState } from './searchState';
 
 type Screen = 'home' | 'search' | 'ai-recommendation' | 'story' | 'saved' | 'profile';
 type SearchEntrySource = 'tab' | 'home-search';
+type AIRecommendationState = 'closed' | 'open' | 'closing';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
@@ -36,8 +37,7 @@ export default function App() {
   const [searchEntrySource, setSearchEntrySource] = useState<SearchEntrySource>('tab');
   const [aiRecommendationActivity, setAiRecommendationActivity] = useState<ActivitySaveRecord | null>(null);
   const [aiReturnScreen, setAiReturnScreen] = useState<Screen>('search');
-  const [isAIRecommendationMounted, setIsAIRecommendationMounted] = useState(false);
-  const [isAIRecommendationOpen, setIsAIRecommendationOpen] = useState(false);
+  const [aiRecommendationState, setAIRecommendationState] = useState<AIRecommendationState>('closed');
   const [restoredDetailActivity, setRestoredDetailActivity] = useState<ActivitySaveRecord | null>(null);
   const [saveFeedback, setSaveFeedback] = useState<{ message: string; isVisible: boolean } | null>(null);
   const saveFeedbackTimers = useRef<number[]>([]);
@@ -76,8 +76,7 @@ export default function App() {
       setAiRecommendationActivity(options?.activity ?? null);
       setAiReturnScreen(options?.returnScreen ?? currentScreen);
       setRestoredDetailActivity(null);
-      setIsAIRecommendationMounted(true);
-      setIsAIRecommendationOpen(true);
+      setAIRecommendationState('open');
       return;
     }
 
@@ -89,11 +88,11 @@ export default function App() {
   };
 
   const handleAIRecommendationBack = () => {
-    setIsAIRecommendationOpen(false);
+    setAIRecommendationState('closing');
   };
 
   const handleAIRecommendationExitComplete = useCallback(() => {
-    setIsAIRecommendationMounted(false);
+    setAIRecommendationState('closed');
     setCurrentScreen(aiReturnScreen);
     if (aiRecommendationActivity) {
       setRestoredDetailActivity(aiRecommendationActivity);
@@ -237,10 +236,10 @@ export default function App() {
           onToggleSavedActivity={handleToggleSavedActivity}
         />
       )}
-      {isAIRecommendationMounted && (
+      {aiRecommendationState !== 'closed' && (
         <AIRecommendation
           activity={aiRecommendationActivity}
-          isOpen={isAIRecommendationOpen}
+          isOpen={aiRecommendationState === 'open'}
           onBack={handleAIRecommendationBack}
           onExitComplete={handleAIRecommendationExitComplete}
         />
@@ -257,7 +256,7 @@ export default function App() {
       )}
       {currentScreen === 'profile' && <ProfileScreen onNavigate={handleNavigate} />}
 
-      {restoredDetailActivity && currentScreen !== 'ai-recommendation' && (
+      {restoredDetailActivity && aiRecommendationState === 'closed' && (
         <EnhancedDetailBottomSheet
           isOpen
           onClose={() => setRestoredDetailActivity(null)}

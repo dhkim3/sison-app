@@ -43,7 +43,7 @@ const canScrollSheet = (sheet: HTMLElement, touchDeltaY: number) => {
   }
 
   if (touchDeltaY < 0) {
-    return sheet.scrollTop < maxScrollTop - 1;
+    return sheet.scrollTop < maxScrollTop;
   }
 
   return true;

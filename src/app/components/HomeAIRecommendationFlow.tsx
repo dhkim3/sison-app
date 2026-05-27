@@ -160,6 +160,7 @@ export function HomeAIRecommendationFlow({
     setIsPresented(false);
     onClose();
     clearLoadingTimers();
+    clearCalendarAdvanceTimer();
     window.setTimeout(() => {
       setStep(0);
       resetRecommendationSession();
@@ -170,11 +171,20 @@ export function HomeAIRecommendationFlow({
     if (!isOpen) return;
 
     setShouldRender(true);
-    const frameId = window.requestAnimationFrame(() => {
-      setIsPresented(true);
+    // Double rAF: first frame lets the DOM node appear with its initial
+    // translate-y-full state; second frame triggers the CSS transition.
+    let outerFrameId: number;
+    let innerFrameId: number;
+    outerFrameId = window.requestAnimationFrame(() => {
+      innerFrameId = window.requestAnimationFrame(() => {
+        setIsPresented(true);
+      });
     });
 
-    return () => window.cancelAnimationFrame(frameId);
+    return () => {
+      window.cancelAnimationFrame(outerFrameId);
+      window.cancelAnimationFrame(innerFrameId);
+    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -524,7 +534,6 @@ export function HomeAIRecommendationFlow({
                 <input
                   value={draftRegion}
                   onChange={(event) => setDraftRegion(event.target.value)}
-                  onInput={(event) => setDraftRegion(event.currentTarget.value)}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') confirmRegion();
                   }}

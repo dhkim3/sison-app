@@ -154,11 +154,20 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
     if (!isOpen) return;
 
     setShouldRender(true);
-    const frameId = window.requestAnimationFrame(() => {
-      setIsPresented(true);
+    // Double rAF: first frame lets the DOM node appear with its initial
+    // translate-y-full state; second frame triggers the CSS transition.
+    let outerFrameId: number;
+    let innerFrameId: number;
+    outerFrameId = window.requestAnimationFrame(() => {
+      innerFrameId = window.requestAnimationFrame(() => {
+        setIsPresented(true);
+      });
     });
 
-    return () => window.cancelAnimationFrame(frameId);
+    return () => {
+      window.cancelAnimationFrame(outerFrameId);
+      window.cancelAnimationFrame(innerFrameId);
+    };
   }, [isOpen]);
 
   useEffect(() => {

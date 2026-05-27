@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Bell, Bookmark, Calendar, Clock, Leaf, MapPin } from 'lucide-react';
+import { formatActivityDate, getRecruitmentDeadlineLabel } from '../activityFormatters';
 import { EnhancedSearchCard } from './EnhancedSearchCard';
 import { CalendarBottomSheet } from './CalendarBottomSheet';
 import { PeopleCountModal } from './PeopleCountModal';
@@ -48,33 +49,7 @@ function HiddenPlaceActivityCard({
   onBookmarkClick,
   onClick,
 }: HiddenPlaceActivityCardProps) {
-  const formatDate = (value?: string) => {
-    if (!value) return '';
-
-    const match = value.match(/^(\d{4})[.-](\d{1,2})[.-](\d{1,2})$/);
-    if (!match) return value;
-
-    return `${Number(match[2])}월 ${Number(match[3])}일`;
-  };
-
-  const getRecruitmentDeadlineLabel = (value?: string) => {
-    if (!value) return '';
-
-    const match = value.match(/^(\d{4})[.-](\d{1,2})[.-](\d{1,2})$/);
-    if (!match) return '마감';
-
-    const deadline = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const daysUntilDeadline = Math.ceil((deadline.getTime() - today.getTime()) / 86400000);
-    if (daysUntilDeadline < 0) return '마감';
-    if (daysUntilDeadline === 0) return '마감 D-Day';
-
-    return `마감 D-${daysUntilDeadline + 1}`;
-  };
-
-  const dateTime = [formatDate(activity.date), activity.time].filter(Boolean).join(' · ');
+  const dateTime = [formatActivityDate(activity.date), activity.time].filter(Boolean).join(' · ');
   const recruitmentMetadata = getRecruitmentDeadlineLabel(activity.recruitmentEndDate);
 
   return (
@@ -158,38 +133,12 @@ function RecentTimelineActivityCard({
   onBookmarkClick,
   onClick,
 }: RecentTimelineActivityCardProps) {
-  const formatDate = (value?: string) => {
-    if (!value) return '';
-
-    const match = value.match(/^(\d{4})[.-](\d{1,2})[.-](\d{1,2})$/);
-    if (!match) return value;
-
-    return `${Number(match[2])}월 ${Number(match[3])}일`;
-  };
-
-  const getRecruitmentDeadlineLabel = (value?: string) => {
-    if (!value) return '';
-
-    const match = value.match(/^(\d{4})[.-](\d{1,2})[.-](\d{1,2})$/);
-    if (!match) return '마감';
-
-    const deadline = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const daysUntilDeadline = Math.ceil((deadline.getTime() - today.getTime()) / 86400000);
-    if (daysUntilDeadline < 0) return '마감';
-    if (daysUntilDeadline === 0) return '마감 D-Day';
-
-    return `마감 D-${daysUntilDeadline + 1}`;
-  };
-
   const registeredLabels = ['방금 등록', '2시간 전 등록', '5시간 전 등록'];
   const dotColors = ['bg-[#6fa985]', 'bg-[#5f9fc9]', 'bg-[#8270bd]'];
   const registeredTextColors = ['text-[#6fa985]', 'text-[#5f9fc9]', 'text-[#8270bd]'];
   const registeredLabel = registeredLabels[index] || '오늘 등록';
   const registeredTextColor = registeredTextColors[index % registeredTextColors.length];
-  const dateTime = [formatDate(activity.date), activity.time].filter(Boolean).join(' · ');
+  const dateTime = [formatActivityDate(activity.date), activity.time].filter(Boolean).join(' · ');
   const recruitmentMetadata = getRecruitmentDeadlineLabel(activity.recruitmentEndDate);
 
   return (

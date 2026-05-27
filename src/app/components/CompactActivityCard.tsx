@@ -1,4 +1,5 @@
 import { Calendar, MapPin, Bookmark, Clock } from 'lucide-react';
+import { formatActivityDate, getRecruitmentDeadlineLabel } from '../activityFormatters';
 
 interface CompactActivityCardProps {
   imageUrl: string;
@@ -34,33 +35,7 @@ export function CompactActivityCard({
   onClick,
   variant = 'default',
 }: CompactActivityCardProps) {
-  const formatDate = (value?: string) => {
-    if (!value) return '';
-
-    const match = value.match(/^(\d{4})[.-](\d{1,2})[.-](\d{1,2})$/);
-    if (!match) return value;
-
-    return `${Number(match[2])}월 ${Number(match[3])}일`;
-  };
-
-  const getRecruitmentDeadlineLabel = (value?: string) => {
-    if (!value) return '';
-
-    const match = value.match(/^(\d{4})[.-](\d{1,2})[.-](\d{1,2})$/);
-    if (!match) return '마감';
-
-    const deadline = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const daysUntilDeadline = Math.ceil((deadline.getTime() - today.getTime()) / 86400000);
-    if (daysUntilDeadline < 0) return '마감';
-    if (daysUntilDeadline === 0) return '마감 D-Day';
-
-    return `마감 D-${daysUntilDeadline + 1}`;
-  };
-
-  const dateTime = [formatDate(date), time].filter(Boolean).join(' · ');
+  const dateTime = [formatActivityDate(date), time].filter(Boolean).join(' · ');
   const recruitmentMetadata = isPastActivity
     ? '지난 활동'
     : getRecruitmentDeadlineLabel(recruitmentEndDate);

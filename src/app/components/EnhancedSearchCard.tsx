@@ -110,7 +110,6 @@ export function EnhancedSearchCard({
               placeholder="어디로 떠나시나요?"
               value={destination}
               onChange={(e) => handleDestinationChange(e.target.value)}
-              onInput={(e) => handleDestinationChange(e.currentTarget.value)}
               onClick={onDestinationClick}
               autoComplete="off"
               autoCorrect="off"
@@ -154,8 +153,6 @@ export function EnhancedSearchCard({
                             event.preventDefault();
                             handleDiscoverySelect(item);
                           }}
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => handleDiscoverySelect(item)}
                           className="flex w-full items-center justify-between gap-3 border-b border-black/[0.04] px-3.5 py-3 text-left text-[13px] text-[#4f5b53] transition-colors last:border-b-0 hover:bg-[#f1f8f3]"
                         >
                           <span className="font-medium">{item}</span>
@@ -191,8 +188,6 @@ export function EnhancedSearchCard({
                                 event.preventDefault();
                                 handleDiscoverySelect(item);
                               }}
-                              onMouseDown={(event) => event.preventDefault()}
-                              onClick={() => handleDiscoverySelect(item)}
                               className="px-3 py-2 rounded-full bg-[#f8f8f5] text-[12px] text-[#5a5a5a] hover:bg-[#e8f5ed] hover:text-[#2a2a2a] transition-colors"
                             >
                               {item}
