@@ -86,7 +86,7 @@ const removeViewportHeightListeners = () => {
   window.removeEventListener('resize', updateViewportHeight);
   window.visualViewport?.removeEventListener('resize', updateViewportHeight);
   window.visualViewport?.removeEventListener('scroll', updateViewportHeight);
-  document.documentElement.style.removeProperty(viewportHeightVariable);
+  // CSS 변수는 App.tsx에서 항상 유지하므로 여기서 제거하지 않음
 };
 
 export const clearStaleScrollLock = () => {
@@ -103,6 +103,9 @@ export const clearStaleScrollLock = () => {
     documentElement.style.overflow === 'hidden';
 
   if (!hasStaleLock) return;
+
+  const shouldRestoreScroll = lockMode === 'ios-fixed';
+  const scrollToRestore = lockedScrollY;
 
   activeLockIds.clear();
   document.removeEventListener('touchstart', handleTouchStart);
@@ -121,6 +124,10 @@ export const clearStaleScrollLock = () => {
   body.style.overflow = '';
   body.style.paddingRight = '';
   lockMode = null;
+
+  if (shouldRestoreScroll) {
+    window.scrollTo(0, scrollToRestore);
+  }
 };
 
 const lockBodyScroll = (lockId: symbol) => {

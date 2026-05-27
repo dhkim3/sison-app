@@ -53,6 +53,26 @@ export default function App() {
     return () => window.cancelAnimationFrame(frameId);
   }, [currentScreen, aiRecommendationState, restoredDetailActivity]);
 
+  // --sison-viewport-height를 항상 최신 시각적 뷰포트 높이로 유지
+  // 바텀시트가 열릴 때 레이아웃 깜빡임 방지 및 iOS Safari 주소창 변화 대응
+  useEffect(() => {
+    const updateViewportHeight = () => {
+      const height = window.visualViewport?.height ?? window.innerHeight;
+      document.documentElement.style.setProperty('--sison-viewport-height', `${height}px`);
+    };
+
+    updateViewportHeight();
+    window.addEventListener('resize', updateViewportHeight);
+    window.visualViewport?.addEventListener('resize', updateViewportHeight);
+    window.visualViewport?.addEventListener('scroll', updateViewportHeight);
+
+    return () => {
+      window.removeEventListener('resize', updateViewportHeight);
+      window.visualViewport?.removeEventListener('resize', updateViewportHeight);
+      window.visualViewport?.removeEventListener('scroll', updateViewportHeight);
+    };
+  }, []);
+
   useEffect(() => () => {
     saveFeedbackTimers.current.forEach((timer) => window.clearTimeout(timer));
   }, []);

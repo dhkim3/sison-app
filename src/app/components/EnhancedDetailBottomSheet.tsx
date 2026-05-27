@@ -178,6 +178,7 @@ export function EnhancedDetailBottomSheet({
         className={`bottom-sheet-panel relative flex w-full max-w-[430px] flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl ${
           disableEntryAnimation ? '' : 'animate-slide-up'
         }`}
+        style={{ height: 'var(--sison-sheet-max-height)' }}
       >
         <div className="flex-shrink-0 bg-white">
           {/* Drag Handle */}
