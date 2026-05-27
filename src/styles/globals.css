@@ -19,14 +19,14 @@
 
 :root {
   --sison-sheet-safe-top: max(16px, env(safe-area-inset-top));
-  --sison-sheet-max-height: min(90svh, calc(var(--sison-viewport-height, 100svh) - var(--sison-sheet-safe-top)));
-  --sison-sheet-tall-height: min(92svh, calc(var(--sison-viewport-height, 100svh) - var(--sison-sheet-safe-top)));
+  --sison-sheet-max-height: min(90svh, calc(100svh - var(--sison-sheet-safe-top)));
+  --sison-sheet-tall-height: min(92svh, calc(100svh - var(--sison-sheet-safe-top)));
 }
 
 @supports (height: 100dvh) {
   :root {
-    --sison-sheet-max-height: min(90dvh, calc(var(--sison-viewport-height, 100dvh) - var(--sison-sheet-safe-top)));
-    --sison-sheet-tall-height: min(92dvh, calc(var(--sison-viewport-height, 100dvh) - var(--sison-sheet-safe-top)));
+    --sison-sheet-max-height: min(90dvh, calc(100dvh - var(--sison-sheet-safe-top)));
+    --sison-sheet-tall-height: min(92dvh, calc(100dvh - var(--sison-sheet-safe-top)));
   }
 }
 
@@ -64,7 +64,6 @@ body.bottom-sheet-scroll-locked {
   position: fixed;
   inset: 0;
   width: 100%;
-  height: var(--sison-viewport-height, 100dvh);
   overflow: hidden;
 }
 
@@ -76,7 +75,7 @@ body.bottom-sheet-scroll-locked {
   align-items: flex-end;
   justify-content: center;
   width: 100%;
-  max-height: var(--sison-viewport-height, 100dvh);
+  max-height: 100dvh;
   overflow: hidden;
   pointer-events: none;
 }
@@ -96,8 +95,8 @@ body.bottom-sheet-scroll-locked {
 }
 
 .bottom-sheet-panel-full {
-  height: var(--sison-viewport-height, 100dvh);
-  max-height: var(--sison-viewport-height, 100dvh);
+  height: 100dvh;
+  max-height: 100dvh;
 }
 
 .bottom-sheet-keyboard-padding {
@@ -106,13 +105,12 @@ body.bottom-sheet-scroll-locked {
 
 @supports not (height: 100dvh) {
   :root {
-    --sison-sheet-max-height: min(90vh, calc(var(--sison-viewport-height, 100vh) - var(--sison-sheet-safe-top)));
-    --sison-sheet-tall-height: min(92vh, calc(var(--sison-viewport-height, 100vh) - var(--sison-sheet-safe-top)));
+    --sison-sheet-max-height: min(90vh, calc(100vh - var(--sison-sheet-safe-top)));
+    --sison-sheet-tall-height: min(92vh, calc(100vh - var(--sison-sheet-safe-top)));
   }
 
-  .bottom-sheet-viewport,
   .bottom-sheet-panel-full {
-    height: var(--sison-viewport-height, 100vh);
+    height: 100vh;
   }
 }
 

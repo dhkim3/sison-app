@@ -220,7 +220,7 @@ export function EnhancedDetailBottomSheet({
         </div>
 
         <div
-          className="bottom-sheet-scrollable min-h-0 flex-1 overflow-y-auto pb-safe"
+          className="bottom-sheet-scrollable scrollbar-hide min-h-0 flex-1 overflow-y-scroll pb-safe"
           data-bottom-sheet-scrollable="true"
         >
           {/* Compact Hero Image */}
