@@ -304,13 +304,13 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
   if (!shouldRender) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center overflow-hidden">
+    <div className="bottom-sheet-viewport z-[70] flex items-end justify-center">
       <div
         className="absolute inset-0 bg-[#2a2a2a]/[0.08] backdrop-blur-[1.5px]"
         aria-hidden="true"
       />
       <div
-        className="bottom-sheet-panel relative h-[100dvh] w-full max-w-[430px] overflow-y-auto bg-[#fdfcfa] shadow-[0_-18px_46px_rgba(39,45,40,0.12)]"
+        className="bottom-sheet-panel bottom-sheet-panel-full relative w-full max-w-[430px] overflow-y-auto bg-[#fdfcfa] shadow-[0_-18px_46px_rgba(39,45,40,0.12)]"
         data-bottom-sheet-scrollable="true"
       >
         <PageShell reserveBottomTabSpace={false}>

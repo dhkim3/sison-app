@@ -57,15 +57,14 @@ export function StoryDetailSheet({
   return (
     <>
       <div
-        className="fixed inset-0 bg-black/35 backdrop-blur-sm z-40 transition-opacity"
+        className="bottom-sheet-viewport z-40 bg-black/35 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
       <div
-        className="bottom-sheet-panel fixed inset-x-0 bottom-0 z-50 mx-auto max-w-[430px] max-h-[86vh] overflow-y-auto bg-white rounded-t-[2rem] shadow-2xl animate-slide-up"
-        data-bottom-sheet-scrollable="true"
+        className="bottom-sheet-panel fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-[430px] flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl animate-slide-up"
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 bg-white/95 backdrop-blur-sm border-b border-black/5">
+        <div className="z-10 flex flex-shrink-0 items-center justify-between border-b border-black/5 bg-white/95 px-5 py-4 backdrop-blur-sm">
           <div className="flex items-center gap-2 text-[12px] font-medium text-[#999]">
             <MapPin className="w-3.5 h-3.5 text-[#c9897e]" strokeWidth={2} />
             <span>{story.region}</span>
@@ -80,7 +79,10 @@ export function StoryDetailSheet({
           </button>
         </div>
 
-        <div className="pb-safe">
+        <div
+          className="bottom-sheet-scrollable min-h-0 flex-1 overflow-y-auto pb-safe"
+          data-bottom-sheet-scrollable="true"
+        >
           <div className="px-5 pt-4">
             <div className="relative overflow-hidden rounded-3xl bg-[#f8f8f5]" style={{ aspectRatio: '1 / 1' }}>
               <img

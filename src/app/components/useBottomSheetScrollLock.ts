@@ -1,10 +1,11 @@
-import { useLayoutEffect } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 
-let lockCount = 0;
+const activeLockIds = new Set<symbol>();
 let lockedScrollY = 0;
 let lastTouchY = 0;
 let lockMode: 'ios-fixed' | 'standard' | null = null;
 const lockClassName = 'bottom-sheet-scroll-locked';
+const viewportHeightVariable = '--sison-viewport-height';
 
 const originalBodyStyle = {
   height: '',
@@ -55,7 +56,7 @@ const handleTouchStart = (event: TouchEvent) => {
 };
 
 const handleTouchMove = (event: TouchEvent) => {
-  if (lockCount <= 0 || event.touches.length === 0) return;
+  if (activeLockIds.size === 0 || event.touches.length === 0) return;
 
   const currentTouchY = event.touches[0].clientY;
   const touchDeltaY = currentTouchY - lastTouchY;
@@ -67,11 +68,32 @@ const handleTouchMove = (event: TouchEvent) => {
   }
 };
 
-const clearStaleScrollLock = () => {
+const updateViewportHeight = () => {
+  if (typeof window === 'undefined') return;
+
+  const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+  document.documentElement.style.setProperty(viewportHeightVariable, `${viewportHeight}px`);
+};
+
+const addViewportHeightListeners = () => {
+  updateViewportHeight();
+  window.addEventListener('resize', updateViewportHeight);
+  window.visualViewport?.addEventListener('resize', updateViewportHeight);
+  window.visualViewport?.addEventListener('scroll', updateViewportHeight);
+};
+
+const removeViewportHeightListeners = () => {
+  window.removeEventListener('resize', updateViewportHeight);
+  window.visualViewport?.removeEventListener('resize', updateViewportHeight);
+  window.visualViewport?.removeEventListener('scroll', updateViewportHeight);
+  document.documentElement.style.removeProperty(viewportHeightVariable);
+};
+
+export const clearStaleScrollLock = () => {
   if (typeof window === 'undefined') return;
 
   const activeSheet = document.querySelector('.bottom-sheet-panel');
-  if (lockCount > 0 && activeSheet) return;
+  if (activeLockIds.size > 0 && activeSheet) return;
 
   const { body, documentElement } = document;
   const hasStaleLock =
@@ -82,9 +104,10 @@ const clearStaleScrollLock = () => {
 
   if (!hasStaleLock) return;
 
-  lockCount = 0;
+  activeLockIds.clear();
   document.removeEventListener('touchstart', handleTouchStart);
   document.removeEventListener('touchmove', handleTouchMove);
+  removeViewportHeightListeners();
   documentElement.classList.remove(lockClassName);
   body.classList.remove(lockClassName);
   documentElement.style.overflow = '';
@@ -100,19 +123,22 @@ const clearStaleScrollLock = () => {
   lockMode = null;
 };
 
-const lockBodyScroll = () => {
+const lockBodyScroll = (lockId: symbol) => {
   if (typeof window === 'undefined') return;
 
   clearStaleScrollLock();
 
-  lockCount += 1;
-  if (lockCount > 1) return;
+  if (activeLockIds.has(lockId)) return;
+
+  activeLockIds.add(lockId);
+  if (activeLockIds.size > 1) return;
 
   const { body, documentElement } = document;
   const scrollbarWidth = window.innerWidth - documentElement.clientWidth;
   const shouldUseFixedLock = isIOSBrowser();
   lockedScrollY = window.scrollY;
   lockMode = shouldUseFixedLock ? 'ios-fixed' : 'standard';
+  addViewportHeightListeners();
 
   originalBodyStyle.left = body.style.left;
   originalBodyStyle.height = body.style.height;
@@ -150,15 +176,21 @@ const lockBodyScroll = () => {
   }
 };
 
-const unlockBodyScroll = () => {
-  if (typeof window === 'undefined' || lockCount <= 0) return;
+const unlockBodyScroll = (lockId: symbol) => {
+  if (typeof window === 'undefined') return;
 
-  lockCount -= 1;
-  if (lockCount > 0) return;
+  if (!activeLockIds.has(lockId)) {
+    clearStaleScrollLock();
+    return;
+  }
+
+  activeLockIds.delete(lockId);
+  if (activeLockIds.size > 0) return;
 
   const { body, documentElement } = document;
   document.removeEventListener('touchstart', handleTouchStart);
   document.removeEventListener('touchmove', handleTouchMove);
+  removeViewportHeightListeners();
   const shouldRestoreScrollPosition = lockMode === 'ios-fixed';
 
   documentElement.style.overflow = originalHtmlStyle.overflow;
@@ -181,13 +213,23 @@ const unlockBodyScroll = () => {
 };
 
 export function useBottomSheetScrollLock(isOpen: boolean) {
+  const lockIdRef = useRef<symbol | null>(null);
+
+  if (!lockIdRef.current) {
+    lockIdRef.current = Symbol('bottom-sheet-scroll-lock');
+  }
+
   useLayoutEffect(() => {
+    const lockId = lockIdRef.current;
+    if (!lockId) return undefined;
+
     if (!isOpen) {
+      unlockBodyScroll(lockId);
       clearStaleScrollLock();
       return undefined;
     }
 
-    lockBodyScroll();
-    return unlockBodyScroll;
+    lockBodyScroll(lockId);
+    return () => unlockBodyScroll(lockId);
   }, [isOpen]);
 }

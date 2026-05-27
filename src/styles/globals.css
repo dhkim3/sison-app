@@ -17,6 +17,19 @@
   padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
 }
 
+:root {
+  --sison-sheet-safe-top: max(16px, env(safe-area-inset-top));
+  --sison-sheet-max-height: min(90svh, calc(var(--sison-viewport-height, 100svh) - var(--sison-sheet-safe-top)));
+  --sison-sheet-tall-height: min(92svh, calc(var(--sison-viewport-height, 100svh) - var(--sison-sheet-safe-top)));
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --sison-sheet-max-height: min(90dvh, calc(var(--sison-viewport-height, 100dvh) - var(--sison-sheet-safe-top)));
+    --sison-sheet-tall-height: min(92dvh, calc(var(--sison-viewport-height, 100dvh) - var(--sison-sheet-safe-top)));
+  }
+}
+
 html {
   width: 100%;
   min-height: 100%;
@@ -47,6 +60,62 @@ body.bottom-sheet-scroll-locked {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
+}
+
+.bottom-sheet-viewport {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: var(--sison-viewport-height, 100dvh);
+  overflow: hidden;
+}
+
+.bottom-sheet-container {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  max-height: var(--sison-viewport-height, 100dvh);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.bottom-sheet-container > .bottom-sheet-panel {
+  pointer-events: auto;
+}
+
+.bottom-sheet-panel {
+  box-sizing: border-box;
+  max-height: var(--sison-sheet-max-height);
+}
+
+.bottom-sheet-panel-tall {
+  height: var(--sison-sheet-tall-height);
+  max-height: var(--sison-sheet-tall-height);
+}
+
+.bottom-sheet-panel-full {
+  height: var(--sison-viewport-height, 100dvh);
+  max-height: var(--sison-viewport-height, 100dvh);
+}
+
+.bottom-sheet-keyboard-padding {
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+}
+
+@supports not (height: 100dvh) {
+  :root {
+    --sison-sheet-max-height: min(90vh, calc(var(--sison-viewport-height, 100vh) - var(--sison-sheet-safe-top)));
+    --sison-sheet-tall-height: min(92vh, calc(var(--sison-viewport-height, 100vh) - var(--sison-sheet-safe-top)));
+  }
+
+  .bottom-sheet-viewport,
+  .bottom-sheet-panel-full {
+    height: var(--sison-viewport-height, 100vh);
+  }
 }
 
 #root {

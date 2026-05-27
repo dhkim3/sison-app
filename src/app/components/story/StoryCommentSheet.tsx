@@ -35,16 +35,16 @@ export function StoryCommentSheet({
   return (
     <>
       <div
-        className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm animate-fade-in"
+        className="bottom-sheet-viewport z-40 bg-black/30 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
       />
 
-      <div className="bottom-sheet-panel fixed inset-x-0 bottom-0 z-50 mx-auto max-w-[430px] overflow-hidden rounded-t-[2rem] bg-[#fdfcfa] shadow-2xl animate-slide-up">
-        <div className="pt-3">
+      <div className="bottom-sheet-panel fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-[430px] flex-col overflow-hidden rounded-t-[2rem] bg-[#fdfcfa] shadow-2xl animate-slide-up">
+        <div className="flex-shrink-0 pt-3">
           <div className="mx-auto h-1 w-10 rounded-full bg-[#dedbd3]" />
         </div>
 
-        <div className="flex items-start justify-between px-6 pb-4 pt-5">
+        <div className="flex flex-shrink-0 items-start justify-between px-6 pb-4 pt-5">
           <div>
             <h3 className="text-[20px] font-semibold leading-tight text-[#2a2a2a]">댓글</h3>
             <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#8c8c8c]">
@@ -62,7 +62,7 @@ export function StoryCommentSheet({
         </div>
 
         <div
-          className="bottom-sheet-scrollable max-h-[54vh] overflow-y-auto px-6 pb-4"
+          className="bottom-sheet-scrollable min-h-0 flex-1 overflow-y-auto px-6 pb-4"
           data-bottom-sheet-scrollable="true"
         >
           {comments.length > 0 ? (
@@ -86,7 +86,7 @@ export function StoryCommentSheet({
           )}
         </div>
 
-        <div className="border-t border-black/5 bg-[#fdfcfa]/95 px-5 py-4 pb-safe">
+        <div className="bottom-sheet-keyboard-padding flex-shrink-0 border-t border-black/5 bg-[#fdfcfa]/95 px-5 py-4">
           <div className="flex items-end gap-2">
             <textarea
               value={draftComment}

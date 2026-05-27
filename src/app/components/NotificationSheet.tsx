@@ -16,16 +16,16 @@ export function NotificationSheet({ isOpen, onClose }: NotificationSheetProps) {
   return (
     <>
       <div
-        className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm animate-fade-in"
+        className="bottom-sheet-viewport z-40 bg-black/30 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
       />
 
-      <div className="bottom-sheet-panel fixed inset-x-0 bottom-0 z-50 mx-auto max-w-[430px] overflow-hidden rounded-t-[2rem] bg-[#fdfcfa] shadow-2xl animate-slide-up">
-        <div className="pt-3">
+      <div className="bottom-sheet-panel fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-[430px] flex-col overflow-hidden rounded-t-[2rem] bg-[#fdfcfa] shadow-2xl animate-slide-up">
+        <div className="flex-shrink-0 pt-3">
           <div className="mx-auto h-1 w-10 rounded-full bg-[#dedbd3]" />
         </div>
 
-        <div className="flex items-start justify-between px-6 pb-4 pt-5">
+        <div className="flex flex-shrink-0 items-start justify-between px-6 pb-4 pt-5">
           <div>
             <h3 className="text-[20px] font-semibold leading-tight text-[#2a2a2a]">알림</h3>
             <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#8c8c8c]">
@@ -43,7 +43,7 @@ export function NotificationSheet({ isOpen, onClose }: NotificationSheetProps) {
         </div>
 
         <div
-          className="bottom-sheet-scrollable max-h-[66vh] overflow-y-auto px-5 pb-safe"
+          className="bottom-sheet-scrollable min-h-0 flex-1 overflow-y-auto px-5 pb-safe"
           data-bottom-sheet-scrollable="true"
         >
           <div className="space-y-6 border-t border-black/5 pt-5">

@@ -404,7 +404,7 @@ export function HomeAIRecommendationFlow({
   if (!shouldRender) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center overflow-hidden">
+    <div className="bottom-sheet-viewport z-[70] flex items-end justify-center">
       <div
         className={`absolute inset-0 bg-[#eef3ff]/62 backdrop-blur-[3px] transition-opacity ${
           isPresented ? 'opacity-100' : 'opacity-0'
@@ -416,7 +416,7 @@ export function HomeAIRecommendationFlow({
         aria-hidden="true"
       />
       <div
-        className={`bottom-sheet-panel relative flex h-[92vh] h-[min(92svh,92dvh)] max-h-[92vh] max-h-[calc(100dvh-env(safe-area-inset-top)-8px)] min-h-[82vh] min-h-[min(82svh,82dvh)] w-full max-w-[430px] transform-gpu flex-col overflow-hidden rounded-t-[28px] border border-[#e2e8f7] bg-[#fbfcff] shadow-[0_-18px_48px_rgba(87,101,145,0.16)] transition-[transform,opacity] will-change-transform ${
+        className={`bottom-sheet-panel bottom-sheet-panel-tall relative flex w-full max-w-[430px] transform-gpu flex-col overflow-hidden rounded-t-[28px] border border-[#e2e8f7] bg-[#fbfcff] shadow-[0_-18px_48px_rgba(87,101,145,0.16)] transition-[transform,opacity] will-change-transform ${
           isPresented ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
         }`}
         style={{
@@ -456,7 +456,7 @@ export function HomeAIRecommendationFlow({
 
         <div
           ref={sheetScrollRef}
-          className="bottom-sheet-scrollable relative flex-1 overflow-y-auto px-5 pb-[calc(24px+env(safe-area-inset-bottom))]"
+          className="bottom-sheet-scrollable relative min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(24px+env(safe-area-inset-bottom))]"
           data-bottom-sheet-scrollable="true"
         >
           <div className="mb-5 flex gap-1.5">

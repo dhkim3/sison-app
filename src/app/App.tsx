@@ -6,6 +6,7 @@ import { StoryCreation } from './components/StoryCreation';
 import { SavedArchive } from './components/SavedArchive';
 import { ProfileScreen } from './components/ProfileScreen';
 import { EnhancedDetailBottomSheet } from './components/EnhancedDetailBottomSheet';
+import { clearStaleScrollLock } from './components/useBottomSheetScrollLock';
 import {
   getActivitySaveKey,
   initialSavedActivities,
@@ -46,6 +47,11 @@ export default function App() {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     document.scrollingElement?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [currentScreen]);
+
+  useEffect(() => {
+    const frameId = window.requestAnimationFrame(clearStaleScrollLock);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [currentScreen, aiRecommendationState, restoredDetailActivity]);
 
   useEffect(() => () => {
     saveFeedbackTimers.current.forEach((timer) => window.clearTimeout(timer));

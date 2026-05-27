@@ -162,7 +162,7 @@ export function EnhancedDetailBottomSheet({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-end justify-center overflow-hidden">
+    <div className="bottom-sheet-viewport z-[90] flex items-end justify-center">
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
         onClick={onClose}
@@ -175,7 +175,7 @@ export function EnhancedDetailBottomSheet({
       )}
 
       <div
-        className={`bottom-sheet-panel relative flex h-auto max-h-[85vh] max-h-[min(88svh,88dvh)] w-full max-w-[430px] flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl ${
+        className={`bottom-sheet-panel relative flex w-full max-w-[430px] flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl ${
           disableEntryAnimation ? '' : 'animate-slide-up'
         }`}
       >
@@ -219,7 +219,7 @@ export function EnhancedDetailBottomSheet({
         </div>
 
         <div
-          className="bottom-sheet-scrollable flex-1 overflow-y-auto pb-safe"
+          className="bottom-sheet-scrollable min-h-0 flex-1 overflow-y-auto pb-safe"
           data-bottom-sheet-scrollable="true"
         >
           {/* Compact Hero Image */}

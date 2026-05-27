@@ -113,16 +113,15 @@ export function CalendarBottomSheet({
   return (
     <>
       <div
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity"
+        className="bottom-sheet-viewport z-40 bg-black/40 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
       <div
-        className="bottom-sheet-panel fixed inset-x-0 bottom-0 bg-white rounded-t-[2rem] z-50 max-h-[85vh] overflow-y-auto shadow-2xl animate-slide-up"
-        data-bottom-sheet-scrollable="true"
+        className="bottom-sheet-panel fixed inset-x-0 bottom-0 z-50 flex flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl animate-slide-up"
       >
         {/* Header */}
-        <div className="sticky top-0 bg-white/95 backdrop-blur-sm px-6 py-4 border-b border-black/5 flex items-center justify-between z-10">
+        <div className="z-10 flex flex-shrink-0 items-center justify-between border-b border-black/5 bg-white/95 px-6 py-4 backdrop-blur-sm">
           <h3>여행 일정</h3>
           <button
             type="button"
@@ -133,7 +132,10 @@ export function CalendarBottomSheet({
           </button>
         </div>
 
-        <div className="px-6 py-6 pb-safe">
+        <div
+          className="bottom-sheet-scrollable min-h-0 flex-1 overflow-y-auto px-6 py-6 pb-safe"
+          data-bottom-sheet-scrollable="true"
+        >
           {/* Month Navigation */}
           <div className="flex items-center justify-between mb-6">
             <button

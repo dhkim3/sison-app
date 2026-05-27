@@ -74,12 +74,12 @@ export function SearchConditionsBottomSheet({
   return (
     <>
       <div
-        className="fixed inset-0 bg-black/35 backdrop-blur-sm z-40 transition-opacity"
+        className="bottom-sheet-viewport z-40 bg-black/35 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
-      <div className="bottom-sheet-panel fixed inset-x-0 bottom-0 z-50 mx-auto max-w-[430px] bg-white rounded-t-[2rem] shadow-2xl animate-slide-up overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-black/5 bg-white/95 backdrop-blur-sm">
+      <div className="bottom-sheet-panel fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-[430px] flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl animate-slide-up">
+        <div className="flex flex-shrink-0 items-center justify-between px-6 py-4 border-b border-black/5 bg-white/95 backdrop-blur-sm">
           <h3 className="text-[17px] font-semibold text-[#2a2a2a]">검색 조건 수정</h3>
           <button
             type="button"
@@ -91,7 +91,7 @@ export function SearchConditionsBottomSheet({
           </button>
         </div>
 
-        <div className="px-6 pt-5 pb-safe space-y-4">
+        <div className="bottom-sheet-scrollable min-h-0 flex-1 overflow-y-auto px-6 pt-5 pb-safe space-y-4" data-bottom-sheet-scrollable="true">
           <div>
             <p className="mb-2 text-[12px] font-medium text-[#999]">여행지</p>
             <div className="flex items-center gap-3 rounded-2xl bg-[#f8f8f5] px-4 py-3.5 border border-black/5">
