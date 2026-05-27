@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { MessageCircle, X } from 'lucide-react';
 import type { StoryComment } from '../../storyInteractionState';
 import type { StoryItem } from './storyTypes';
+import { useBottomSheetScrollLock } from '../useBottomSheetScrollLock';
 
 interface StoryCommentSheetProps {
   story: StoryItem | null;
@@ -19,6 +20,7 @@ export function StoryCommentSheet({
   onAddComment,
 }: StoryCommentSheetProps) {
   const [draftComment, setDraftComment] = useState('');
+  useBottomSheetScrollLock(isOpen && Boolean(story));
 
   if (!isOpen || !story) return null;
 
@@ -37,7 +39,7 @@ export function StoryCommentSheet({
         onClick={onClose}
       />
 
-      <div className="fixed inset-x-0 bottom-0 z-50 mx-auto max-w-[430px] overflow-hidden rounded-t-[2rem] bg-[#fdfcfa] shadow-2xl animate-slide-up">
+      <div className="bottom-sheet-panel fixed inset-x-0 bottom-0 z-50 mx-auto max-w-[430px] overflow-hidden rounded-t-[2rem] bg-[#fdfcfa] shadow-2xl animate-slide-up">
         <div className="pt-3">
           <div className="mx-auto h-1 w-10 rounded-full bg-[#dedbd3]" />
         </div>
@@ -59,7 +61,10 @@ export function StoryCommentSheet({
           </button>
         </div>
 
-        <div className="max-h-[54vh] overflow-y-auto px-6 pb-4">
+        <div
+          className="bottom-sheet-scrollable max-h-[54vh] overflow-y-auto px-6 pb-4"
+          data-bottom-sheet-scrollable="true"
+        >
           {comments.length > 0 ? (
             <div className="space-y-3 border-t border-black/5 pt-4">
               {comments.map((comment) => (

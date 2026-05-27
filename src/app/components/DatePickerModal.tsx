@@ -1,5 +1,6 @@
 import { X, Calendar } from 'lucide-react';
 import { useState } from 'react';
+import { useBottomSheetScrollLock } from './useBottomSheetScrollLock';
 
 interface DatePickerModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ export function DatePickerModal({
 }: DatePickerModalProps) {
   const [startDate, setStartDate] = useState(initialStartDate || '');
   const [endDate, setEndDate] = useState(initialEndDate || '');
+  useBottomSheetScrollLock(isOpen);
 
   if (!isOpen) return null;
 
@@ -35,11 +37,15 @@ export function DatePickerModal({
         onClick={onClose}
       />
 
-      <div className="fixed inset-x-0 bottom-0 bg-white rounded-t-[2rem] z-50 max-h-[80vh] overflow-y-auto shadow-2xl animate-slide-up">
+      <div
+        className="bottom-sheet-panel fixed inset-x-0 bottom-0 bg-white rounded-t-[2rem] z-50 max-h-[80vh] overflow-y-auto shadow-2xl animate-slide-up"
+        data-bottom-sheet-scrollable="true"
+      >
         {/* Header */}
         <div className="sticky top-0 bg-white/95 backdrop-blur-sm px-6 py-4 border-b border-black/5 flex items-center justify-between z-10">
           <h3>여행 일정</h3>
           <button
+            type="button"
             onClick={onClose}
             className="w-9 h-9 rounded-full bg-[#f8f8f5] flex items-center justify-center hover:bg-[#f0f0eb] transition-colors"
           >
@@ -88,6 +94,7 @@ export function DatePickerModal({
 
           {/* Confirm Button */}
           <button
+            type="button"
             onClick={handleConfirm}
             disabled={!startDate || !endDate}
             className="w-full bg-[#2a2a2a] text-white py-4 rounded-2xl transition-all hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"

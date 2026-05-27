@@ -1,5 +1,6 @@
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useBottomSheetScrollLock } from './useBottomSheetScrollLock';
 
 interface CalendarBottomSheetProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export function CalendarBottomSheet({
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [startDate, setStartDate] = useState<Date | null>(initialStartDate || null);
   const [endDate, setEndDate] = useState<Date | null>(initialEndDate || null);
+  useBottomSheetScrollLock(isOpen);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -115,7 +117,10 @@ export function CalendarBottomSheet({
         onClick={onClose}
       />
 
-      <div className="fixed inset-x-0 bottom-0 bg-white rounded-t-[2rem] z-50 max-h-[85vh] overflow-y-auto shadow-2xl animate-slide-up">
+      <div
+        className="bottom-sheet-panel fixed inset-x-0 bottom-0 bg-white rounded-t-[2rem] z-50 max-h-[85vh] overflow-y-auto shadow-2xl animate-slide-up"
+        data-bottom-sheet-scrollable="true"
+      >
         {/* Header */}
         <div className="sticky top-0 bg-white/95 backdrop-blur-sm px-6 py-4 border-b border-black/5 flex items-center justify-between z-10">
           <h3>여행 일정</h3>

@@ -37,6 +37,18 @@ body {
   overscroll-behavior-y: none;
 }
 
+html.bottom-sheet-scroll-locked,
+body.bottom-sheet-scroll-locked {
+  overscroll-behavior: none;
+}
+
+.bottom-sheet-panel,
+.bottom-sheet-scrollable {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
 #root {
   isolation: isolate;
 }

@@ -1,5 +1,6 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Search, Calendar, Users, MapPin, ChevronRight } from 'lucide-react';
+import { filterLocationSuggestions, locationDiscoverySections } from '../locationSuggestions';
 
 interface EnhancedSearchCardProps {
   destination: string;
@@ -26,24 +27,13 @@ export function EnhancedSearchCard({
   const [discoveryHeight, setDiscoveryHeight] = useState(0);
   const destinationInputRef = useRef<HTMLInputElement>(null);
   const discoveryContentRef = useRef<HTMLDivElement>(null);
-  const autocompleteLocations = ['광안리', '안목해변', '애월', '성산일출봉', '해운대', '여수', '통영'];
+  const discoveryCloseTimerRef = useRef<number | null>(null);
   const normalizedDestination = destination.trim().toLowerCase();
-  const autocompleteItems = normalizedDestination
-    ? autocompleteLocations.filter((location) => location.toLowerCase().includes(normalizedDestination))
-    : [];
-
-  const discoverySections = [
-    {
-      title: '최근 검색',
-      icon: Search,
-      items: ['광안리', '안목해변', '제주 애월'],
-    },
-    {
-      title: '추천 지역',
-      icon: MapPin,
-      items: ['부산 수영구', '강릉 안목', '제주 서쪽'],
-    },
-  ];
+  const autocompleteItems = filterLocationSuggestions(destination);
+  const discoverySections = locationDiscoverySections.map((section) => ({
+    ...section,
+    icon: section.title === '최근 검색' ? Search : MapPin,
+  }));
 
   useLayoutEffect(() => {
     const content = discoveryContentRef.current;
@@ -52,7 +42,34 @@ export function EnhancedSearchCard({
     setDiscoveryHeight(isDiscoveryOpen ? content.scrollHeight : 0);
   }, [isDiscoveryOpen, normalizedDestination, autocompleteItems.length]);
 
+  useEffect(() => () => {
+    if (discoveryCloseTimerRef.current) {
+      window.clearTimeout(discoveryCloseTimerRef.current);
+    }
+  }, []);
+
+  const clearDiscoveryCloseTimer = () => {
+    if (!discoveryCloseTimerRef.current) return;
+
+    window.clearTimeout(discoveryCloseTimerRef.current);
+    discoveryCloseTimerRef.current = null;
+  };
+
+  const openDiscovery = () => {
+    clearDiscoveryCloseTimer();
+    setIsDiscoveryOpen(true);
+  };
+
+  const closeDiscoveryWithDelay = () => {
+    clearDiscoveryCloseTimer();
+    discoveryCloseTimerRef.current = window.setTimeout(() => {
+      setIsDiscoveryOpen(false);
+      discoveryCloseTimerRef.current = null;
+    }, 120);
+  };
+
   const handleDiscoverySelect = (value: string) => {
+    clearDiscoveryCloseTimer();
     onDestinationChange(value);
     destinationInputRef.current?.blur();
     setIsDiscoveryOpen(false);
@@ -60,7 +77,7 @@ export function EnhancedSearchCard({
 
   const handleDestinationChange = (value: string) => {
     onDestinationChange(value);
-    setIsDiscoveryOpen(true);
+    openDiscovery();
   };
 
   const transitionToSelection = (openSelection: () => void) => {
@@ -73,14 +90,15 @@ export function EnhancedSearchCard({
   };
 
   return (
-    <div className="bg-white rounded-3xl p-6 shadow-sm border border-black/5">
+    <div className="relative z-30 bg-white rounded-3xl p-6 shadow-sm border border-black/5">
       <div>
         {/* Destination Input */}
         <div
-          onFocus={() => setIsDiscoveryOpen(true)}
+          className="relative z-20"
+          onFocus={openDiscovery}
           onBlur={(event) => {
             if (!event.currentTarget.contains(event.relatedTarget)) {
-              setIsDiscoveryOpen(false);
+              closeDiscoveryWithDelay();
             }
           }}
         >
@@ -92,7 +110,11 @@ export function EnhancedSearchCard({
               placeholder="어디로 떠나시나요?"
               value={destination}
               onChange={(e) => handleDestinationChange(e.target.value)}
+              onInput={(e) => handleDestinationChange(e.currentTarget.value)}
               onClick={onDestinationClick}
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
               className="flex-1 outline-none bg-transparent placeholder:text-[#999] text-[#2a2a2a]"
             />
             <div
@@ -128,6 +150,10 @@ export function EnhancedSearchCard({
                         <button
                           key={item}
                           type="button"
+                          onPointerDown={(event) => {
+                            event.preventDefault();
+                            handleDiscoverySelect(item);
+                          }}
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => handleDiscoverySelect(item)}
                           className="flex w-full items-center justify-between gap-3 border-b border-black/[0.04] px-3.5 py-3 text-left text-[13px] text-[#4f5b53] transition-colors last:border-b-0 hover:bg-[#f1f8f3]"
@@ -161,6 +187,10 @@ export function EnhancedSearchCard({
                             <button
                               key={item}
                               type="button"
+                              onPointerDown={(event) => {
+                                event.preventDefault();
+                                handleDiscoverySelect(item);
+                              }}
                               onMouseDown={(event) => event.preventDefault()}
                               onClick={() => handleDiscoverySelect(item)}
                               className="px-3 py-2 rounded-full bg-[#f8f8f5] text-[12px] text-[#5a5a5a] hover:bg-[#e8f5ed] hover:text-[#2a2a2a] transition-colors"
@@ -183,7 +213,7 @@ export function EnhancedSearchCard({
 
         {/* Date and People Selectors */}
         <div
-          className="grid grid-cols-2 gap-3"
+          className="relative z-0 grid grid-cols-2 gap-3"
         >
           {/* Date Selector */}
           <button

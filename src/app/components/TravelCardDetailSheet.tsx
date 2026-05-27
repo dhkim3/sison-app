@@ -1,6 +1,7 @@
 import { Calendar, Download, Leaf, MapPin, X } from 'lucide-react';
 import { useState } from 'react';
 import type { TravelCard } from './TravelCardCarousel';
+import { useBottomSheetScrollLock } from './useBottomSheetScrollLock';
 
 interface TravelCardDetailSheetProps {
   card: TravelCard | null;
@@ -10,6 +11,7 @@ interface TravelCardDetailSheetProps {
 
 export function TravelCardDetailSheet({ card, isOpen, onClose }: TravelCardDetailSheetProps) {
   const [didDownload, setDidDownload] = useState(false);
+  useBottomSheetScrollLock(isOpen && Boolean(card));
 
   if (!isOpen || !card) return null;
 
@@ -23,7 +25,10 @@ export function TravelCardDetailSheet({ card, isOpen, onClose }: TravelCardDetai
         onClick={onClose}
       />
 
-      <div className="fixed inset-x-0 bottom-0 z-50 mx-auto max-w-[430px] max-h-[88vh] overflow-y-auto bg-[#fdfcfa] rounded-t-[2rem] shadow-2xl animate-slide-up">
+      <div
+        className="bottom-sheet-panel fixed inset-x-0 bottom-0 z-50 mx-auto max-w-[430px] max-h-[88vh] overflow-y-auto bg-[#fdfcfa] rounded-t-[2rem] shadow-2xl animate-slide-up"
+        data-bottom-sheet-scrollable="true"
+      >
         <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 bg-[#fdfcfa]/95 backdrop-blur-sm border-b border-black/5">
           <p className="text-[12px] font-medium text-[#999]">저장한 여행 카드</p>
           <button

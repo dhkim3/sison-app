@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 import { NotificationItem } from './NotificationItem';
 import { NotificationSection } from './NotificationSection';
+import { useBottomSheetScrollLock } from './useBottomSheetScrollLock';
 
 interface NotificationSheetProps {
   isOpen: boolean;
@@ -8,6 +9,8 @@ interface NotificationSheetProps {
 }
 
 export function NotificationSheet({ isOpen, onClose }: NotificationSheetProps) {
+  useBottomSheetScrollLock(isOpen);
+
   if (!isOpen) return null;
 
   return (
@@ -17,7 +20,7 @@ export function NotificationSheet({ isOpen, onClose }: NotificationSheetProps) {
         onClick={onClose}
       />
 
-      <div className="fixed inset-x-0 bottom-0 z-50 mx-auto max-w-[430px] overflow-hidden rounded-t-[2rem] bg-[#fdfcfa] shadow-2xl animate-slide-up">
+      <div className="bottom-sheet-panel fixed inset-x-0 bottom-0 z-50 mx-auto max-w-[430px] overflow-hidden rounded-t-[2rem] bg-[#fdfcfa] shadow-2xl animate-slide-up">
         <div className="pt-3">
           <div className="mx-auto h-1 w-10 rounded-full bg-[#dedbd3]" />
         </div>
@@ -39,7 +42,10 @@ export function NotificationSheet({ isOpen, onClose }: NotificationSheetProps) {
           </button>
         </div>
 
-        <div className="max-h-[66vh] overflow-y-auto px-5 pb-safe">
+        <div
+          className="bottom-sheet-scrollable max-h-[66vh] overflow-y-auto px-5 pb-safe"
+          data-bottom-sheet-scrollable="true"
+        >
           <div className="space-y-6 border-t border-black/5 pt-5">
             <NotificationSection title="오늘">
               <NotificationItem

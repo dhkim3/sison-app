@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { X, Bookmark, Share2, MapPin, Clock, Sparkles } from 'lucide-react';
+import { useBottomSheetScrollLock } from './useBottomSheetScrollLock';
 
 interface EnhancedDetailBottomSheetProps {
   isOpen: boolean;
@@ -46,6 +47,7 @@ export function EnhancedDetailBottomSheet({
   activity,
 }: EnhancedDetailBottomSheetProps) {
   const [shareMessage, setShareMessage] = useState('');
+  useBottomSheetScrollLock(isOpen);
   const formatShortDate = (value?: string) => {
     if (!value) return '';
 
@@ -170,7 +172,10 @@ export function EnhancedDetailBottomSheet({
         </div>
       )}
 
-      <div className="fixed inset-x-0 bottom-0 bg-white rounded-t-[2rem] z-50 max-h-[85vh] overflow-y-auto shadow-2xl animate-slide-up">
+      <div
+        className="bottom-sheet-panel fixed inset-x-0 bottom-0 bg-white rounded-t-[2rem] z-50 max-h-[85vh] overflow-y-auto shadow-2xl animate-slide-up"
+        data-bottom-sheet-scrollable="true"
+      >
         {/* Drag Handle */}
         <div className="sticky top-0 bg-white z-10 pt-3 pb-4">
           <div className="w-10 h-1 bg-[#e0e0e0] rounded-full mx-auto" />
@@ -179,6 +184,7 @@ export function EnhancedDetailBottomSheet({
         {/* Top Actions */}
         <div className="px-6 pb-4 flex items-center justify-between">
           <button
+            type="button"
             onClick={onClose}
             className="w-9 h-9 rounded-full bg-[#f8f8f5] flex items-center justify-center hover:bg-[#f0f0eb] transition-colors"
           >
@@ -308,12 +314,13 @@ export function EnhancedDetailBottomSheet({
             {/* Action Buttons */}
             <div className="space-y-3 pt-4 pb-6">
               {/* Primary CTA */}
-              <button className="w-full bg-[#2a2a2a] text-white py-4 rounded-2xl transition-all hover:bg-[#1a1a1a]">
+              <button type="button" className="w-full bg-[#2a2a2a] text-white py-4 rounded-2xl transition-all hover:bg-[#1a1a1a]">
                 1365에서 신청하기
               </button>
 
               {/* Secondary CTA */}
               <button
+                type="button"
                 onClick={() => {
                   onClose();
                   onAIRecommendation?.(activity);

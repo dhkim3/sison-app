@@ -1,11 +1,14 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Download, MapPin, Clock } from 'lucide-react';
 import { PageShell } from './PageShell';
+import { useBottomSheetScrollLock } from './useBottomSheetScrollLock';
 import type { ActivitySaveRecord } from '../activitySaveState';
 
 interface AIRecommendationProps {
   activity: ActivitySaveRecord | null;
+  isOpen: boolean;
   onBack: () => void;
+  onExitComplete?: () => void;
 }
 
 const defaultActivity: ActivitySaveRecord = {
@@ -129,10 +132,46 @@ const getRegionPlan = (activity: ActivitySaveRecord) => {
   };
 };
 
-export function AIRecommendation({ activity, onBack }: AIRecommendationProps) {
+const aiOpenTransitionDuration = 420;
+const aiCloseTransitionDuration = 340;
+const aiOpenTransitionEasing = 'cubic-bezier(0.22, 1, 0.36, 1)';
+const aiCloseTransitionEasing = 'cubic-bezier(0.4, 0, 0.2, 1)';
+
+export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: AIRecommendationProps) {
   const captureRef = useRef<HTMLDivElement>(null);
+  const [shouldRender, setShouldRender] = useState(isOpen);
+  const [isPresented, setIsPresented] = useState(false);
   const selectedActivity = activity ?? defaultActivity;
   const plan = useMemo(() => getRegionPlan(selectedActivity), [selectedActivity]);
+  useBottomSheetScrollLock(shouldRender);
+
+  const handleBack = () => {
+    setIsPresented(false);
+    onBack();
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    setShouldRender(true);
+    const frameId = window.requestAnimationFrame(() => {
+      setIsPresented(true);
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen || !shouldRender) return undefined;
+
+    setIsPresented(false);
+    const timer = window.setTimeout(() => {
+      setShouldRender(false);
+      onExitComplete?.();
+    }, aiCloseTransitionDuration);
+
+    return () => window.clearTimeout(timer);
+  }, [isOpen, onExitComplete, shouldRender]);
 
   const handleSaveScreenshot = async () => {
     const sourceElement = captureRef.current;
@@ -216,23 +255,46 @@ export function AIRecommendation({ activity, onBack }: AIRecommendationProps) {
     image.src = svgUrl;
   };
 
+  if (!shouldRender) return null;
+
   return (
-    <PageShell reserveBottomTabSpace={false}>
-      <header className="sticky top-0 z-20 bg-[#fdfcfa]/95 backdrop-blur-sm border-b border-black/5">
-        <div className="px-6 py-5">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={onBack}
-              aria-label="상세 화면으로 돌아가기"
-              className="p-2 -ml-2 hover:bg-black/5 rounded-full transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5 text-[#2a2a2a]" strokeWidth={2} />
-            </button>
-            <h3>여행 일정</h3>
-          </div>
-        </div>
-      </header>
+    <div className="fixed inset-0 z-[70] flex items-end justify-center overflow-hidden">
+      <div
+        className={`absolute inset-0 bg-[#2a2a2a]/[0.08] backdrop-blur-[1.5px] transition-opacity ${
+          isPresented ? 'opacity-100' : 'opacity-0'
+        }`}
+        style={{
+          transitionDuration: `${isPresented ? aiOpenTransitionDuration : aiCloseTransitionDuration}ms`,
+          transitionTimingFunction: isPresented ? aiOpenTransitionEasing : aiCloseTransitionEasing,
+        }}
+        aria-hidden="true"
+      />
+      <div
+        className={`bottom-sheet-panel relative h-[100dvh] w-full max-w-[430px] transform-gpu overflow-y-auto bg-[#fdfcfa] shadow-[0_-18px_46px_rgba(39,45,40,0.12)] transition-[transform,opacity] will-change-transform ${
+          isPresented ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
+        }`}
+        style={{
+          transitionDuration: `${isPresented ? aiOpenTransitionDuration : aiCloseTransitionDuration}ms`,
+          transitionTimingFunction: isPresented ? aiOpenTransitionEasing : aiCloseTransitionEasing,
+        }}
+        data-bottom-sheet-scrollable="true"
+      >
+        <PageShell reserveBottomTabSpace={false}>
+          <header className="sticky top-0 z-20 bg-[#fdfcfa]/95 backdrop-blur-sm border-b border-black/5">
+            <div className="px-6 py-5">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  aria-label="상세 화면으로 돌아가기"
+                  className="p-2 -ml-2 hover:bg-black/5 rounded-full transition-colors"
+                >
+                  <ArrowLeft className="w-5 h-5 text-[#2a2a2a]" strokeWidth={2} />
+                </button>
+                <h3>여행 일정</h3>
+              </div>
+            </div>
+          </header>
 
       <div ref={captureRef} className="px-6 py-6 space-y-8">
         <section>
@@ -309,6 +371,8 @@ export function AIRecommendation({ activity, onBack }: AIRecommendationProps) {
           </button>
         </section>
       </div>
-    </PageShell>
+        </PageShell>
+      </div>
+    </div>
   );
 }

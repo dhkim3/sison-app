@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Calendar, MapPin, Search, Users, X } from 'lucide-react';
 import { CalendarBottomSheet } from './CalendarBottomSheet';
 import { PeopleCountModal } from './PeopleCountModal';
+import { useBottomSheetScrollLock } from './useBottomSheetScrollLock';
 
 interface SearchConditionsBottomSheetProps {
   isOpen: boolean;
@@ -40,6 +41,7 @@ export function SearchConditionsBottomSheet({
   const [draftEndDate, setDraftEndDate] = useState<Date | null>(endDate);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isPeopleOpen, setIsPeopleOpen] = useState(false);
+  useBottomSheetScrollLock(isOpen);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -76,7 +78,7 @@ export function SearchConditionsBottomSheet({
         onClick={onClose}
       />
 
-      <div className="fixed inset-x-0 bottom-0 z-50 mx-auto max-w-[430px] bg-white rounded-t-[2rem] shadow-2xl animate-slide-up overflow-hidden">
+      <div className="bottom-sheet-panel fixed inset-x-0 bottom-0 z-50 mx-auto max-w-[430px] bg-white rounded-t-[2rem] shadow-2xl animate-slide-up overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-black/5 bg-white/95 backdrop-blur-sm">
           <h3 className="text-[17px] font-semibold text-[#2a2a2a]">검색 조건 수정</h3>
           <button

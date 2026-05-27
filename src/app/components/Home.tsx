@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bell, Leaf } from 'lucide-react';
+import { Bell, Bookmark, Calendar, Clock, Leaf, MapPin } from 'lucide-react';
 import { EnhancedSearchCard } from './EnhancedSearchCard';
 import { CalendarBottomSheet } from './CalendarBottomSheet';
 import { PeopleCountModal } from './PeopleCountModal';
@@ -15,6 +15,7 @@ import type { SearchState } from '../searchState';
 interface HomeProps {
   onNavigate: (screen: string, options?: { activity?: ActivitySaveRecord; returnScreen?: 'home' | 'search' | 'saved' }) => void;
   onSearchSubmit: (values: Omit<SearchState, 'hasSearched'>) => void;
+  onSearchOpen: (values: Omit<SearchState, 'hasSearched'>) => void;
   isActivitySaved: (activity: ActivitySaveLookup) => boolean;
   onToggleSavedActivity: (activity: ActivitySaveRecord) => void;
 }
@@ -34,7 +35,244 @@ const heroImages = [
   },
 ];
 
-export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSavedActivity }: HomeProps) {
+interface HiddenPlaceActivityCardProps {
+  activity: ActivitySaveRecord;
+  isSaved: boolean;
+  onBookmarkClick: () => void;
+  onClick: () => void;
+}
+
+function HiddenPlaceActivityCard({
+  activity,
+  isSaved,
+  onBookmarkClick,
+  onClick,
+}: HiddenPlaceActivityCardProps) {
+  const formatDate = (value?: string) => {
+    if (!value) return '';
+
+    const match = value.match(/^(\d{4})[.-](\d{1,2})[.-](\d{1,2})$/);
+    if (!match) return value;
+
+    return `${Number(match[2])}월 ${Number(match[3])}일`;
+  };
+
+  const getRecruitmentDeadlineLabel = (value?: string) => {
+    if (!value) return '';
+
+    const match = value.match(/^(\d{4})[.-](\d{1,2})[.-](\d{1,2})$/);
+    if (!match) return '마감';
+
+    const deadline = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const daysUntilDeadline = Math.ceil((deadline.getTime() - today.getTime()) / 86400000);
+    if (daysUntilDeadline < 0) return '마감';
+    if (daysUntilDeadline === 0) return '마감 D-Day';
+
+    return `마감 D-${daysUntilDeadline + 1}`;
+  };
+
+  const dateTime = [formatDate(activity.date), activity.time].filter(Boolean).join(' · ');
+  const recruitmentMetadata = getRecruitmentDeadlineLabel(activity.recruitmentEndDate);
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onClick();
+        }
+      }}
+      className="group relative h-[144px] w-full cursor-pointer overflow-hidden rounded-[1.75rem] bg-[#f2f0ea] shadow-[0_8px_24px_rgba(40,45,42,0.08)] transition-all active:scale-[0.985]"
+    >
+      <img
+        src={activity.imageUrl}
+        alt={activity.title}
+        className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.025]"
+      />
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(21,25,23,0.72)_0%,rgba(21,25,23,0.46)_44%,rgba(21,25,23,0.10)_78%,rgba(21,25,23,0.04)_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(18,22,20,0.16)_0%,rgba(18,22,20,0.02)_42%,rgba(18,22,20,0.20)_100%)]" />
+
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          onBookmarkClick();
+        }}
+        aria-label={isSaved ? '저장 취소' : '활동 저장'}
+        className="absolute right-3.5 top-3.5 flex h-9 w-9 items-center justify-center rounded-full bg-white/92 text-[#5a5a5a] shadow-[0_6px_16px_rgba(0,0,0,0.12)] backdrop-blur-sm transition-all hover:bg-white active:scale-95"
+      >
+        <Bookmark
+          className={`h-4 w-4 ${isSaved ? 'fill-[#a8d5ba] text-[#7fb894]' : 'text-[#5a5a5a]'}`}
+          strokeWidth={2}
+        />
+      </button>
+
+      <div className="absolute inset-y-0 left-0 flex w-[78%] flex-col justify-center px-4 py-4 text-white">
+        <h4 className="max-w-[230px] text-[18px] font-semibold leading-snug text-white drop-shadow-sm">
+          {activity.title}
+        </h4>
+        <div className="mt-2 space-y-1.5">
+          {dateTime && (
+            <div className="flex min-w-0 items-center gap-1.5 text-[11.5px] leading-none text-white/84">
+              <Calendar className="h-3.5 w-3.5 flex-shrink-0 text-white/74" strokeWidth={2} />
+              <span className="line-clamp-1">{dateTime}</span>
+            </div>
+          )}
+          {activity.location && (
+            <div className="flex items-center gap-1.5 text-[11.5px] leading-none text-white/82">
+              <MapPin className="h-3.5 w-3.5 flex-shrink-0 text-white/72" strokeWidth={2} />
+              <span className="line-clamp-1">{activity.location}</span>
+            </div>
+          )}
+          {recruitmentMetadata && (
+            <span className="inline-flex w-fit rounded-full bg-white/18 px-2.5 py-1 text-[11px] font-medium leading-none text-white/86 backdrop-blur-sm">
+              {recruitmentMetadata}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface RecentTimelineActivityCardProps {
+  activity: ActivitySaveRecord;
+  isSaved: boolean;
+  index: number;
+  isLast: boolean;
+  onBookmarkClick: () => void;
+  onClick: () => void;
+}
+
+function RecentTimelineActivityCard({
+  activity,
+  isSaved,
+  index,
+  isLast,
+  onBookmarkClick,
+  onClick,
+}: RecentTimelineActivityCardProps) {
+  const formatDate = (value?: string) => {
+    if (!value) return '';
+
+    const match = value.match(/^(\d{4})[.-](\d{1,2})[.-](\d{1,2})$/);
+    if (!match) return value;
+
+    return `${Number(match[2])}월 ${Number(match[3])}일`;
+  };
+
+  const getRecruitmentDeadlineLabel = (value?: string) => {
+    if (!value) return '';
+
+    const match = value.match(/^(\d{4})[.-](\d{1,2})[.-](\d{1,2})$/);
+    if (!match) return '마감';
+
+    const deadline = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const daysUntilDeadline = Math.ceil((deadline.getTime() - today.getTime()) / 86400000);
+    if (daysUntilDeadline < 0) return '마감';
+    if (daysUntilDeadline === 0) return '마감 D-Day';
+
+    return `마감 D-${daysUntilDeadline + 1}`;
+  };
+
+  const registeredLabels = ['방금 등록', '2시간 전 등록', '5시간 전 등록'];
+  const dotColors = ['bg-[#6fa985]', 'bg-[#5f9fc9]', 'bg-[#8270bd]'];
+  const registeredTextColors = ['text-[#6fa985]', 'text-[#5f9fc9]', 'text-[#8270bd]'];
+  const registeredLabel = registeredLabels[index] || '오늘 등록';
+  const registeredTextColor = registeredTextColors[index % registeredTextColors.length];
+  const dateTime = [formatDate(activity.date), activity.time].filter(Boolean).join(' · ');
+  const recruitmentMetadata = getRecruitmentDeadlineLabel(activity.recruitmentEndDate);
+
+  return (
+    <div className="relative grid grid-cols-[22px_minmax(0,1fr)] gap-3">
+      <div className="relative flex justify-center pt-2">
+        <span className={`relative z-10 h-2.5 w-2.5 rounded-full ${dotColors[index % dotColors.length]} shadow-[0_0_0_4px_rgba(255,255,255,0.92)]`} />
+        {!isLast && <span className="absolute top-5 bottom-[-18px] w-px bg-[#e4e1da]" />}
+      </div>
+
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onClick}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onClick();
+          }
+        }}
+        className="w-full cursor-pointer rounded-2xl border border-black/[0.04] bg-white px-4 py-3 shadow-[0_2px_12px_rgba(39,45,40,0.035)] transition-all active:scale-[0.985]"
+      >
+        <div className="mb-2.5 flex items-center justify-between gap-3">
+          <span className={`text-[12px] font-medium leading-none ${registeredTextColor}`}>
+            {registeredLabel}
+          </span>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onBookmarkClick();
+            }}
+            aria-label={isSaved ? '저장 취소' : '활동 저장'}
+            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[#5a5a5a] transition-colors hover:bg-[#f8f8f5] active:scale-95"
+          >
+            <Bookmark
+              className={`h-4 w-4 ${isSaved ? 'fill-[#a8d5ba] text-[#7fb894]' : 'text-[#5a5a5a]'}`}
+              strokeWidth={2}
+            />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-[minmax(0,1fr)_82px] gap-3">
+          <div className="min-w-0">
+            <h4 className="line-clamp-2 text-[16px] font-semibold leading-snug text-[#2a2a2a]">
+              {activity.title}
+            </h4>
+
+            <div className="mt-3 space-y-1.5">
+              {dateTime && (
+                <div className="flex items-center gap-2 text-[12.5px] leading-none text-[#5a5a5a]">
+                  <Calendar className="h-3.5 w-3.5 flex-shrink-0 text-[#a8d5ba]" strokeWidth={2} />
+                  <span className="line-clamp-1">{dateTime}</span>
+                </div>
+              )}
+              {activity.location && (
+                <div className="flex items-center gap-2 text-[12.5px] leading-none text-[#666]">
+                  <MapPin className="h-3.5 w-3.5 flex-shrink-0 text-[#c9897e]" strokeWidth={2} />
+                  <span className="line-clamp-1">{activity.location}</span>
+                </div>
+              )}
+              {recruitmentMetadata && (
+                <div className="flex items-center gap-2 text-[12px] leading-none text-[#8f8f8f]">
+                  <Clock className="h-3.5 w-3.5 flex-shrink-0 text-[#b8b2aa]" strokeWidth={1.8} />
+                  <span>{recruitmentMetadata}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="h-[82px] overflow-hidden rounded-xl bg-[#f3f0ea]">
+            <img
+              src={activity.imageUrl}
+              alt={activity.title}
+              className="h-full w-full object-cover"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function Home({ onNavigate, onSearchSubmit, onSearchOpen, isActivitySaved, onToggleSavedActivity }: HomeProps) {
   const [destination, setDestination] = useState('');
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
@@ -79,6 +317,16 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
       endDate,
       dateRangeLabel: formatDateRangeFull(),
       peopleCount: 0,
+    });
+  };
+
+  const handleSearchOpen = () => {
+    onSearchOpen({
+      destination: destination.trim(),
+      startDate,
+      endDate,
+      dateRangeLabel: formatDateRangeFull(),
+      peopleCount,
     });
   };
 
@@ -366,7 +614,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
             destination={destination}
             dateRange={formatDateRange()}
             peopleCount={peopleCount}
-            onDestinationClick={() => {}}
+            onDestinationClick={handleSearchOpen}
             onDateClick={() => setIsCalendarOpen(true)}
             onPeopleClick={() => setIsPeopleCountOpen(true)}
             onSearch={handleSearch}
@@ -434,21 +682,41 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
                 <p className="text-[12px] text-[#aaa]">{section.description}</p>
               </div>
               <div className="space-y-2.5">
-                {section.activities.map((activity) => (
-                  <CompactActivityCard
-                    key={`${section.title}-${activity.title}`}
-                    imageUrl={activity.imageUrl}
-                    title={activity.title}
-                    location={activity.location}
-                    recruitmentStartDate={activity.recruitmentStartDate}
-                    recruitmentEndDate={activity.recruitmentEndDate}
-                    date={activity.date}
-                    time={activity.time}
-                    showBookmark
-                    isSaved={isActivitySaved(activity)}
-                    onBookmarkClick={() => onToggleSavedActivity(activity)}
-                    onClick={() => { setSelectedActivity(activity); setIsDetailOpen(true); }}
-                  />
+                {section.activities.map((activity, activityIndex) => (
+                  section.title === '최근 올라온 활동' ? (
+                    <RecentTimelineActivityCard
+                      key={`${section.title}-${activity.title}`}
+                      activity={activity}
+                      index={activityIndex}
+                      isLast={activityIndex === section.activities.length - 1}
+                      isSaved={isActivitySaved(activity)}
+                      onBookmarkClick={() => onToggleSavedActivity(activity)}
+                      onClick={() => { setSelectedActivity(activity); setIsDetailOpen(true); }}
+                    />
+                  ) : section.title === '숨겨진 장소 발견' ? (
+                    <HiddenPlaceActivityCard
+                      key={`${section.title}-${activity.title}`}
+                      activity={activity}
+                      isSaved={isActivitySaved(activity)}
+                      onBookmarkClick={() => onToggleSavedActivity(activity)}
+                      onClick={() => { setSelectedActivity(activity); setIsDetailOpen(true); }}
+                    />
+                  ) : (
+                    <CompactActivityCard
+                      key={`${section.title}-${activity.title}`}
+                      imageUrl={activity.imageUrl}
+                      title={activity.title}
+                      location={activity.location}
+                      recruitmentStartDate={activity.recruitmentStartDate}
+                      recruitmentEndDate={activity.recruitmentEndDate}
+                      date={activity.date}
+                      time={activity.time}
+                      showBookmark
+                      isSaved={isActivitySaved(activity)}
+                      onBookmarkClick={() => onToggleSavedActivity(activity)}
+                      onClick={() => { setSelectedActivity(activity); setIsDetailOpen(true); }}
+                    />
+                  )
                 ))}
               </div>
             </section>

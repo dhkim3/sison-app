@@ -17,6 +17,8 @@ import type { SearchState } from '../searchState';
 interface SearchTabProps {
   onNavigate: (screen: string, options?: { activity?: ActivitySaveRecord; returnScreen?: 'home' | 'search' | 'saved' }) => void;
   searchState: SearchState;
+  entrySource?: 'tab' | 'home-search';
+  onHomeSearchBack?: () => void;
   onSearchStateChange: (state: SearchState) => void;
   isActivitySaved: (activity: ActivitySaveLookup) => boolean;
   onToggleSavedActivity: (activity: ActivitySaveRecord) => void;
@@ -25,6 +27,8 @@ interface SearchTabProps {
 export function SearchTab({
   onNavigate,
   searchState,
+  entrySource = 'tab',
+  onHomeSearchBack,
   onSearchStateChange,
   isActivitySaved,
   onToggleSavedActivity,
@@ -74,6 +78,11 @@ export function SearchTab({
   };
 
   const handleBackToExploration = () => {
+    if (entrySource === 'home-search') {
+      onHomeSearchBack?.();
+      return;
+    }
+
     setHasSearched(false);
     onSearchStateChange({
       destination,
@@ -333,6 +342,7 @@ export function SearchTab({
 
   const currentSummaryDateRange = summaryDateRange || formatDateRangeFull();
   const currentPeopleCount = summaryPeople ? Number.parseInt(summaryPeople, 10) || peopleCount : peopleCount;
+  const shouldShowBackButton = hasSearched || entrySource === 'home-search';
 
   return (
     <>
@@ -341,7 +351,7 @@ export function SearchTab({
         <header className="sticky top-0 z-20 bg-[#fdfcfa]/95 backdrop-blur-sm">
           <div className="px-5 py-3.5">
             <div className="flex items-center gap-3">
-              {hasSearched && (
+              {shouldShowBackButton && (
                 <button
                   type="button"
                   onClick={handleBackToExploration}

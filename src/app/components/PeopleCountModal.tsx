@@ -1,5 +1,6 @@
 import { X, Minus, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useBottomSheetScrollLock } from './useBottomSheetScrollLock';
 
 interface PeopleCountModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ export function PeopleCountModal({
   initialCount = 1,
 }: PeopleCountModalProps) {
   const [count, setCount] = useState(initialCount);
+  useBottomSheetScrollLock(isOpen);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -39,7 +41,7 @@ export function PeopleCountModal({
         onClick={onClose}
       />
 
-      <div className="fixed inset-x-0 bottom-0 bg-white rounded-t-[2rem] z-50 shadow-2xl animate-slide-up">
+      <div className="bottom-sheet-panel fixed inset-x-0 bottom-0 bg-white rounded-t-[2rem] z-50 shadow-2xl animate-slide-up">
         {/* Header */}
         <div className="sticky top-0 bg-white/95 backdrop-blur-sm px-6 py-4 border-b border-black/5 flex items-center justify-between z-10">
           <h3>인원</h3>

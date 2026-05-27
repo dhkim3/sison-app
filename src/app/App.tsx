@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Home } from './components/Home';
 import { SearchTab } from './components/SearchTab';
 import { AIRecommendation } from './components/AIRecommendation';
@@ -20,6 +20,7 @@ import {
 import { initialSearchState, type SearchState } from './searchState';
 
 type Screen = 'home' | 'search' | 'ai-recommendation' | 'story' | 'saved' | 'profile';
+type SearchEntrySource = 'tab' | 'home-search';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
@@ -32,8 +33,11 @@ export default function App() {
   const [likedStoryIds, setLikedStoryIds] = useState<number[]>([]);
   const [storyComments, setStoryComments] = useState<Record<number, StoryComment[]>>(initialStoryComments);
   const [searchState, setSearchState] = useState<SearchState>(initialSearchState);
+  const [searchEntrySource, setSearchEntrySource] = useState<SearchEntrySource>('tab');
   const [aiRecommendationActivity, setAiRecommendationActivity] = useState<ActivitySaveRecord | null>(null);
   const [aiReturnScreen, setAiReturnScreen] = useState<Screen>('search');
+  const [isAIRecommendationMounted, setIsAIRecommendationMounted] = useState(false);
+  const [isAIRecommendationOpen, setIsAIRecommendationOpen] = useState(false);
   const [restoredDetailActivity, setRestoredDetailActivity] = useState<ActivitySaveRecord | null>(null);
   const [saveFeedback, setSaveFeedback] = useState<{ message: string; isVisible: boolean } | null>(null);
   const saveFeedbackTimers = useRef<number[]>([]);
@@ -72,24 +76,51 @@ export default function App() {
       setAiRecommendationActivity(options?.activity ?? null);
       setAiReturnScreen(options?.returnScreen ?? currentScreen);
       setRestoredDetailActivity(null);
+      setIsAIRecommendationMounted(true);
+      setIsAIRecommendationOpen(true);
+      return;
+    }
+
+    if (screen === 'search') {
+      setSearchEntrySource('tab');
     }
 
     setCurrentScreen(screen as Screen);
   };
 
   const handleAIRecommendationBack = () => {
+    setIsAIRecommendationOpen(false);
+  };
+
+  const handleAIRecommendationExitComplete = useCallback(() => {
+    setIsAIRecommendationMounted(false);
     setCurrentScreen(aiReturnScreen);
     if (aiRecommendationActivity) {
       setRestoredDetailActivity(aiRecommendationActivity);
     }
-  };
+  }, [aiRecommendationActivity, aiReturnScreen]);
 
   const handleHomeSearchSubmit = (values: Omit<SearchState, 'hasSearched'>) => {
     setSearchState({
       ...values,
       hasSearched: true,
     });
+    setSearchEntrySource('home-search');
     setCurrentScreen('search');
+  };
+
+  const handleHomeSearchOpen = (values: Omit<SearchState, 'hasSearched'>) => {
+    setSearchState({
+      ...values,
+      hasSearched: false,
+    });
+    setSearchEntrySource('home-search');
+    setCurrentScreen('search');
+  };
+
+  const handleHomeSearchBack = () => {
+    setSearchEntrySource('tab');
+    setCurrentScreen('home');
   };
 
   const isActivitySaved = (activity: ActivitySaveLookup) =>
@@ -190,6 +221,7 @@ export default function App() {
         <Home
           onNavigate={handleNavigate}
           onSearchSubmit={handleHomeSearchSubmit}
+          onSearchOpen={handleHomeSearchOpen}
           isActivitySaved={isActivitySaved}
           onToggleSavedActivity={handleToggleSavedActivity}
         />
@@ -198,15 +230,19 @@ export default function App() {
         <SearchTab
           onNavigate={handleNavigate}
           searchState={searchState}
+          entrySource={searchEntrySource}
+          onHomeSearchBack={handleHomeSearchBack}
           onSearchStateChange={setSearchState}
           isActivitySaved={isActivitySaved}
           onToggleSavedActivity={handleToggleSavedActivity}
         />
       )}
-      {currentScreen === 'ai-recommendation' && (
+      {isAIRecommendationMounted && (
         <AIRecommendation
           activity={aiRecommendationActivity}
+          isOpen={isAIRecommendationOpen}
           onBack={handleAIRecommendationBack}
+          onExitComplete={handleAIRecommendationExitComplete}
         />
       )}
       {currentScreen === 'story' && <StoryCreation onNavigate={handleNavigate} storyInteractions={storyInteractions} />}

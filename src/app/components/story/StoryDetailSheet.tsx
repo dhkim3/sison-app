@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Heart, MessageCircle, MapPin, X } from 'lucide-react';
 import type { StoryComment } from '../../storyInteractionState';
 import type { StoryItem } from './storyTypes';
+import { useBottomSheetScrollLock } from '../useBottomSheetScrollLock';
 
 interface StoryDetailSheetProps {
   story: StoryItem | null;
@@ -30,6 +31,7 @@ export function StoryDetailSheet({
 }: StoryDetailSheetProps) {
   const [visibleCommentCount, setVisibleCommentCount] = useState(2);
   const [draftComment, setDraftComment] = useState('');
+  useBottomSheetScrollLock(isOpen && Boolean(story));
 
   useEffect(() => {
     if (!story) return;
@@ -59,7 +61,10 @@ export function StoryDetailSheet({
         onClick={onClose}
       />
 
-      <div className="fixed inset-x-0 bottom-0 z-50 mx-auto max-w-[430px] max-h-[86vh] overflow-y-auto bg-white rounded-t-[2rem] shadow-2xl animate-slide-up">
+      <div
+        className="bottom-sheet-panel fixed inset-x-0 bottom-0 z-50 mx-auto max-w-[430px] max-h-[86vh] overflow-y-auto bg-white rounded-t-[2rem] shadow-2xl animate-slide-up"
+        data-bottom-sheet-scrollable="true"
+      >
         <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 bg-white/95 backdrop-blur-sm border-b border-black/5">
           <div className="flex items-center gap-2 text-[12px] font-medium text-[#999]">
             <MapPin className="w-3.5 h-3.5 text-[#c9897e]" strokeWidth={2} />

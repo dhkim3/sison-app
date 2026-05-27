@@ -7,6 +7,7 @@ import { BottomTabBar } from './BottomTabBar';
 import { PageShell } from './PageShell';
 import { StoryCard } from './story/StoryCard';
 import { StoryDetailSheet } from './story/StoryDetailSheet';
+import { useBottomSheetScrollLock } from './useBottomSheetScrollLock';
 import type { StoryItem } from './story/storyTypes';
 import {
   AccountSettingsScreen,
@@ -35,6 +36,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
   const profileImageInputRef = useRef<HTMLInputElement>(null);
   const draftImageObjectUrlRef = useRef<string | null>(null);
   const bioMaxLength = 72;
+  useBottomSheetScrollLock(isProfileEditorOpen);
 
   useEffect(() => {
     return () => {
@@ -314,7 +316,10 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
             onClick={closeProfileEditor}
             className="absolute inset-0 bg-black/20 backdrop-blur-[1px] transition-opacity"
           />
-          <div className="absolute bottom-0 left-0 right-0 max-h-[88vh] overflow-y-auto rounded-t-[28px] bg-[#fdfcfa] px-5 pb-[calc(env(safe-area-inset-bottom)+20px)] pt-4 shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
+          <div
+            className="bottom-sheet-panel absolute bottom-0 left-0 right-0 max-h-[88vh] overflow-y-auto rounded-t-[28px] bg-[#fdfcfa] px-5 pb-[calc(env(safe-area-inset-bottom)+20px)] pt-4 shadow-[0_-10px_30px_rgba(0,0,0,0.08)]"
+            data-bottom-sheet-scrollable="true"
+          >
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-black/10" />
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>

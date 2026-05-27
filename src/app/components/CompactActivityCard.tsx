@@ -16,6 +16,7 @@ interface CompactActivityCardProps {
   isSaved?: boolean;
   onBookmarkClick?: () => void;
   onClick?: () => void;
+  variant?: 'default' | 'aiRecommendation';
 }
 
 export function CompactActivityCard({
@@ -31,6 +32,7 @@ export function CompactActivityCard({
   isSaved = false,
   onBookmarkClick,
   onClick,
+  variant = 'default',
 }: CompactActivityCardProps) {
   const formatDate = (value?: string) => {
     if (!value) return '';
@@ -62,6 +64,7 @@ export function CompactActivityCard({
   const recruitmentMetadata = isPastActivity
     ? '지난 활동'
     : getRecruitmentDeadlineLabel(recruitmentEndDate);
+  const isAIRecommendation = variant === 'aiRecommendation';
 
   return (
     <div
@@ -75,8 +78,12 @@ export function CompactActivityCard({
           onClick();
         }
       }}
-      className="w-full bg-white rounded-2xl overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.04)] border border-black/5 hover:shadow-[0_2px_6px_rgba(0,0,0,0.08)] hover:border-transparent active:scale-[0.98] transition-all cursor-pointer"
-      style={{ height: '118px' }}
+      className={`w-full bg-white overflow-hidden active:scale-[0.98] transition-all cursor-pointer ${
+        isAIRecommendation
+          ? 'rounded-[1.35rem] border border-[#e1e6f7] shadow-[0_12px_26px_rgba(80,96,145,0.08)] hover:shadow-[0_14px_30px_rgba(80,96,145,0.11)] hover:border-[#d8def3]'
+          : 'rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.04)] border border-black/5 hover:shadow-[0_2px_6px_rgba(0,0,0,0.08)] hover:border-transparent'
+      }`}
+      style={{ height: isAIRecommendation ? '122px' : '118px' }}
     >
       <div className="flex h-full">
         {/* Image - Left Side */}
