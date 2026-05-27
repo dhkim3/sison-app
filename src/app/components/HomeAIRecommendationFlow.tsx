@@ -14,7 +14,7 @@ interface HomeAIRecommendationFlowProps {
   onToggleSavedActivity: (activity: ActivitySaveRecord) => void;
 }
 
-const timeSuggestions = ['1~2시간', '2~4시간', '4시간 이상'];
+const timeSuggestions = ['1~2시간', '3~4시간', '4시간 이상'];
 const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
 const activityMoodSuggestions = [
   '조용히 걸으며 할 수 있는',
@@ -446,7 +446,7 @@ export function HomeAIRecommendationFlow({
         aria-hidden="true"
       />
       <div
-        className={`bottom-sheet-panel relative max-h-[92vh] min-h-[82vh] w-full max-w-[430px] transform-gpu overflow-hidden rounded-t-[28px] border border-[#e2e8f7] bg-[#fbfcff] shadow-[0_-18px_48px_rgba(87,101,145,0.16)] transition-[transform,opacity] will-change-transform ${
+        className={`bottom-sheet-panel relative flex h-[92vh] h-[min(92svh,92dvh)] max-h-[92vh] max-h-[calc(100dvh-env(safe-area-inset-top)-8px)] min-h-[82vh] min-h-[min(82svh,82dvh)] w-full max-w-[430px] transform-gpu flex-col overflow-hidden rounded-t-[28px] border border-[#e2e8f7] bg-[#fbfcff] shadow-[0_-18px_48px_rgba(87,101,145,0.16)] transition-[transform,opacity] will-change-transform ${
           isPresented ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
         }`}
         style={{
@@ -464,7 +464,7 @@ export function HomeAIRecommendationFlow({
           style={{ animation: 'sisonAiAmbientDrift 22s ease-in-out infinite' }}
         />
         <div className="pointer-events-none absolute right-[-50px] top-[-54px] h-40 w-40 rounded-full bg-[#a39bff]/14 blur-3xl" />
-        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-[#eef1fb] bg-white/72 px-5 pb-3 pt-4 backdrop-blur-md">
+        <header className="sticky top-0 z-10 flex flex-shrink-0 items-center justify-between border-b border-[#eef1fb] bg-white/72 px-5 pb-3 pt-4 backdrop-blur-md">
           <button
             type="button"
             onClick={handleBack}
@@ -488,7 +488,7 @@ export function HomeAIRecommendationFlow({
 
         <div
           ref={sheetScrollRef}
-          className="bottom-sheet-scrollable relative h-[calc(92vh-64px)] overflow-y-auto px-5 pb-8"
+          className="bottom-sheet-scrollable relative flex-1 overflow-y-auto px-5 pb-[calc(24px+env(safe-area-inset-bottom))]"
           data-bottom-sheet-scrollable="true"
         >
           <div className="mb-5 flex gap-1.5">
@@ -584,8 +584,8 @@ export function HomeAIRecommendationFlow({
                 <h2 className="mb-6 text-[24px] font-semibold leading-tight text-[#303850]">
                   언제 시간이<br />괜찮으세요?
                 </h2>
-                <div className="rounded-[1.5rem] border border-[#dfe5fb] bg-white/84 p-4 shadow-[0_12px_28px_rgba(91,105,170,0.09),inset_0_1px_0_rgba(255,255,255,0.82)]" style={{ animation: 'sisonAiFlowIn 240ms ease-out both' }}>
-                  <div className="mb-4 flex items-center justify-between">
+                <div className="rounded-[1.5rem] border border-[#dfe5fb] bg-white/84 p-3.5 shadow-[0_12px_28px_rgba(91,105,170,0.09),inset_0_1px_0_rgba(255,255,255,0.82)] sm:p-4" style={{ animation: 'sisonAiFlowIn 240ms ease-out both' }}>
+                  <div className="mb-3 flex items-center justify-between sm:mb-4">
                     <button
                       type="button"
                       onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
@@ -612,7 +612,7 @@ export function HomeAIRecommendationFlow({
                     </button>
                   </div>
 
-                  <div className="mb-2 grid grid-cols-7 gap-1.5">
+                  <div className="mb-1.5 grid grid-cols-7 gap-1 sm:mb-2 sm:gap-1.5">
                     {weekDays.map((day, index) => (
                       <div
                         key={day}
@@ -645,7 +645,7 @@ export function HomeAIRecommendationFlow({
                           onClick={() => handleInlineDateClick(date)}
                           disabled={isPast}
                           className={`
-                            aspect-square rounded-2xl text-[12.5px] font-medium transition-all
+                            aspect-square rounded-xl text-[12px] font-medium transition-all sm:rounded-2xl sm:text-[12.5px]
                             ${isPast ? 'cursor-not-allowed text-[#d7dbe6]' : 'active:scale-95'}
                             ${isStart || isEnd ? 'scale-[1.03] bg-[#7d8dff] text-white shadow-[0_9px_18px_rgba(125,141,255,0.24),0_0_0_4px_rgba(125,141,255,0.08)]' : ''}
                             ${inRange && !isStart && !isEnd ? 'bg-[#edf0ff] text-[#44506e] shadow-[inset_0_0_0_1px_rgba(125,141,255,0.04)]' : ''}

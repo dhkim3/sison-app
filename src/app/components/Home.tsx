@@ -16,7 +16,6 @@ import type { SearchState } from '../searchState';
 interface HomeProps {
   onNavigate: (screen: string, options?: { activity?: ActivitySaveRecord; returnScreen?: 'home' | 'search' | 'saved' }) => void;
   onSearchSubmit: (values: Omit<SearchState, 'hasSearched'>) => void;
-  onSearchOpen: (values: Omit<SearchState, 'hasSearched'>) => void;
   isActivitySaved: (activity: ActivitySaveLookup) => boolean;
   onToggleSavedActivity: (activity: ActivitySaveRecord) => void;
 }
@@ -221,7 +220,7 @@ function RecentTimelineActivityCard({
   );
 }
 
-export function Home({ onNavigate, onSearchSubmit, onSearchOpen, isActivitySaved, onToggleSavedActivity }: HomeProps) {
+export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSavedActivity }: HomeProps) {
   const [destination, setDestination] = useState('');
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
@@ -266,16 +265,6 @@ export function Home({ onNavigate, onSearchSubmit, onSearchOpen, isActivitySaved
       endDate,
       dateRangeLabel: formatDateRangeFull(),
       peopleCount: 0,
-    });
-  };
-
-  const handleSearchOpen = () => {
-    onSearchOpen({
-      destination: destination.trim(),
-      startDate,
-      endDate,
-      dateRangeLabel: formatDateRangeFull(),
-      peopleCount,
     });
   };
 
@@ -563,7 +552,6 @@ export function Home({ onNavigate, onSearchSubmit, onSearchOpen, isActivitySaved
             destination={destination}
             dateRange={formatDateRange()}
             peopleCount={peopleCount}
-            onDestinationClick={handleSearchOpen}
             onDateClick={() => setIsCalendarOpen(true)}
             onPeopleClick={() => setIsPeopleCountOpen(true)}
             onSearch={handleSearch}

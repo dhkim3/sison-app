@@ -6,7 +6,6 @@ interface EnhancedSearchCardProps {
   destination: string;
   dateRange: string;
   peopleCount: number;
-  onDestinationClick: () => void;
   onDateClick: () => void;
   onPeopleClick: () => void;
   onSearch: () => void;
@@ -17,7 +16,6 @@ export function EnhancedSearchCard({
   destination,
   dateRange,
   peopleCount,
-  onDestinationClick,
   onDateClick,
   onPeopleClick,
   onSearch,
@@ -110,7 +108,6 @@ export function EnhancedSearchCard({
               placeholder="어디로 떠나시나요?"
               value={destination}
               onChange={(e) => handleDestinationChange(e.target.value)}
-              onClick={onDestinationClick}
               autoComplete="off"
               autoCorrect="off"
               spellCheck={false}

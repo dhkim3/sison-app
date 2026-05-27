@@ -108,15 +108,6 @@ export default function App() {
     setCurrentScreen('search');
   };
 
-  const handleHomeSearchOpen = (values: Omit<SearchState, 'hasSearched'>) => {
-    setSearchState({
-      ...values,
-      hasSearched: false,
-    });
-    setSearchEntrySource('home-search');
-    setCurrentScreen('search');
-  };
-
   const handleHomeSearchBack = () => {
     setSearchEntrySource('tab');
     setCurrentScreen('home');
@@ -220,7 +211,6 @@ export default function App() {
         <Home
           onNavigate={handleNavigate}
           onSearchSubmit={handleHomeSearchSubmit}
-          onSearchOpen={handleHomeSearchOpen}
           isActivitySaved={isActivitySaved}
           onToggleSavedActivity={handleToggleSavedActivity}
         />
