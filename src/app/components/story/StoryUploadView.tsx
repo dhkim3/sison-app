@@ -1,3 +1,4 @@
+import { useRef, type ChangeEvent } from 'react';
 import { ArrowLeft, MapPin, Calendar, Image as ImageIcon, X, Sparkles } from 'lucide-react';
 import { BottomTabBar } from '../BottomTabBar';
 import { PageShell } from '../PageShell';
@@ -25,29 +26,27 @@ export function StoryUploadView({
   onTextChange,
   onNavigate,
 }: StoryUploadViewProps) {
-  const MAX_PHOTOS = 5;
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleAddPhoto = () => {
-    // Mock photo upload - in real app, this would open gallery
-    if (photos.length < MAX_PHOTOS) {
-      const mockPhotoUrl =
-        activity?.imageUrl ||
-        'https://images.unsplash.com/photo-1565803974275-dccd2f933cbb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800';
-      onPhotosChange([...photos, mockPhotoUrl]);
+    fileInputRef.current?.click();
+  };
+
+  const handlePhotoSelect = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !file.type.startsWith('image/')) return;
+
+    const previewUrl = URL.createObjectURL(file);
+    onPhotosChange([previewUrl]);
+    event.target.value = '';
+  };
+
+  const handleRemovePhoto = () => {
+    onPhotosChange([]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
-
-  const handleRemovePhoto = (index: number) => {
-    onPhotosChange(photos.filter((_, i) => i !== index));
-  };
-
-  // Auto-generate tags based on activity
-  const suggestedTags = [
-    `#${activity.region}`,
-    '#바다',
-    '#환경정화',
-    `#${activity.region}여행`,
-  ];
 
   return (
     <>
@@ -96,118 +95,102 @@ export function StoryUploadView({
 
           {/* Photo Upload */}
           <section>
-            <div className="mb-3.5">
+            <div className="mb-3">
               <h4 className="text-[#2a2a2a] mb-0.5 font-semibold">여행 사진</h4>
               <p className="text-[11px] text-[#bbb]">
-                최대 {MAX_PHOTOS}장까지 선택할 수 있어요 ({photos.length} / {MAX_PHOTOS})
+                사진을 더하면 오늘의 장면이 조금 더 선명해져요
               </p>
             </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handlePhotoSelect}
+            />
 
             {photos.length === 0 ? (
               // Empty state
               <button
+                type="button"
                 onClick={handleAddPhoto}
-                className="w-full aspect-[4/3] bg-[#f8f8f5] rounded-2xl border-2 border-dashed border-black/10 hover:border-[#a8d5ba] hover:bg-[#e8f5ed]/30 transition-all flex flex-col items-center justify-center gap-3"
+                className="flex h-[128px] w-full flex-col items-center justify-center gap-2.5 rounded-2xl border border-dashed border-black/10 bg-[#f8f8f5] transition-all hover:border-[#a8d5ba] hover:bg-[#e8f5ed]/30"
               >
-                <ImageIcon className="w-12 h-12 text-[#999]" strokeWidth={1.5} />
+                <ImageIcon className="h-8 w-8 text-[#aaa]" strokeWidth={1.5} />
                 <div className="text-center">
-                  <p className="text-[13px] text-[#5a5a5a] mb-0.5">여행 중 남긴 사진을 선택해주세요</p>
-                  <p className="text-[11px] text-[#999]">갤러리에서 선택</p>
+                  <p className="text-[13px] font-medium text-[#5a5a5a]">사진 추가하기</p>
                 </div>
               </button>
             ) : (
-              // Photos grid
-              <div className="grid grid-cols-3 gap-3">
-                {photos.map((photo, index) => (
-                  <div key={index} className="relative aspect-square">
-                    <img
-                      src={photo}
-                      alt={`Photo ${index + 1}`}
-                      className="w-full h-full object-cover rounded-xl"
-                    />
-                    <button
-                      onClick={() => handleRemovePhoto(index)}
-                      className="absolute top-2 right-2 w-6 h-6 bg-black/70 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-black/90 transition-colors"
-                    >
-                      <X className="w-4 h-4 text-white" strokeWidth={2} />
-                    </button>
-                  </div>
-                ))}
-
-                {/* Add more button */}
-                {photos.length < MAX_PHOTOS && (
+              // Selected representative photo
+              <div className="space-y-2.5">
+                <div className="relative h-[128px] overflow-hidden rounded-2xl bg-[#f8f8f5]">
+                  <img
+                    src={photos[0]}
+                    alt="선택한 여행 사진"
+                    className="h-full w-full object-cover"
+                  />
                   <button
-                    onClick={handleAddPhoto}
-                    className="aspect-square bg-[#f8f8f5] rounded-xl border-2 border-dashed border-black/10 hover:border-[#a8d5ba] hover:bg-[#e8f5ed]/30 transition-all flex items-center justify-center"
+                    type="button"
+                    onClick={handleRemovePhoto}
+                    aria-label="사진 삭제"
+                    className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/65 text-white shadow-sm backdrop-blur-sm transition-colors hover:bg-black/80"
                   >
-                    <ImageIcon className="w-8 h-8 text-[#bbb]" strokeWidth={1.5} />
+                    <X className="h-4 w-4" strokeWidth={2} />
                   </button>
-                )}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddPhoto}
+                  className="w-full rounded-xl bg-[#f8f8f5] py-2.5 text-[13px] font-medium text-[#5a5a5a] transition-colors hover:bg-[#e8f5ed]"
+                >
+                  다른 사진 선택
+                </button>
               </div>
             )}
           </section>
 
           {/* Text Input */}
-          {photos.length > 0 && (
-            <section>
-              <div className="mb-3.5">
-                <h4 className="text-[#2a2a2a] mb-0.5 font-semibold">기록</h4>
-                <p className="text-[11px] text-[#bbb]">그날의 장면을 짧게 남겨보세요</p>
-              </div>
+          <section>
+            <div className="mb-3.5">
+              <h4 className="text-[#2a2a2a] mb-0.5 font-semibold">기록</h4>
+              <p className="text-[11px] text-[#bbb]">그날의 장면을 짧게 남겨보세요</p>
+            </div>
 
-              <textarea
-                value={storyText}
-                onChange={(e) => onTextChange(e.target.value)}
-                placeholder="오전 봉사 후 가까운 맛집에서 점심을 즐기고, 오후엔 여유롭게 산책했어요..."
-                className="w-full h-28 p-3.5 bg-white rounded-xl border border-black/10 text-[13px] leading-relaxed placeholder:text-[#bbb] outline-none focus:ring-1 focus:ring-[#a8d5ba]/40 transition-all resize-none"
-                maxLength={300}
-              />
+            <textarea
+              value={storyText}
+              onChange={(e) => onTextChange(e.target.value)}
+              placeholder="오늘 여행에서 기억에 남은 순간을 남겨보세요."
+              className="w-full h-28 p-3.5 bg-white rounded-xl border border-black/10 text-[13px] leading-relaxed placeholder:text-[#bbb] outline-none focus:ring-1 focus:ring-[#a8d5ba]/40 transition-all resize-none"
+              maxLength={300}
+            />
 
-              <div className="flex justify-between items-center mt-1.5">
-                <span className="text-[11px] text-[#bbb]">{storyText.length} / 300</span>
-              </div>
-            </section>
-          )}
-
-          {/* Suggested Tags */}
-          {photos.length > 0 && (
-            <section>
-              <div className="mb-3">
-                <h4 className="text-[#2a2a2a] mb-0.5 font-semibold">추천 태그</h4>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {suggestedTags.map((tag, index) => (
-                  <button
-                    key={index}
-                    className="px-3 py-1.5 bg-[#e8f5ed] text-[#5a5a5a] text-[13px] font-medium rounded-full hover:bg-[#a8d5ba] hover:text-white transition-colors"
-                  >
-                    {tag}
-                  </button>
-                ))}
-              </div>
-            </section>
-          )}
+            <div className="flex justify-between items-center mt-1.5">
+              <span className="text-[11px] text-[#bbb]">{storyText.length} / 300</span>
+            </div>
+          </section>
 
           {/* Action Buttons */}
-          {photos.length > 0 && (
-            <section className="space-y-2.5 pt-2">
-              <button
-                onClick={onSave}
-                className="w-full bg-[#2a2a2a] text-white py-3.5 rounded-xl transition-all hover:bg-[#1a1a1a] text-[14px] font-medium shadow-[0_1px_3px_rgba(0,0,0,0.1)]"
-              >
-                업로드
-              </button>
+          <section className="space-y-2.5 pt-2">
+            <button
+              type="button"
+              onClick={onSave}
+              className="w-full bg-[#2a2a2a] text-white py-3.5 rounded-xl transition-all hover:bg-[#1a1a1a] text-[14px] font-medium shadow-[0_1px_3px_rgba(0,0,0,0.1)]"
+            >
+              업로드
+            </button>
 
-              <button
-                onClick={onCreateCard}
-                className="w-full bg-[#e8f5ed] text-[#5a5a5a] py-3.5 rounded-xl transition-all hover:bg-[#a8d5ba] hover:text-white flex items-center justify-center gap-2 text-[14px] font-medium"
-              >
-                <Sparkles className="w-4.5 h-4.5" strokeWidth={2} />
-                <span>카드 만들기</span>
-              </button>
-            </section>
-          )}
+            <button
+              type="button"
+              onClick={onCreateCard}
+              disabled={photos.length === 0}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#17233d_0%,#2f4d78_52%,#6a5aa8_100%)] py-3.5 text-[14px] font-medium text-white shadow-[0_8px_18px_rgba(50,68,112,0.14)] transition-all hover:brightness-[1.04] active:scale-[0.99] disabled:bg-none disabled:bg-[#f1f1ec] disabled:text-[#b8b5ad] disabled:shadow-none disabled:hover:brightness-100 disabled:active:scale-100"
+            >
+              <Sparkles className="w-4.5 h-4.5" strokeWidth={2} />
+              <span>나만의 AI 카드 만들기</span>
+            </button>
+          </section>
         </div>
       </PageShell>
 

@@ -2,13 +2,38 @@ import { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { SearchSummaryCard } from './SearchSummaryCard';
 import { FilterChips } from './FilterChips';
-import { SortDropdown } from './SortDropdown';
+import { FilterBottomSheet } from './FilterBottomSheet';
 import { SearchHistory } from './SearchHistory';
 import { SearchResultCard } from './SearchResultCard';
 import { EnhancedDetailBottomSheet } from './EnhancedDetailBottomSheet';
 import { BottomTabBar } from './BottomTabBar';
 import { PageShell } from './PageShell';
 import type { ActivitySaveLookup, ActivitySaveRecord } from '../activitySaveState';
+
+const activityCategoryFilters = [
+  '생활편의',
+  '주거환경',
+  '상담·멘토링',
+  '교육',
+  '보건·의료',
+  '농어촌 봉사',
+  '문화·체육·예술·관광',
+  '환경·생태계보호',
+  '사무행정',
+  '지역안전·보호',
+  '인권·공익',
+  '재난·재해',
+  '국제협력·해외봉사',
+  '기타',
+  '자원봉사 기본교육',
+];
+
+const categoryLabelMap: Record<string, string> = {
+  환경정화: '환경·생태계보호',
+  '지역 행사': '문화·체육·예술·관광',
+  '교육·문화': '교육',
+  '산책형 활동': '환경·생태계보호',
+};
 
 interface SearchResultsProps {
   onNavigate: (screen: string, options?: { activity?: ActivitySaveRecord; returnScreen?: 'home' | 'search' | 'saved' }) => void;
@@ -23,9 +48,8 @@ export function SearchResults({
 }: SearchResultsProps) {
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-
-  const filters = ['오전', '오후', '실내', '실외', '2시간 이하', '모집중', '환경정화'];
-  const sortOptions = ['추천순', '가까운순', '마감순', '최신순'];
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
 
   const historyItems = [
     { location: '광안리', dates: '7/20~7/22', people: '2명' },
@@ -40,6 +64,7 @@ export function SearchResults({
       location: '부산 수영구 광안리해수욕장',
       distance: '도보 10분',
       time: '09:00 - 11:00',
+      category: '환경정화',
       reason: '여행 일정 안에서 가볍게 참여하기 좋아요.',
       isRecruiting: true,
       description: '광안리 바다를 가까이 느끼며 가볍게 참여할 수 있는 활동이에요. 아침 산책을 겸한 해변 정화 활동으로, 광안리 백사장과 주변 산책로를 따라 걸으며 환경 보호에 참여할 수 있습니다. 여행의 첫 아침을 의미있게 시작해보세요. 활동 후에는 근처 카페에서 오션뷰를 즐기며 여유로운 시간을 보낼 수 있어요.',
@@ -57,6 +82,7 @@ export function SearchResults({
       location: '부산 수영구 수영 근린공원',
       distance: '차량 15분',
       time: '14:00 - 16:00',
+      category: '산책형 활동',
       reason: '오후 시간을 활용해 여유롭게 참여할 수 있어요.',
       isRecruiting: true,
       description: '공원 산책로를 따라 걸으며 간단한 정비 활동을 합니다. 벤치 청소, 꽃길 관리 등 가벼운 활동으로 구성되어 있습니다. 도심 속 자연을 가꾸며 지역 커뮤니티에 기여할 수 있는 활동이에요.',
@@ -74,6 +100,7 @@ export function SearchResults({
       location: '부산 해운대구 해운대 해수욕장',
       distance: '도보 25분',
       time: '10:00 - 12:00',
+      category: '환경정화',
       reason: '해변 풍경을 즐기며 환경 보호에 참여해보세요.',
       isRecruiting: true,
       description: '해운대 백사장과 주변 지역의 환경 정화 활동입니다. 바다를 배경으로 뜻깊은 시간을 보낼 수 있습니다. 활동 후에는 해운대 구석구석을 탐험하며 여행을 이어갈 수 있어요.',
@@ -91,6 +118,7 @@ export function SearchResults({
       location: '부산 중구 부산 문화회관',
       distance: '차량 20분',
       time: '15:00 - 18:00',
+      category: '지역 행사',
       reason: '부산의 문화 행사를 직접 체험할 수 있어요.',
       isRecruiting: false,
       description: '지역 문화 행사를 돕는 활동입니다. 관람객 안내, 간단한 운영 지원 등을 담당합니다. 부산의 문화 활동을 가까이서 경험할 수 있는 특별한 기회예요.',
@@ -108,6 +136,11 @@ export function SearchResults({
     setSelectedActivity(activity);
     setIsDetailOpen(true);
   };
+
+  const displayedActivities = activities.filter((activity) => {
+    const normalizedCategory = categoryLabelMap[activity.category] || activity.category;
+    return selectedFilters.length === 0 || selectedFilters.includes(normalizedCategory);
+  });
 
   return (
     <>
@@ -134,13 +167,10 @@ export function SearchResults({
           </div>
         </header>
 
-        {/* Filters & Sort */}
+        {/* Filters */}
         <div className="px-6 py-4 space-y-4 border-b border-black/5">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex-1 overflow-hidden">
-              <FilterChips filters={filters} />
-            </div>
-            <SortDropdown options={sortOptions} defaultOption="추천순" />
+          <div className="flex items-center">
+            <FilterChips selectedFilters={selectedFilters} onOpen={() => setIsFilterOpen(true)} />
           </div>
         </div>
 
@@ -152,13 +182,13 @@ export function SearchResults({
         {/* Results Count */}
         <div className="px-6 py-4">
           <p className="text-sm text-[#5a5a5a]">
-            총 <span className="text-[#2a2a2a] font-medium">{activities.length}개</span>의 활동을 찾았어요
+            총 <span className="text-[#2a2a2a] font-medium">{displayedActivities.length}개</span>의 활동을 찾았어요
           </p>
         </div>
 
         {/* Activity Cards */}
         <div className="px-6 space-y-4 pb-8">
-          {activities.map((activity, index) => (
+          {displayedActivities.map((activity, index) => (
             <SearchResultCard
               key={index}
               {...activity}
@@ -171,6 +201,14 @@ export function SearchResults({
       </PageShell>
       {/* Bottom Tab Bar */}
       <BottomTabBar activeTab="search" onNavigate={onNavigate} />
+
+      <FilterBottomSheet
+        isOpen={isFilterOpen}
+        options={activityCategoryFilters}
+        selectedFilters={selectedFilters}
+        onClose={() => setIsFilterOpen(false)}
+        onApply={setSelectedFilters}
+      />
 
       {/* Enhanced Detail Bottom Sheet */}
       {selectedActivity && (

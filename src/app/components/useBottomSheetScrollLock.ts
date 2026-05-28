@@ -17,10 +17,6 @@ const originalBodyStyle = {
   width: '',
 };
 
-const originalHtmlStyle = {
-  overflow: '',
-};
-
 const getScrollableSheet = (target: EventTarget | null) => {
   if (!(target instanceof Element)) return null;
 
@@ -97,8 +93,7 @@ export const clearStaleScrollLock = () => {
   const hasStaleLock =
     body.classList.contains(lockClassName) ||
     documentElement.classList.contains(lockClassName) ||
-    body.style.overflow === 'hidden' ||
-    documentElement.style.overflow === 'hidden';
+    body.style.overflow === 'hidden';
 
   if (!hasStaleLock) return;
 
@@ -111,7 +106,6 @@ export const clearStaleScrollLock = () => {
   removeViewportHeightListeners();
   documentElement.classList.remove(lockClassName);
   body.classList.remove(lockClassName);
-  documentElement.style.overflow = '';
   body.style.height = '';
   body.style.position = '';
   body.style.top = '';
@@ -149,9 +143,7 @@ const lockBodyScroll = (lockId: symbol) => {
   originalBodyStyle.right = body.style.right;
   originalBodyStyle.top = body.style.top;
   originalBodyStyle.width = body.style.width;
-  originalHtmlStyle.overflow = documentElement.style.overflow;
 
-  documentElement.style.overflow = 'hidden';
   documentElement.classList.add(lockClassName);
   body.classList.add(lockClassName);
   body.style.overflow = 'hidden';
@@ -188,7 +180,6 @@ const unlockBodyScroll = (lockId: symbol) => {
   removeViewportHeightListeners();
   const shouldRestoreScrollPosition = lockMode === 'ios-fixed';
 
-  documentElement.style.overflow = originalHtmlStyle.overflow;
   documentElement.classList.remove(lockClassName);
   body.classList.remove(lockClassName);
   body.style.height = originalBodyStyle.height;

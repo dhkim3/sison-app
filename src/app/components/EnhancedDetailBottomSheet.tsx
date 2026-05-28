@@ -262,12 +262,12 @@ export function EnhancedDetailBottomSheet({
               <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
                 <span
                   className={`w-2.5 h-2.5 rounded-full ${
-                    activity.isRecruiting ? 'recruiting-status-dot bg-[#a8d5ba]' : 'bg-[#999]'
+                    activity.isRecruiting ? 'recruiting-status-dot bg-[#6fa985]' : 'bg-[#999]'
                   }`}
                 />
               </div>
               <div className="flex-1">
-                <p className={`${activity.isRecruiting ? 'text-[#a8d5ba]' : 'text-[#999]'}`}>
+                <p className={`${activity.isRecruiting ? 'font-medium text-[#5f9f74]' : 'text-[#999]'}`}>
                   {recruitmentStatus}
                 </p>
                 <p className="text-sm text-[#999] mt-1">

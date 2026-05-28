@@ -93,19 +93,19 @@ function HiddenPlaceActivityCard({
         </h4>
         <div className="mt-2 space-y-1.5">
           {dateTime && (
-            <div className="flex min-w-0 items-center gap-1.5 text-[11.5px] leading-none text-white/84">
+            <div className="flex min-w-0 items-center gap-1.5 text-[11.5px] font-normal leading-none text-white/78">
               <Calendar className="h-3.5 w-3.5 flex-shrink-0 text-white/74" strokeWidth={2} />
               <span className="line-clamp-1">{dateTime}</span>
             </div>
           )}
           {activity.location && (
-            <div className="flex items-center gap-1.5 text-[11.5px] leading-none text-white/82">
+            <div className="flex items-center gap-1.5 text-[11.5px] font-normal leading-none text-white/78">
               <MapPin className="h-3.5 w-3.5 flex-shrink-0 text-white/72" strokeWidth={2} />
               <span className="line-clamp-1">{activity.location}</span>
             </div>
           )}
           {recruitmentMetadata && (
-            <span className="inline-flex w-fit rounded-full bg-white/18 px-2.5 py-1 text-[11px] font-medium leading-none text-white/86 backdrop-blur-sm">
+            <span className="inline-flex w-fit rounded-full bg-white/18 px-2.5 py-1 text-[11px] font-normal leading-none text-white/78 backdrop-blur-sm">
               {recruitmentMetadata}
             </span>
           )}
@@ -187,19 +187,19 @@ function RecentTimelineActivityCard({
 
             <div className="mt-3 space-y-1.5">
               {dateTime && (
-                <div className="flex items-center gap-2 text-[12.5px] leading-none text-[#5a5a5a]">
+                <div className="flex items-center gap-2 text-[12.5px] font-normal leading-none text-[#8f8f8f]">
                   <Calendar className="h-3.5 w-3.5 flex-shrink-0 text-[#a8d5ba]" strokeWidth={2} />
                   <span className="line-clamp-1">{dateTime}</span>
                 </div>
               )}
               {activity.location && (
-                <div className="flex items-center gap-2 text-[12.5px] leading-none text-[#666]">
+                <div className="flex items-center gap-2 text-[12.5px] font-normal leading-none text-[#8f8f8f]">
                   <MapPin className="h-3.5 w-3.5 flex-shrink-0 text-[#c9897e]" strokeWidth={2} />
                   <span className="line-clamp-1">{activity.location}</span>
                 </div>
               )}
               {recruitmentMetadata && (
-                <div className="flex items-center gap-2 text-[12px] leading-none text-[#8f8f8f]">
+                <div className="flex items-center gap-2 text-[12px] font-normal leading-none text-[#8f8f8f]">
                   <Clock className="h-3.5 w-3.5 flex-shrink-0 text-[#b8b2aa]" strokeWidth={1.8} />
                   <span>{recruitmentMetadata}</span>
                 </div>
@@ -564,31 +564,121 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
           <button
             type="button"
             onClick={() => setIsAIRecommendationFlowOpen(true)}
-            className="relative block w-full overflow-hidden rounded-3xl border border-[#2e4260] bg-[#090f24] px-3.5 py-4 text-left shadow-[0_10px_24px_rgba(22,42,78,0.18)] transition-transform active:scale-[0.985]"
+            className="sison-home-ai-card relative block w-full overflow-hidden rounded-3xl text-left transition-transform active:scale-[0.985]"
           >
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_38%,rgba(74,114,255,0.16),transparent_28%),radial-gradient(circle_at_70%_70%,rgba(135,78,238,0.15),transparent_30%),linear-gradient(135deg,rgba(18,31,66,0.86),rgba(8,12,31,0.97))]" aria-hidden="true" />
-            <div className="absolute right-0 top-0 h-full w-[122px] overflow-hidden" aria-hidden="true">
-              <div className="absolute right-[9px] top-[12px] h-[86px] w-[86px] rounded-full bg-[radial-gradient(circle_at_42%_32%,rgba(92,173,255,0.32)_0%,rgba(75,67,201,0.20)_34%,rgba(21,18,63,0.05)_63%,transparent_74%)] blur-[3px]" />
-              <div className="absolute right-[25px] top-[22px] h-[62px] w-[62px] rounded-full border border-[#9165ff]/70 bg-[radial-gradient(circle_at_36%_30%,rgba(79,159,255,0.72)_0%,rgba(57,76,191,0.44)_30%,rgba(74,35,137,0.58)_62%,rgba(15,12,44,0.96)_100%)] shadow-[inset_9px_-11px_22px_rgba(7,9,34,0.58),inset_-12px_10px_20px_rgba(95,172,255,0.24),0_0_18px_rgba(71,148,255,0.34),0_0_28px_rgba(137,72,255,0.24)]" />
-              <div className="absolute right-[4px] top-[31px] h-[42px] w-[106px] rotate-[-22deg] rounded-full border border-[#8a5cff]/36 border-l-[#5ad4ff]/28 border-b-transparent border-r-[#7a5fff]/45" />
-              <div className="absolute right-[48px] top-[46px] h-[17px] w-[17px] rotate-45 rounded-[5px] bg-[linear-gradient(135deg,#f9ffff_5%,#9ffff3_42%,#ffb4fd_58%,#7b62ff_100%)] shadow-[0_0_14px_rgba(165,255,247,0.82),0_0_24px_rgba(149,91,255,0.46)]" />
-              <div className="absolute right-[2px] top-[34px] h-[5px] w-[5px] rounded-full bg-[#6c92ff] shadow-[0_0_10px_rgba(108,146,255,0.85)]" />
-              <div className="absolute right-[101px] top-[76px] h-[5px] w-[5px] rounded-full bg-[#8d66ff] shadow-[0_0_9px_rgba(141,102,255,0.78)]" />
-              <div className="absolute right-[86px] top-[47px] h-[3px] w-[3px] rounded-full bg-[#45c8ff] shadow-[0_0_7px_rgba(69,200,255,0.72)]" />
-              <div className="absolute right-[60px] top-[88px] h-[2px] w-[2px] rounded-full bg-[#6aa4ff]/70" />
-              <div className="absolute right-[34px] top-[73px] h-[2px] w-[2px] rounded-full bg-[#7e6cff]/60" />
+            {/* Left: text content */}
+            <div className="relative z-10 flex flex-col justify-center px-5 py-[22px]" style={{ width: '47%', minHeight: '152px' }}>
+              <div className="mb-3 inline-flex items-center gap-1.5 self-start rounded-full border border-[#5ee7dc]/60 bg-white/[0.08] px-3 py-1 text-[11.5px] font-medium text-[#c8fff8]">
+                <Leaf className="h-3 w-3 text-[#78f2e8]" strokeWidth={2.5} />
+                AI 추천
+              </div>
+              <h3 className="text-[18px] font-bold leading-snug text-white">
+                내 여행에 맞는<br />활동을 찾아볼까요?
+              </h3>
             </div>
 
-            <div className="relative flex items-start justify-between gap-4">
-              <div className="min-w-0 flex-1 pr-16">
-                <div className="mb-1.5 inline-flex items-center gap-1.5 rounded-full border border-[#5ee7dc]/30 bg-white/[0.06] px-2.5 py-0.5 text-[11px] font-medium text-[#c8fff8]">
-                  <Leaf className="h-3 w-3 text-[#78f2e8]" strokeWidth={2} />
-                  AI 추천
-                </div>
-                <h3 className="text-[15px] font-semibold leading-snug text-white">
-                  내 여행에 맞는<br />활동을 찾아볼까요?
-                </h3>
-              </div>
+            {/* Right: static orbital visualization */}
+            <div
+              className="absolute inset-y-0 right-0"
+              style={{ width: '56%' }}
+              aria-hidden="true"
+            >
+              {/* Purple-violet radial glow */}
+              <div
+                className="absolute inset-0"
+                style={{
+                  background:
+                    'radial-gradient(ellipse at 56% 50%, rgba(118,68,255,0.72) 0%, rgba(72,30,210,0.40) 44%, transparent 72%)',
+                }}
+              />
+
+              {/* SVG: orbits, planets, star dots */}
+              <svg
+                className="absolute inset-0 w-full h-full"
+                viewBox="0 0 200 140"
+                preserveAspectRatio="xMidYMid meet"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <defs>
+                  <filter id="ai-planet-glow" x="-80%" y="-80%" width="260%" height="260%">
+                    <feGaussianBlur stdDeviation="3" result="blur" />
+                    <feMerge>
+                      <feMergeNode in="blur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                  <filter id="ai-star-glow" x="-100%" y="-100%" width="300%" height="300%">
+                    <feGaussianBlur stdDeviation="1.5" result="blur" />
+                    <feMerge>
+                      <feMergeNode in="blur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                  <radialGradient id="ai-planet1-grad" cx="35%" cy="30%" r="65%">
+                    <stop offset="0%" stopColor="#dcc8ff" />
+                    <stop offset="100%" stopColor="#5836c8" />
+                  </radialGradient>
+                  <radialGradient id="ai-planet2-grad" cx="35%" cy="30%" r="65%">
+                    <stop offset="0%" stopColor="#c8b4ff" />
+                    <stop offset="100%" stopColor="#4a28b8" />
+                  </radialGradient>
+                </defs>
+
+                {/* Background concentric rings */}
+                <circle cx="100" cy="70" r="58" stroke="rgba(180,145,255,0.09)" strokeWidth="1" />
+                <circle cx="100" cy="70" r="43" stroke="rgba(200,162,255,0.11)" strokeWidth="1" />
+
+                {/* Orbit 1: large dashed ellipse, rotated -22° */}
+                <g transform="rotate(-22, 100, 70)">
+                  <ellipse
+                    cx="100" cy="70"
+                    rx="82" ry="42"
+                    stroke="rgba(190,160,255,0.44)"
+                    strokeWidth="1.5"
+                    strokeDasharray="4.5 5.5"
+                  />
+                  {/* Planet at θ=130°: x=47.3, y=102.2 */}
+                  <circle cx="47.3" cy="102.2" r="5.5" fill="url(#ai-planet1-grad)" filter="url(#ai-planet-glow)" />
+                </g>
+
+                {/* Orbit 2: medium dashed ellipse, rotated +20° */}
+                <g transform="rotate(20, 100, 70)">
+                  <ellipse
+                    cx="100" cy="70"
+                    rx="60" ry="30"
+                    stroke="rgba(150,168,255,0.28)"
+                    strokeWidth="1"
+                    strokeDasharray="3.5 4.5"
+                  />
+                  {/* Planet at θ=340°: x=156.4, y=59.7 */}
+                  <circle cx="156.4" cy="59.7" r="4.5" fill="url(#ai-planet2-grad)" filter="url(#ai-planet-glow)" />
+                </g>
+
+                {/* Star sparkle dots */}
+                <circle cx="22" cy="24" r="1.8" fill="rgba(255,255,255,0.88)" filter="url(#ai-star-glow)" />
+                <circle cx="56" cy="12" r="1.3" fill="rgba(255,255,255,0.72)" filter="url(#ai-star-glow)" />
+                <circle cx="152" cy="18" r="2" fill="rgba(255,255,255,0.92)" filter="url(#ai-star-glow)" />
+                <circle cx="174" cy="30" r="1.4" fill="rgba(255,255,255,0.68)" filter="url(#ai-star-glow)" />
+                <circle cx="168" cy="118" r="1.6" fill="rgba(255,255,255,0.72)" filter="url(#ai-star-glow)" />
+                <circle cx="32" cy="112" r="1.3" fill="rgba(255,255,255,0.62)" filter="url(#ai-star-glow)" />
+                <circle cx="185" cy="85" r="1" fill="rgba(255,255,255,0.55)" />
+                <circle cx="12" cy="70" r="1" fill="rgba(255,255,255,0.48)" />
+                <circle cx="90" cy="8" r="1.2" fill="rgba(255,255,255,0.60)" />
+              </svg>
+
+              {/* Center glow halo */}
+              <div
+                className="absolute rounded-full"
+                style={{
+                  width: '120px', height: '120px',
+                  left: '50%', top: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  background:
+                    'radial-gradient(circle, rgba(225,195,255,0.38) 0%, rgba(165,110,255,0.22) 38%, transparent 68%)',
+                }}
+              />
+
             </div>
           </button>
         </section>

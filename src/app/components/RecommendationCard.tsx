@@ -37,12 +37,12 @@ export function RecommendationCard({
         <h4 className="mb-2.5">{title}</h4>
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-[#5a5a5a]" strokeWidth={2} />
-            <span className="text-sm text-[#5a5a5a]">{location}</span>
+            <MapPin className="w-4 h-4 text-[#c9897e]" strokeWidth={2} />
+            <span className="text-sm font-normal text-[#8f8f8f]">{location}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-[#5a5a5a]" strokeWidth={2} />
-            <span className="text-sm text-[#5a5a5a]">{time}</span>
+            <Clock className="w-4 h-4 text-[#b8b2aa]" strokeWidth={2} />
+            <span className="text-sm font-normal text-[#8f8f8f]">{time}</span>
           </div>
         </div>
       </div>

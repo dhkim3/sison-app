@@ -66,8 +66,14 @@ export function CompactActivityCard({
           <img
             src={imageUrl}
             alt={title}
-            className={`w-full h-full object-cover ${isPastActivity ? 'opacity-[0.92] saturate-[0.92]' : ''}`}
+            className="w-full h-full object-cover"
           />
+          {isPastActivity && (
+            <div
+              className="pointer-events-none absolute inset-0 bg-black/50"
+              aria-hidden="true"
+            />
+          )}
           {showBookmark && (
             <button
               type="button"
@@ -107,7 +113,7 @@ export function CompactActivityCard({
                 }}
               >
                 <Calendar className="w-3.5 h-3.5 text-[#a8d5ba]" strokeWidth={2} />
-                <span className="text-[12.5px] text-[#555] font-medium line-clamp-1 leading-[1.32]">
+                <span className="text-[12.5px] text-[#8f8f8f] font-normal line-clamp-1 leading-[1.32]">
                   {dateTime}
                 </span>
               </div>
@@ -122,7 +128,7 @@ export function CompactActivityCard({
                 }}
               >
                 <MapPin className="w-3.5 h-3.5 text-[#cfa3a0]" strokeWidth={2} />
-                <span className="text-[12.5px] text-[#666] font-normal line-clamp-1 leading-[1.32]">
+                <span className="text-[12.5px] text-[#8f8f8f] font-normal line-clamp-1 leading-[1.32]">
                   {location || region}
                 </span>
               </div>

@@ -6,13 +6,38 @@ import { PeopleCountModal } from './PeopleCountModal';
 import { SearchSummaryCard } from './SearchSummaryCard';
 import { SearchConditionsBottomSheet } from './SearchConditionsBottomSheet';
 import { FilterChips } from './FilterChips';
-import { SortDropdown } from './SortDropdown';
+import { FilterBottomSheet } from './FilterBottomSheet';
 import { CompactActivityCard } from './CompactActivityCard';
 import { EnhancedDetailBottomSheet } from './EnhancedDetailBottomSheet';
 import { BottomTabBar } from './BottomTabBar';
 import { PageShell } from './PageShell';
 import type { ActivitySaveLookup, ActivitySaveRecord } from '../activitySaveState';
 import type { SearchState } from '../searchState';
+
+const activityCategoryFilters = [
+  '생활편의',
+  '주거환경',
+  '상담·멘토링',
+  '교육',
+  '보건·의료',
+  '농어촌 봉사',
+  '문화·체육·예술·관광',
+  '환경·생태계보호',
+  '사무행정',
+  '지역안전·보호',
+  '인권·공익',
+  '재난·재해',
+  '국제협력·해외봉사',
+  '기타',
+  '자원봉사 기본교육',
+];
+
+const categoryLabelMap: Record<string, string> = {
+  환경정화: '환경·생태계보호',
+  '지역 행사': '문화·체육·예술·관광',
+  '교육·문화': '교육',
+  '산책형 활동': '환경·생태계보호',
+};
 
 interface SearchTabProps {
   onNavigate: (screen: string, options?: { activity?: ActivitySaveRecord; returnScreen?: 'home' | 'search' | 'saved' }) => void;
@@ -43,6 +68,7 @@ export function SearchTab({
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isPeopleCountOpen, setIsPeopleCountOpen] = useState(false);
   const [isSearchEditOpen, setIsSearchEditOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
@@ -146,10 +172,6 @@ export function SearchTab({
       hasSearched: true,
     });
   };
-
-  const filters = ['환경정화', '지역 행사', '교육·문화', '산책형 활동', '오전', '오후', '실내', '실외', '2시간 이하', '모집중'];
-  const sortOptions = ['추천순', '가까운순', '마감순', '최신순'];
-  const categoryFilters = ['환경정화', '지역 행사', '교육·문화', '산책형 활동'];
 
   const activities = [
     {
@@ -315,7 +337,6 @@ export function SearchTab({
 
   const normalizedDestination = destination.trim().toLowerCase();
   const displayedActivities = activities.filter((activity) => {
-    const selectedCategories = selectedFilters.filter((filter) => categoryFilters.includes(filter));
     const searchableText = `${activity.title} ${activity.location}`.toLowerCase();
     const matchesDestination = normalizedDestination ? searchableText.includes(normalizedDestination) : true;
     const activityDate = parseActivityDate(activity.date);
@@ -325,19 +346,10 @@ export function SearchTab({
         : true;
     const capacity = Number.parseInt(activity.capacity, 10) || 0;
     const matchesPeople = peopleCount > 0 && capacity > 0 ? capacity >= peopleCount : true;
-    const matchesFilters = selectedFilters.every((filter) => {
-      if (categoryFilters.includes(filter)) return true;
-      if (filter === '오전') return activity.time.includes('09:') || activity.time.includes('10:') || activity.time.includes('11:');
-      if (filter === '오후') return activity.time.includes('12:') || activity.time.includes('13:') || activity.time.includes('14:') || activity.time.includes('15:') || activity.time.includes('16:') || activity.time.includes('17:');
-      if (filter === '실내' || filter === '실외') return activity.indoorOutdoor === filter;
-      if (filter === '2시간 이하') return activity.duration.includes('2시간') || activity.duration.includes('1시간');
-      if (filter === '모집중') return activity.isRecruiting;
+    const normalizedCategory = categoryLabelMap[activity.category] || activity.category;
+    const matchesCategory = selectedFilters.length === 0 || selectedFilters.includes(normalizedCategory);
 
-      return true;
-    });
-    const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(activity.category);
-
-    return matchesDestination && matchesDate && matchesPeople && matchesFilters && matchesCategory;
+    return matchesDestination && matchesDate && matchesPeople && matchesCategory;
   });
 
   const currentSummaryDateRange = summaryDateRange || formatDateRangeFull();
@@ -400,13 +412,10 @@ export function SearchTab({
         {/* Search Result State */}
         {hasSearched && (
           <>
-            {/* Filters & Sort */}
+            {/* Filters */}
             <div className="px-5 py-3 border-b border-black/5">
-              <div className="flex items-center gap-3">
-                <div className="flex-1 overflow-hidden">
-                  <FilterChips filters={filters} selectedFilters={selectedFilters} onFilterChange={setSelectedFilters} />
-                </div>
-                <SortDropdown options={sortOptions} defaultOption="추천순" />
+              <div className="flex items-center">
+                <FilterChips selectedFilters={selectedFilters} onOpen={() => setIsFilterOpen(true)} />
               </div>
             </div>
 
@@ -472,6 +481,14 @@ export function SearchTab({
         endDate={endDate}
         onClose={() => setIsSearchEditOpen(false)}
         onApply={handleSearchConditionsApply}
+      />
+
+      <FilterBottomSheet
+        isOpen={isFilterOpen}
+        options={activityCategoryFilters}
+        selectedFilters={selectedFilters}
+        onClose={() => setIsFilterOpen(false)}
+        onApply={setSelectedFilters}
       />
 
       {/* Bottom Tab Bar */}

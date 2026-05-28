@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Heart, MessageCircle, MapPin, X } from 'lucide-react';
+import { Heart, MessageCircle, MapPin, Trash2, X } from 'lucide-react';
 import type { StoryComment } from '../../storyInteractionState';
 import type { StoryItem } from './storyTypes';
 import { useBottomSheetScrollLock } from '../useBottomSheetScrollLock';
@@ -15,6 +15,7 @@ interface StoryDetailSheetProps {
   onToggleLike?: (story: StoryItem) => void;
   onOpenComments?: (story: StoryItem) => void;
   onAddComment?: (story: StoryItem, body: string) => void;
+  onDelete?: (story: StoryItem) => void;
 }
 
 export function StoryDetailSheet({
@@ -28,9 +29,11 @@ export function StoryDetailSheet({
   onToggleLike,
   onOpenComments,
   onAddComment,
+  onDelete,
 }: StoryDetailSheetProps) {
   const [visibleCommentCount, setVisibleCommentCount] = useState(2);
   const [draftComment, setDraftComment] = useState('');
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   useBottomSheetScrollLock(isOpen && Boolean(story));
 
   useEffect(() => {
@@ -38,6 +41,7 @@ export function StoryDetailSheet({
 
     setVisibleCommentCount(2);
     setDraftComment('');
+    setIsDeleteConfirmOpen(false);
   }, [story?.id]);
 
   if (!isOpen || !story) return null;
@@ -54,6 +58,11 @@ export function StoryDetailSheet({
     setVisibleCommentCount((currentCount) => Math.max(currentCount, visibleComments.length + 1));
   };
 
+  const handleDelete = () => {
+    onDelete?.(story);
+    setIsDeleteConfirmOpen(false);
+  };
+
   return (
     <>
       <div
@@ -64,19 +73,55 @@ export function StoryDetailSheet({
       <div
         className="bottom-sheet-panel fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-[430px] flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl animate-slide-up"
       >
-        <div className="z-10 flex flex-shrink-0 items-center justify-between border-b border-black/5 bg-white/95 px-5 py-4 backdrop-blur-sm">
-          <div className="flex items-center gap-2 text-[12px] font-medium text-[#999]">
-            <MapPin className="w-3.5 h-3.5 text-[#c9897e]" strokeWidth={2} />
-            <span>{story.region}</span>
+        <div className="z-10 flex flex-shrink-0 flex-col border-b border-black/5 bg-white/95 px-5 py-4 backdrop-blur-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-[12px] font-medium text-[#999]">
+              <MapPin className="w-3.5 h-3.5 text-[#c9897e]" strokeWidth={2} />
+              <span>{story.region}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {onDelete && (
+                <button
+                  type="button"
+                  onClick={() => setIsDeleteConfirmOpen((isOpen) => !isOpen)}
+                  aria-label="스토리 삭제"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f8f8f5] transition-colors hover:bg-[#f0f0eb]"
+                >
+                  <Trash2 className="h-4.5 w-4.5 text-[#777]" strokeWidth={1.8} />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="스토리 상세 닫기"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f8f8f5] transition-colors hover:bg-[#f0f0eb]"
+              >
+                <X className="w-5 h-5 text-[#5a5a5a]" strokeWidth={2} />
+              </button>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="스토리 상세 닫기"
-            className="w-9 h-9 rounded-full bg-[#f8f8f5] flex items-center justify-center hover:bg-[#f0f0eb] transition-colors"
-          >
-            <X className="w-5 h-5 text-[#5a5a5a]" strokeWidth={2} />
-          </button>
+
+          {isDeleteConfirmOpen && (
+            <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-[#f8f8f5] px-3.5 py-3">
+              <p className="text-[12.5px] text-[#777]">이 기록을 정리할까요?</p>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setIsDeleteConfirmOpen(false)}
+                  className="rounded-full px-3 py-1.5 text-[12px] font-medium text-[#999] transition-colors hover:bg-white"
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  className="rounded-full bg-white px-3 py-1.5 text-[12px] font-medium text-[#5a5a5a] shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors hover:bg-[#f0f0eb]"
+                >
+                  삭제
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div

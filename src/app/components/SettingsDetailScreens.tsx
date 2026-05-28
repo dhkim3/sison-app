@@ -473,11 +473,6 @@ export function ContactSettingsScreen({ onBack }: { onBack: () => void }) {
 
       <SettingsSection>
         <SettingsRow
-          label="자주 묻는 질문 보기"
-          description="활동 신청, 스토리, 여행 카드 관련 도움말"
-          right={<ChevronRight className="w-4 h-4 text-[#ccc]" strokeWidth={2} />}
-        />
-        <SettingsRow
           label="이메일 문의"
           description="hello@sison.app"
           icon={<Mail className="w-4 h-4 text-[#6fb58a]" strokeWidth={2} />}

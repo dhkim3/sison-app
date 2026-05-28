@@ -14,6 +14,86 @@ import type { StoryItem } from './story/storyTypes';
 import { getActivitySaveKey, type ActivitySaveLookup, type ActivitySaveRecord } from '../activitySaveState';
 import type { StoryInteractionProps } from '../storyInteractionState';
 
+const initialArchiveStories: StoryItem[] = [
+  {
+    id: 101,
+    imageUrl: 'https://images.unsplash.com/photo-1565803974275-dccd2f933cbb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
+    title: '광안리 해변에서의 아침',
+    region: '부산',
+    author: '여행자',
+    likes: 16,
+    comments: 4,
+    body: '광안리의 아침은 생각보다 조용했어요. 짧은 정화 활동을 마치고 바라본 바다는 여행의 속도를 한 번 늦춰주는 장면처럼 남았습니다.',
+    relatedActivity: '광안리 해변 환경정화',
+  },
+  {
+    id: 102,
+    imageUrl: 'https://images.unsplash.com/photo-1621478763597-11fb71047890?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
+    title: '제주 바다의 석양',
+    region: '제주',
+    author: '여행자',
+    likes: 11,
+    comments: 2,
+    body: '하루 끝에 만난 제주 바다는 오래 바라보고 싶은 색이었어요. 작은 활동 뒤에 남은 고요함이 여행의 기억을 더 선명하게 만들어줬습니다.',
+    relatedActivity: '함덕해수욕장 해양 환경 정화 봉사',
+  },
+  {
+    id: 103,
+    imageUrl: 'https://images.unsplash.com/photo-1775116259654-404b3376c02e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
+    title: '공원 산책로의 오후',
+    region: '부산',
+    author: '여행자',
+    likes: 8,
+    comments: 1,
+    body: '산책로를 정리하는 동안 오후 햇빛이 천천히 나무 사이로 내려왔어요. 큰 이벤트보다 작은 돌봄이 더 오래 기억되는 날이었습니다.',
+    relatedActivity: '수영 공원 산책로 정비',
+  },
+  {
+    id: 104,
+    imageUrl: 'https://images.unsplash.com/photo-1542113028-b526238297f1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
+    title: '비자림의 고요한 산책',
+    region: '제주',
+    author: '여행자',
+    likes: 13,
+    comments: 3,
+    body: '비자림 안쪽으로 들어갈수록 말수가 줄어드는 기분이었어요. 길을 천천히 살피며 걷는 시간이 여행과 봉사 사이를 부드럽게 이어줬습니다.',
+    relatedActivity: '제주 숲길 산책로 정비',
+  },
+  {
+    id: 105,
+    imageUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
+    title: '안목해변 커피 향 사이로',
+    region: '강원',
+    author: '여행자',
+    likes: 9,
+    comments: 2,
+    body: '플로깅을 마치고 커피거리 쪽으로 걸어오니 바다 냄새와 커피 향이 섞였어요. 짧은 활동이 하루의 표정을 바꿔주었습니다.',
+    relatedActivity: '안목해변 아침 플로깅',
+  },
+  {
+    id: 106,
+    imageUrl: 'https://images.unsplash.com/photo-1519046904884-53103b34b206?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
+    title: '통영 항구의 느린 오후',
+    region: '경남',
+    author: '여행자',
+    likes: 10,
+    comments: 2,
+    body: '작은 항구 행사에서 방문객을 안내하고 의자를 정리했어요. 낯선 도시가 잠깐 생활처럼 가까워지는 시간이었습니다.',
+    relatedActivity: '통영 항구 마을 행사 도우미',
+  },
+  {
+    id: 107,
+    imageUrl: 'https://images.unsplash.com/photo-1528181304800-259b08848526?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
+    title: '경주 골목의 오후빛',
+    region: '경북',
+    author: '여행자',
+    likes: 8,
+    comments: 1,
+    body: '황리단길 작은 전시 안내를 돕는 동안 오래된 담벼락에 빛이 머물렀어요. 여행지의 이야기를 조금 더 가까이 들은 날이었습니다.',
+    relatedActivity: '경주 황리단길 작은 문화 안내',
+  },
+];
+
 interface SavedArchiveProps {
   onNavigate: (screen: string, options?: { activity?: ActivitySaveRecord; returnScreen?: 'home' | 'search' | 'saved' }) => void;
   savedActivities: ActivitySaveRecord[];
@@ -35,6 +115,7 @@ export function SavedArchive({
   const [commentStory, setCommentStory] = useState<StoryItem | null>(null);
   const [selectedTravelCard, setSelectedTravelCard] = useState<TravelCard | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [stories, setStories] = useState<StoryItem[]>(initialArchiveStories);
 
   const handleActivityClick = (activity: ActivitySaveRecord) => {
     setSelectedActivity(activity);
@@ -52,85 +133,12 @@ export function SavedArchive({
     return activity.status === 'completed' || !activity.isRecruiting || (activityDate !== null && activityDate < today);
   };
 
-  const stories: StoryItem[] = [
-    {
-      id: 101,
-      imageUrl: 'https://images.unsplash.com/photo-1565803974275-dccd2f933cbb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
-      title: '광안리 해변에서의 아침',
-      region: '부산',
-      author: '여행자',
-      likes: 16,
-      comments: 4,
-      body: '광안리의 아침은 생각보다 조용했어요. 짧은 정화 활동을 마치고 바라본 바다는 여행의 속도를 한 번 늦춰주는 장면처럼 남았습니다.',
-      relatedActivity: '광안리 해변 환경정화',
-    },
-    {
-      id: 102,
-      imageUrl: 'https://images.unsplash.com/photo-1621478763597-11fb71047890?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
-      title: '제주 바다의 석양',
-      region: '제주',
-      author: '여행자',
-      likes: 11,
-      comments: 2,
-      body: '하루 끝에 만난 제주 바다는 오래 바라보고 싶은 색이었어요. 작은 활동 뒤에 남은 고요함이 여행의 기억을 더 선명하게 만들어줬습니다.',
-      relatedActivity: '함덕해수욕장 해양 환경 정화 봉사',
-    },
-    {
-      id: 103,
-      imageUrl: 'https://images.unsplash.com/photo-1775116259654-404b3376c02e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
-      title: '공원 산책로의 오후',
-      region: '부산',
-      author: '여행자',
-      likes: 8,
-      comments: 1,
-      body: '산책로를 정리하는 동안 오후 햇빛이 천천히 나무 사이로 내려왔어요. 큰 이벤트보다 작은 돌봄이 더 오래 기억되는 날이었습니다.',
-      relatedActivity: '수영 공원 산책로 정비',
-    },
-    {
-      id: 104,
-      imageUrl: 'https://images.unsplash.com/photo-1542113028-b526238297f1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
-      title: '비자림의 고요한 산책',
-      region: '제주',
-      author: '여행자',
-      likes: 13,
-      comments: 3,
-      body: '비자림 안쪽으로 들어갈수록 말수가 줄어드는 기분이었어요. 길을 천천히 살피며 걷는 시간이 여행과 봉사 사이를 부드럽게 이어줬습니다.',
-      relatedActivity: '제주 숲길 산책로 정비',
-    },
-    {
-      id: 105,
-      imageUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
-      title: '안목해변 커피 향 사이로',
-      region: '강원',
-      author: '여행자',
-      likes: 9,
-      comments: 2,
-      body: '플로깅을 마치고 커피거리 쪽으로 걸어오니 바다 냄새와 커피 향이 섞였어요. 짧은 활동이 하루의 표정을 바꿔주었습니다.',
-      relatedActivity: '안목해변 아침 플로깅',
-    },
-    {
-      id: 106,
-      imageUrl: 'https://images.unsplash.com/photo-1519046904884-53103b34b206?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
-      title: '통영 항구의 느린 오후',
-      region: '경남',
-      author: '여행자',
-      likes: 10,
-      comments: 2,
-      body: '작은 항구 행사에서 방문객을 안내하고 의자를 정리했어요. 낯선 도시가 잠깐 생활처럼 가까워지는 시간이었습니다.',
-      relatedActivity: '통영 항구 마을 행사 도우미',
-    },
-    {
-      id: 107,
-      imageUrl: 'https://images.unsplash.com/photo-1528181304800-259b08848526?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
-      title: '경주 골목의 오후빛',
-      region: '경북',
-      author: '여행자',
-      likes: 8,
-      comments: 1,
-      body: '황리단길 작은 전시 안내를 돕는 동안 오래된 담벼락에 빛이 머물렀어요. 여행지의 이야기를 조금 더 가까이 들은 날이었습니다.',
-      relatedActivity: '경주 황리단길 작은 문화 안내',
-    },
-  ];
+  const handleDeleteStory = (story: StoryItem) => {
+    setStories((currentStories) => currentStories.filter((item) => item.id !== story.id));
+    setSelectedStory((currentStory) => (currentStory?.id === story.id ? null : currentStory));
+    setCommentStory((currentStory) => (currentStory?.id === story.id ? null : currentStory));
+    storyInteractions.onRemoveStory?.(story.id);
+  };
 
   const travelCards: TravelCard[] = [
     {
@@ -207,7 +215,7 @@ export function SavedArchive({
         {/* Header */}
         <header className="sticky top-0 z-20 bg-[#fdfcfa]/95 backdrop-blur-sm">
           <div className="px-5 py-3.5">
-            <h2 className="text-xl font-bold text-[#2a2a2a] leading-tight">보관함</h2>
+            <h2 className="text-xl font-bold text-[#2a2a2a] leading-tight">저장</h2>
             <p className="text-[12px] text-[#aaa] mt-0.5">여행 속 작은 순간들</p>
           </div>
         </header>
@@ -396,6 +404,7 @@ export function SavedArchive({
         onToggleLike={(story) => storyInteractions.onToggleStoryLike(story.id)}
         onOpenComments={setCommentStory}
         onAddComment={(story, body) => storyInteractions.onAddStoryComment(story.id, body)}
+        onDelete={handleDeleteStory}
       />
 
       <StoryCommentSheet
@@ -406,6 +415,14 @@ export function SavedArchive({
         onAddComment={(body) => {
           if (!commentStory) return;
           storyInteractions.onAddStoryComment(commentStory.id, body);
+        }}
+        onUpdateComment={(commentId, body) => {
+          if (!commentStory) return;
+          storyInteractions.onUpdateStoryComment(commentStory.id, commentId, body);
+        }}
+        onDeleteComment={(commentId) => {
+          if (!commentStory) return;
+          storyInteractions.onDeleteStoryComment(commentStory.id, commentId);
         }}
       />
 

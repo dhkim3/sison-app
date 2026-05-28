@@ -5,6 +5,7 @@ export interface StoryComment {
   author: string;
   body: string;
   time: string;
+  edited?: boolean;
 }
 
 export const initialStoryComments: Record<number, StoryComment[]> = {
@@ -47,4 +48,7 @@ export interface StoryInteractionProps {
   getStoryComments: (storyId: number) => StoryComment[];
   onToggleStoryLike: (storyId: number) => void;
   onAddStoryComment: (storyId: number, body: string) => void;
+  onUpdateStoryComment: (storyId: number, commentId: number, body: string) => void;
+  onDeleteStoryComment: (storyId: number, commentId: number) => void;
+  onRemoveStory?: (storyId: number) => void;
 }

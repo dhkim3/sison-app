@@ -229,6 +229,43 @@ export default function App() {
         };
       });
     },
+    onUpdateStoryComment: (storyId, commentId, body) => {
+      const nextBody = body.trim();
+      if (!nextBody) return;
+
+      setStoryComments((currentComments) => {
+        const comments = currentComments[storyId] ?? [];
+
+        return {
+          ...currentComments,
+          [storyId]: comments.map((comment) =>
+            comment.id === commentId && comment.author === '나'
+              ? { ...comment, body: nextBody, edited: true }
+              : comment
+          ),
+        };
+      });
+    },
+    onDeleteStoryComment: (storyId, commentId) => {
+      setStoryComments((currentComments) => {
+        const comments = currentComments[storyId] ?? [];
+
+        return {
+          ...currentComments,
+          [storyId]: comments.filter((comment) => comment.id !== commentId || comment.author !== '나'),
+        };
+      });
+    },
+    onRemoveStory: (storyId) => {
+      setLikedStoryIds((currentIds) => currentIds.filter((id) => id !== storyId));
+      setStoryComments((currentComments) => {
+        if (!currentComments[storyId]) return currentComments;
+
+        const nextComments = { ...currentComments };
+        delete nextComments[storyId];
+        return nextComments;
+      });
+    },
   };
 
   return (

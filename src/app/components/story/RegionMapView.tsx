@@ -347,6 +347,14 @@ export function RegionMapView({
           if (!commentStory) return;
           storyInteractions.onAddStoryComment(commentStory.id, body);
         }}
+        onUpdateComment={(commentId, body) => {
+          if (!commentStory) return;
+          storyInteractions.onUpdateStoryComment(commentStory.id, commentId, body);
+        }}
+        onDeleteComment={(commentId) => {
+          if (!commentStory) return;
+          storyInteractions.onDeleteStoryComment(commentStory.id, commentId);
+        }}
       />
 
       <BottomTabBar activeTab="story" onNavigate={onNavigate} />

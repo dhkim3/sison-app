@@ -1,41 +1,32 @@
-import { useState } from 'react';
+import { SlidersHorizontal } from 'lucide-react';
 
 interface FilterChipsProps {
-  filters: string[];
+  filters?: string[];
   selectedFilters?: string[];
   onFilterChange?: (filters: string[]) => void;
+  onOpen?: () => void;
 }
 
-export function FilterChips({ filters, selectedFilters = [], onFilterChange }: FilterChipsProps) {
-  const [selected, setSelected] = useState<string[]>(selectedFilters);
-
-  const toggleFilter = (filter: string) => {
-    const newSelected = selected.includes(filter)
-      ? selected.filter((f) => f !== filter)
-      : [...selected, filter];
-    setSelected(newSelected);
-    onFilterChange?.(newSelected);
-  };
+export function FilterChips({ selectedFilters = [], onOpen }: FilterChipsProps) {
+  const filterLabel =
+    selectedFilters.length === 0
+      ? '필터'
+      : selectedFilters.length === 1
+        ? selectedFilters[0]
+        : `${selectedFilters[0]} 외 ${selectedFilters.length - 1}개`;
 
   return (
-    <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-      {filters.map((filter) => {
-        const isSelected = selected.includes(filter);
-        return (
-          <button
-            key={filter}
-            type="button"
-            onClick={() => toggleFilter(filter)}
-            className={`h-9 px-3.5 rounded-full text-[13px] whitespace-nowrap transition-all flex items-center ${
-              isSelected
-                ? 'bg-[#a8d5ba] text-white shadow-[0_1px_2px_rgba(168,213,186,0.2)]'
-                : 'bg-white text-[#5a5a5a] border border-black/10 hover:border-[#a8d5ba]'
-            }`}
-          >
-            {filter}
-          </button>
-        );
-      })}
-    </div>
+    <button
+      type="button"
+      onClick={onOpen}
+      className={`inline-flex h-10 max-w-full items-center gap-2 rounded-full border px-4 text-[13px] font-medium transition-colors ${
+        selectedFilters.length > 0
+          ? 'border-[#a8d5ba]/65 bg-[#e8f5ed] text-[#4f8d67]'
+          : 'border-black/10 bg-white text-[#5a5a5a] hover:border-[#a8d5ba]'
+      }`}
+    >
+      <SlidersHorizontal className="h-3.5 w-3.5 flex-shrink-0" strokeWidth={1.8} />
+      <span className="truncate">{filterLabel}</span>
+    </button>
   );
 }

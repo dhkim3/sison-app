@@ -56,20 +56,20 @@ export function SearchResultCard({
         <div className="flex items-start justify-between mb-3">
           <h3 className="flex-1 pr-2">{title}</h3>
           {isRecruiting && (
-            <span className="flex items-center gap-1 text-xs text-[#a8d5ba] bg-[#e8f5ed] px-3 py-1 rounded-full whitespace-nowrap">
-              <span className="w-1.5 h-1.5 bg-[#a8d5ba] rounded-full" />
+            <span className="flex items-center gap-1 text-xs font-medium text-[#5f9f74] bg-[#e8f5ed] px-3 py-1 rounded-full whitespace-nowrap">
+              <span className="w-1.5 h-1.5 bg-[#6fa985] rounded-full" />
               모집중
             </span>
           )}
         </div>
 
         <div className="space-y-2 mb-4">
-          <div className="flex items-center gap-2 text-sm text-[#5a5a5a]">
-            <MapPin className="w-4 h-4" strokeWidth={2} />
+          <div className="flex items-center gap-2 text-sm font-normal text-[#8f8f8f]">
+            <MapPin className="w-4 h-4 text-[#c9897e]" strokeWidth={2} />
             <span>{location} · {distance}</span>
           </div>
-          <div className="flex items-center gap-2 text-sm text-[#5a5a5a]">
-            <Clock className="w-4 h-4" strokeWidth={2} />
+          <div className="flex items-center gap-2 text-sm font-normal text-[#8f8f8f]">
+            <Clock className="w-4 h-4 text-[#b8b2aa]" strokeWidth={2} />
             <span>{time}</span>
           </div>
         </div>

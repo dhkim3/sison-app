@@ -410,14 +410,14 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
                   <h3 className="mb-4">{selectedActivity.title}</h3>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2.5">
-                      <MapPin className="w-4 h-4 text-[#5a5a5a]" strokeWidth={2} />
-                      <span className="text-sm text-[#5a5a5a]">
+                      <MapPin className="w-4 h-4 text-[#c9897e]" strokeWidth={2} />
+                      <span className="text-sm font-normal text-[#8f8f8f]">
                         {selectedActivity.volunteerPlace || selectedActivity.location}
                       </span>
                     </div>
                     <div className="flex items-center gap-2.5">
-                      <Clock className="w-4 h-4 text-[#5a5a5a]" strokeWidth={2} />
-                      <span className="text-sm text-[#5a5a5a]">
+                      <Clock className="w-4 h-4 text-[#b8b2aa]" strokeWidth={2} />
+                      <span className="text-sm font-normal text-[#8f8f8f]">
                         {[selectedActivity.date, selectedActivity.time].filter(Boolean).join(' · ')}
                       </span>
                     </div>

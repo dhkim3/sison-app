@@ -1,6 +1,4 @@
-import { useState } from 'react';
-import { Plus } from 'lucide-react';
-import { BottomTabBar } from './BottomTabBar';
+import { useEffect, useState } from 'react';
 import { RegionMapView } from './story/RegionMapView';
 import { MyActivitiesView } from './story/MyActivitiesView';
 import { StoryUploadView } from './story/StoryUploadView';
@@ -20,6 +18,28 @@ export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationPr
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
   const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([]);
   const [storyText, setStoryText] = useState('');
+
+  useEffect(() => {
+    return () => {
+      uploadedPhotos.forEach((photo) => {
+        if (photo.startsWith('blob:')) {
+          URL.revokeObjectURL(photo);
+        }
+      });
+    };
+  }, [uploadedPhotos]);
+
+  const handlePhotosChange = (nextPhotos: string[]) => {
+    setUploadedPhotos((currentPhotos) => {
+      currentPhotos.forEach((photo) => {
+        if (photo.startsWith('blob:') && !nextPhotos.includes(photo)) {
+          URL.revokeObjectURL(photo);
+        }
+      });
+
+      return nextPhotos.slice(0, 1);
+    });
+  };
 
   // Mock user's applied activities
   const myActivities = [
@@ -136,7 +156,7 @@ export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationPr
   const handleSelectActivity = (activity: any) => {
     setSelectedActivity(activity);
     setCurrentView('upload');
-    setUploadedPhotos([]);
+    handlePhotosChange([]);
     setStoryText('');
   };
 
@@ -144,14 +164,14 @@ export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationPr
     setCurrentView('map');
     setSelectedRegion(null);
     setSelectedActivity(null);
-    setUploadedPhotos([]);
+    handlePhotosChange([]);
     setStoryText('');
   };
 
   const handleBackToActivities = () => {
     setCurrentView('my-activities');
     setSelectedActivity(null);
-    setUploadedPhotos([]);
+    handlePhotosChange([]);
     setStoryText('');
   };
 
@@ -160,7 +180,7 @@ export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationPr
   };
 
   const handleSaveStory = () => {
-    alert('스토리가 저장되었습니다');
+    alert('업로드 완료');
     handleBackToMap();
   };
 
@@ -197,7 +217,7 @@ export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationPr
           onSave={handleSaveStory}
           onCreateCard={handleGoToCardCreation}
           photos={uploadedPhotos}
-          onPhotosChange={setUploadedPhotos}
+          onPhotosChange={handlePhotosChange}
           storyText={storyText}
           onTextChange={setStoryText}
           onNavigate={onNavigate}

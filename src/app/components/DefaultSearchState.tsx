@@ -78,7 +78,7 @@ export function DefaultSearchState({
       items: ['광안리', '안목해변', '제주 애월'],
     },
     {
-      title: '추천 지역',
+      title: '실시간 인기 지역',
       icon: MapPin,
       items: ['부산 수영구', '강릉 안목', '제주 서쪽'],
     },
@@ -229,7 +229,7 @@ export function DefaultSearchState({
       {/* Recommended Regions */}
       <section>
         <div className="mb-3">
-          <h3 className="mb-1">추천 지역</h3>
+          <h3 className="mb-1">실시간 인기 지역</h3>
           <p className="text-[12px] text-[#aaa]">여행의 속도에 맞춰 둘러보세요</p>
         </div>
         <div className="space-y-2.5">

@@ -5,10 +5,7 @@ import { TravelSummaryCard } from './TravelSummaryCard';
 import { SettingsItem } from './SettingsItem';
 import { BottomTabBar } from './BottomTabBar';
 import { PageShell } from './PageShell';
-import { StoryCard } from './story/StoryCard';
-import { StoryDetailSheet } from './story/StoryDetailSheet';
 import { useBottomSheetScrollLock } from './useBottomSheetScrollLock';
-import type { StoryItem } from './story/storyTypes';
 import {
   AccountSettingsScreen,
   ContactSettingsScreen,
@@ -23,7 +20,6 @@ interface ProfileScreenProps {
 
 export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
   const [activeSettingsDetail, setActiveSettingsDetail] = useState<SettingsDetail | null>(null);
-  const [selectedStory, setSelectedStory] = useState<StoryItem | null>(null);
   const [profile, setProfile] = useState({
     imageUrl: 'https://images.unsplash.com/photo-1516962126636-27ad087061cc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=200',
     nickname: '여행자',
@@ -59,82 +55,6 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
     { label: '저장한 활동', count: 24 },
     { label: '여행 카드', count: 8 },
   ];
-
-  const myStories: Array<StoryItem & { date: string }> = [
-    {
-      id: 301,
-      imageUrl: 'https://images.unsplash.com/photo-1565803974275-dccd2f933cbb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
-      title: '광안리 해변에서의 아침',
-      region: '부산',
-      author: profile.nickname,
-      likes: 16,
-      comments: 4,
-      body: '광안리의 아침은 생각보다 조용했어요. 짧은 정화 활동을 마치고 바라본 바다는 여행의 속도를 한 번 늦춰주는 장면처럼 남았습니다.',
-      relatedActivity: '광안리 해변 환경정화',
-      date: '2026.07.20',
-    },
-    {
-      id: 302,
-      imageUrl: 'https://images.unsplash.com/photo-1621478763597-11fb71047890?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
-      title: '제주 바다의 석양',
-      region: '제주',
-      author: profile.nickname,
-      likes: 11,
-      comments: 2,
-      body: '하루 끝에 만난 제주 바다는 오래 바라보고 싶은 색이었어요. 작은 활동 뒤에 남은 고요함이 여행의 기억을 더 선명하게 만들어줬습니다.',
-      relatedActivity: '함덕해수욕장 해양 환경 정화 봉사',
-      date: '2026.06.10',
-    },
-    {
-      id: 303,
-      imageUrl: 'https://images.unsplash.com/photo-1542113028-b526238297f1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
-      title: '비자림의 고요한 산책',
-      region: '제주',
-      author: profile.nickname,
-      likes: 13,
-      comments: 3,
-      body: '비자림 안쪽으로 들어갈수록 말수가 줄어드는 기분이었어요. 길을 천천히 살피며 걷는 시간이 여행과 봉사 사이를 부드럽게 이어줬습니다.',
-      relatedActivity: '제주 숲길 산책로 정비',
-      date: '2026.06.12',
-    },
-    {
-      id: 304,
-      imageUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
-      title: '안목해변 커피 향 사이로',
-      region: '강원',
-      author: profile.nickname,
-      likes: 9,
-      comments: 2,
-      body: '해변을 걷고 돌아오는 길에 커피 향이 먼저 다가왔어요. 작은 봉투 하나를 채운 아침이 이상하게 오래 기억났습니다.',
-      relatedActivity: '안목해변 아침 플로깅',
-      date: '2026.05.30',
-    },
-    {
-      id: 305,
-      imageUrl: 'https://images.unsplash.com/photo-1519046904884-53103b34b206?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
-      title: '통영 항구의 느린 오후',
-      region: '경남',
-      author: profile.nickname,
-      likes: 10,
-      comments: 2,
-      body: '행사 안내판을 세우고 의자를 정리하는 사이 항구의 오후가 천천히 지나갔어요. 낯선 곳을 잠깐 도왔다는 감각이 좋았습니다.',
-      relatedActivity: '통영 항구 마을 행사 도우미',
-      date: '2026.04.26',
-    },
-    {
-      id: 306,
-      imageUrl: 'https://images.unsplash.com/photo-1476610182048-b716b8518aae?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
-      title: '속초 호숫가의 맑은 바람',
-      region: '강원',
-      author: profile.nickname,
-      likes: 7,
-      comments: 1,
-      body: '영랑호 산책로를 정리하고 잠시 물가에 앉았어요. 바람이 맑아서 봉사 뒤의 조용한 피로까지 여행처럼 느껴졌습니다.',
-      relatedActivity: '속초 영랑호 산책로 정비',
-      date: '2026.03.28',
-    },
-  ];
-  const recentStories = [...myStories].sort((a, b) => b.date.localeCompare(a.date));
 
   const handleBackToProfile = () => {
     setActiveSettingsDetail(null);
@@ -252,35 +172,6 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                 <div className="grid grid-cols-3 gap-2">
                   {travelSummary.map((item, index) => (
                     <TravelSummaryCard key={index} {...item} />
-                  ))}
-                </div>
-              </section>
-
-              {/* Recent Stories */}
-              <section className="px-5">
-                <div className="mb-4">
-                  <h3 className="text-[15px] font-semibold text-[#2a2a2a] mb-1">최근 스토리</h3>
-                  <p className="text-[12px] text-[#aaa]">여행 속 순간들</p>
-                </div>
-                <div
-                  className="flex items-start gap-3 overflow-x-auto pb-2 scrollbar-hide"
-                  style={{ scrollSnapType: 'x mandatory' }}
-                >
-                  {recentStories.map((story) => (
-                    <div
-                      key={story.id}
-                      className="flex-shrink-0"
-                      style={{
-                        width: 'calc((100% - 12px) / 2)',
-                        scrollSnapAlign: 'start',
-                      }}
-                    >
-                      <StoryCard
-                        story={story}
-                        layout="grid"
-                        onClick={setSelectedStory}
-                      />
-                    </div>
                   ))}
                 </div>
               </section>
@@ -425,12 +316,6 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
           </div>
         </div>
       )}
-
-      <StoryDetailSheet
-        story={selectedStory}
-        isOpen={selectedStory !== null}
-        onClose={() => setSelectedStory(null)}
-      />
 
       {/* Bottom Tab Bar */}
       <BottomTabBar activeTab="profile" onNavigate={onNavigate} />

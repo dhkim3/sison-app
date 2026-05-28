@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { MessageCircle, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { MessageCircle, Pencil, Trash2, X } from 'lucide-react';
 import type { StoryComment } from '../../storyInteractionState';
 import type { StoryItem } from './storyTypes';
 import { useBottomSheetScrollLock } from '../useBottomSheetScrollLock';
@@ -10,6 +10,8 @@ interface StoryCommentSheetProps {
   comments: StoryComment[];
   onClose: () => void;
   onAddComment: (body: string) => void;
+  onUpdateComment?: (commentId: number, body: string) => void;
+  onDeleteComment?: (commentId: number) => void;
 }
 
 export function StoryCommentSheet({
@@ -18,9 +20,22 @@ export function StoryCommentSheet({
   comments,
   onClose,
   onAddComment,
+  onUpdateComment,
+  onDeleteComment,
 }: StoryCommentSheetProps) {
   const [draftComment, setDraftComment] = useState('');
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [editingBody, setEditingBody] = useState('');
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   useBottomSheetScrollLock(isOpen && Boolean(story));
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    setEditingCommentId(null);
+    setEditingBody('');
+    setDeleteConfirmId(null);
+  }, [isOpen, story?.id]);
 
   if (!isOpen || !story) return null;
 
@@ -30,6 +45,36 @@ export function StoryCommentSheet({
 
     onAddComment(nextComment);
     setDraftComment('');
+  };
+
+  const startEdit = (comment: StoryComment) => {
+    setDeleteConfirmId(null);
+    setEditingCommentId(comment.id);
+    setEditingBody(comment.body);
+  };
+
+  const cancelEdit = () => {
+    setEditingCommentId(null);
+    setEditingBody('');
+  };
+
+  const saveEdit = (commentId: number) => {
+    const nextBody = editingBody.trim();
+    if (!nextBody) return;
+
+    onUpdateComment?.(commentId, nextBody);
+    cancelEdit();
+  };
+
+  const askDelete = (commentId: number) => {
+    setEditingCommentId(null);
+    setEditingBody('');
+    setDeleteConfirmId((currentId) => (currentId === commentId ? null : commentId));
+  };
+
+  const deleteComment = (commentId: number) => {
+    onDeleteComment?.(commentId);
+    setDeleteConfirmId(null);
   };
 
   return (
@@ -70,10 +115,84 @@ export function StoryCommentSheet({
               {comments.map((comment) => (
                 <div key={comment.id} className="rounded-2xl bg-white px-4 py-3.5 border border-black/[0.04]">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-[13px] font-medium text-[#2a2a2a]">{comment.author}</p>
-                    <p className="text-[11px] text-[#b0aca5]">{comment.time}</p>
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <p className="text-[13px] font-medium text-[#2a2a2a]">{comment.author}</p>
+                      {comment.edited && <p className="text-[10.5px] text-[#b0aca5]">수정됨</p>}
+                    </div>
+                    <div className="flex flex-shrink-0 items-center gap-2">
+                      <p className="text-[11px] text-[#b0aca5]">{comment.time}</p>
+                      {comment.author === '나' && (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => startEdit(comment)}
+                            aria-label="댓글 수정"
+                            className="flex h-7 w-7 items-center justify-center rounded-full text-[#aaa] transition-colors hover:bg-[#f8f8f5] hover:text-[#777]"
+                          >
+                            <Pencil className="h-3.5 w-3.5" strokeWidth={1.7} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => askDelete(comment.id)}
+                            aria-label="댓글 삭제"
+                            className="flex h-7 w-7 items-center justify-center rounded-full text-[#aaa] transition-colors hover:bg-[#f8f8f5] hover:text-[#777]"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.7} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <p className="mt-1.5 text-[13px] leading-6 text-[#666]">{comment.body}</p>
+                  {editingCommentId === comment.id ? (
+                    <div className="mt-2">
+                      <textarea
+                        value={editingBody}
+                        onChange={(event) => setEditingBody(event.target.value)}
+                        rows={2}
+                        className="w-full resize-none rounded-xl border border-black/5 bg-[#f8f8f5] px-3 py-2.5 text-[13px] leading-6 text-[#2a2a2a] outline-none placeholder:text-[#bbb] focus:bg-white focus:ring-1 focus:ring-[#a8d5ba]/45"
+                      />
+                      <div className="mt-2 flex justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={cancelEdit}
+                          className="rounded-full px-3 py-1.5 text-[12px] font-medium text-[#999] transition-colors hover:bg-[#f8f8f5]"
+                        >
+                          취소
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => saveEdit(comment.id)}
+                          disabled={!editingBody.trim()}
+                          className="rounded-full bg-[#f8f8f5] px-3 py-1.5 text-[12px] font-medium text-[#5a5a5a] transition-colors hover:bg-[#e8f5ed] disabled:text-[#bbb]"
+                        >
+                          저장
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-1.5 text-[13px] leading-6 text-[#666]">{comment.body}</p>
+                  )}
+                  {deleteConfirmId === comment.id && (
+                    <div className="mt-2 flex items-center justify-between gap-2 rounded-xl bg-[#f8f8f5] px-3 py-2.5">
+                      <p className="text-[12px] text-[#777]">이 댓글을 지울까요?</p>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setDeleteConfirmId(null)}
+                          className="rounded-full px-2.5 py-1 text-[11.5px] font-medium text-[#999] transition-colors hover:bg-white"
+                        >
+                          취소
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteComment(comment.id)}
+                          className="rounded-full bg-white px-2.5 py-1 text-[11.5px] font-medium text-[#5a5a5a] shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors hover:bg-[#f0f0eb]"
+                        >
+                          삭제
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
