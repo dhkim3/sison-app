@@ -32,12 +32,16 @@
 
 html {
   width: 100%;
+  max-width: 100%;
   min-height: 100%;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
 }
 
 body,
 #root {
   width: 100%;
+  max-width: 100%;
   min-height: 100dvh;
   overflow-x: hidden;
   background: #fdfcfa;
@@ -64,6 +68,7 @@ body.bottom-sheet-scroll-locked {
   position: fixed;
   inset: 0;
   width: 100%;
+  max-width: 100%;
   overflow: hidden;
 }
 
@@ -118,8 +123,15 @@ body.bottom-sheet-scroll-locked {
   isolation: isolate;
 }
 
+.screen-transition {
+  width: 100%;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
 .mobile-app-page {
   width: 100%;
+  max-width: 100%;
   min-height: 100dvh;
   overflow-x: hidden;
   padding-bottom: calc(96px + env(safe-area-inset-bottom));
@@ -127,6 +139,8 @@ body.bottom-sheet-scroll-locked {
 }
 
 .mobile-app-content {
+  width: 100%;
+  max-width: 430px;
   min-height: 100dvh;
   box-sizing: border-box;
 }
@@ -460,10 +474,6 @@ body.bottom-sheet-scroll-locked {
   to {
     opacity: 1;
   }
-}
-
-.screen-transition {
-  min-height: 100dvh;
 }
 
 /* Text truncate utilities */

@@ -271,7 +271,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                       key={story.id}
                       className="flex-shrink-0"
                       style={{
-                        width: 'calc((min(100vw, 430px) - 52px) / 2)',
+                        width: 'calc((100% - 12px) / 2)',
                         scrollSnapAlign: 'start',
                       }}
                     >

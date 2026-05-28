@@ -488,8 +488,8 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
       activities: recentActivities.slice(0, 3),
     },
     {
-      title: '숨겨진 장소 발견',
-      description: '조금 덜 알려진 장소에서 만나는 활동',
+      title: '조용한 활동',
+      description: '조금 더 여유롭게 참여할 수 있어요',
       activities: hiddenPlaceActivities.slice(0, 3),
     },
   ];
@@ -630,7 +630,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
                       onBookmarkClick={() => onToggleSavedActivity(activity)}
                       onClick={() => { setSelectedActivity(activity); setIsDetailOpen(true); }}
                     />
-                  ) : section.title === '숨겨진 장소 발견' ? (
+                  ) : section.title === '조용한 활동' ? (
                     <HiddenPlaceActivityCard
                       key={`${section.title}-${activity.title}`}
                       activity={activity}

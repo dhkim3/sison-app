@@ -11,7 +11,6 @@ const originalBodyStyle = {
   height: '',
   left: '',
   overflow: '',
-  paddingRight: '',
   position: '',
   right: '',
   top: '',
@@ -20,7 +19,6 @@ const originalBodyStyle = {
 
 const originalHtmlStyle = {
   overflow: '',
-  scrollbarGutter: '',
 };
 
 const getScrollableSheet = (target: EventTarget | null) => {
@@ -114,7 +112,6 @@ export const clearStaleScrollLock = () => {
   documentElement.classList.remove(lockClassName);
   body.classList.remove(lockClassName);
   documentElement.style.overflow = '';
-  documentElement.style.scrollbarGutter = '';
   body.style.height = '';
   body.style.position = '';
   body.style.top = '';
@@ -122,7 +119,6 @@ export const clearStaleScrollLock = () => {
   body.style.right = '';
   body.style.width = '';
   body.style.overflow = '';
-  body.style.paddingRight = '';
   lockMode = null;
 
   if (shouldRestoreScroll) {
@@ -141,7 +137,6 @@ const lockBodyScroll = (lockId: symbol) => {
   if (activeLockIds.size > 1) return;
 
   const { body, documentElement } = document;
-  const scrollbarWidth = window.innerWidth - documentElement.clientWidth;
   const shouldUseFixedLock = isIOSBrowser();
   lockedScrollY = window.scrollY;
   lockMode = shouldUseFixedLock ? 'ios-fixed' : 'standard';
@@ -150,16 +145,13 @@ const lockBodyScroll = (lockId: symbol) => {
   originalBodyStyle.left = body.style.left;
   originalBodyStyle.height = body.style.height;
   originalBodyStyle.overflow = body.style.overflow;
-  originalBodyStyle.paddingRight = body.style.paddingRight;
   originalBodyStyle.position = body.style.position;
   originalBodyStyle.right = body.style.right;
   originalBodyStyle.top = body.style.top;
   originalBodyStyle.width = body.style.width;
   originalHtmlStyle.overflow = documentElement.style.overflow;
-  originalHtmlStyle.scrollbarGutter = documentElement.style.scrollbarGutter;
 
   documentElement.style.overflow = 'hidden';
-  documentElement.style.scrollbarGutter = 'stable both-edges';
   documentElement.classList.add(lockClassName);
   body.classList.add(lockClassName);
   body.style.overflow = 'hidden';
@@ -171,10 +163,6 @@ const lockBodyScroll = (lockId: symbol) => {
     body.style.right = '0';
     body.style.width = '100%';
     body.style.height = '100%';
-  }
-
-  if (scrollbarWidth > 0 && !window.CSS?.supports('scrollbar-gutter: stable')) {
-    body.style.paddingRight = `${scrollbarWidth}px`;
   }
 
   if (shouldUseFixedLock) {
@@ -201,7 +189,6 @@ const unlockBodyScroll = (lockId: symbol) => {
   const shouldRestoreScrollPosition = lockMode === 'ios-fixed';
 
   documentElement.style.overflow = originalHtmlStyle.overflow;
-  documentElement.style.scrollbarGutter = originalHtmlStyle.scrollbarGutter;
   documentElement.classList.remove(lockClassName);
   body.classList.remove(lockClassName);
   body.style.height = originalBodyStyle.height;
@@ -211,7 +198,6 @@ const unlockBodyScroll = (lockId: symbol) => {
   body.style.right = originalBodyStyle.right;
   body.style.width = originalBodyStyle.width;
   body.style.overflow = originalBodyStyle.overflow;
-  body.style.paddingRight = originalBodyStyle.paddingRight;
   lockMode = null;
 
   if (shouldRestoreScrollPosition) {
