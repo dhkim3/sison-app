@@ -79,10 +79,9 @@ export function StoryCommentSheet({
 
   return (
     <>
-      <div
-        className="bottom-sheet-viewport z-40 bg-black/30 backdrop-blur-sm animate-fade-in"
-        onClick={onClose}
-      />
+      {/* iOS Safari: split backdrop-blur from click target */}
+      <div className="bottom-sheet-viewport z-40 bg-black/30 backdrop-blur-sm animate-fade-in pointer-events-none" />
+      <div className="bottom-sheet-viewport z-40" onClick={onClose} />
 
       <div className="bottom-sheet-panel fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-[430px] flex-col overflow-hidden rounded-t-[2rem] bg-[#fdfcfa] shadow-2xl animate-slide-up">
         <div className="flex-shrink-0 pt-3">

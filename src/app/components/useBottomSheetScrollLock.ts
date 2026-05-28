@@ -2,7 +2,6 @@ import { useLayoutEffect, useRef } from 'react';
 
 const activeLockIds = new Set<symbol>();
 let lockedScrollY = 0;
-let lastTouchY = 0;
 let lockMode: 'ios-fixed' | 'standard' | null = null;
 const lockClassName = 'bottom-sheet-scroll-locked';
 const viewportHeightVariable = '--sison-viewport-height';
@@ -17,54 +16,39 @@ const originalBodyStyle = {
   width: '',
 };
 
-const getScrollableSheet = (target: EventTarget | null) => {
-  if (!(target instanceof Element)) return null;
+// Returns true when the touch target is anywhere inside the bottom sheet panel
+// (header buttons, scrollable content, drag handle — everything inside the sheet)
+// This lets native iOS scroll and tap events work correctly inside the sheet.
+const isInsideBottomSheet = (target: EventTarget | null): boolean => {
+  if (!(target instanceof Element)) return false;
+  return Boolean(
+    target.closest<HTMLElement>('.bottom-sheet-panel, [data-bottom-sheet-scrollable="true"]'),
+  );
+};
 
-  return target.closest<HTMLElement>('[data-bottom-sheet-scrollable="true"], .bottom-sheet-scrollable, .bottom-sheet-panel');
+// NOTE: We intentionally do NOT use a "can this sheet scroll?" check here.
+// The original canScrollSheet() logic caused two iOS Safari bugs:
+//   1. .bottom-sheet-panel has overflow:hidden so scrollHeight===clientHeight → always false
+//      → preventDefault() on header taps → iOS cancels the click event entirely
+//   2. When body is position:fixed on iOS, clientHeight may be mis-reported as 0
+// Instead we rely on overscroll-behavior:contain on .bottom-sheet-scrollable to
+// handle scroll boundaries (scroll doesn't bleed to body).
+const handleTouchMove = (event: TouchEvent) => {
+  if (activeLockIds.size === 0) return;
+  // Inside the sheet: allow native scroll and tap – do NOT call preventDefault
+  if (isInsideBottomSheet(event.target)) return;
+  // Outside the sheet (backdrop, page behind): block body scroll / rubber-band
+  event.preventDefault();
 };
 
 const isIOSBrowser = () => {
   if (typeof window === 'undefined') return false;
-
   const { platform, maxTouchPoints, userAgent } = window.navigator;
   return /iP(ad|hone|od)/.test(userAgent) || (platform === 'MacIntel' && maxTouchPoints > 1);
 };
 
-const canScrollSheet = (sheet: HTMLElement, touchDeltaY: number) => {
-  const maxScrollTop = sheet.scrollHeight - sheet.clientHeight;
-  if (maxScrollTop <= 0) return false;
-
-  if (touchDeltaY > 0) {
-    return sheet.scrollTop > 0;
-  }
-
-  if (touchDeltaY < 0) {
-    return sheet.scrollTop < maxScrollTop;
-  }
-
-  return true;
-};
-
-const handleTouchStart = (event: TouchEvent) => {
-  lastTouchY = event.touches[0]?.clientY ?? 0;
-};
-
-const handleTouchMove = (event: TouchEvent) => {
-  if (activeLockIds.size === 0 || event.touches.length === 0) return;
-
-  const currentTouchY = event.touches[0].clientY;
-  const touchDeltaY = currentTouchY - lastTouchY;
-  lastTouchY = currentTouchY;
-
-  const scrollableSheet = getScrollableSheet(event.target);
-  if (!scrollableSheet || !canScrollSheet(scrollableSheet, touchDeltaY)) {
-    event.preventDefault();
-  }
-};
-
 const updateViewportHeight = () => {
   if (typeof window === 'undefined') return;
-
   const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
   document.documentElement.style.setProperty(viewportHeightVariable, `${viewportHeight}px`);
 };
@@ -101,7 +85,6 @@ export const clearStaleScrollLock = () => {
   const scrollToRestore = lockedScrollY;
 
   activeLockIds.clear();
-  document.removeEventListener('touchstart', handleTouchStart);
   document.removeEventListener('touchmove', handleTouchMove);
   removeViewportHeightListeners();
   documentElement.classList.remove(lockClassName);
@@ -149,6 +132,10 @@ const lockBodyScroll = (lockId: symbol) => {
   body.style.overflow = 'hidden';
 
   if (shouldUseFixedLock) {
+    // iOS: fix body in place to prevent rubber-band scroll behind the sheet.
+    // We use position:fixed so the body doesn't move while the sheet is open.
+    // Fixed child elements (the sheets themselves) remain correctly positioned
+    // relative to the visual viewport.
     body.style.position = 'fixed';
     body.style.top = `-${lockedScrollY}px`;
     body.style.left = '0';
@@ -157,10 +144,9 @@ const lockBodyScroll = (lockId: symbol) => {
     body.style.height = '100%';
   }
 
-  if (shouldUseFixedLock) {
-    document.addEventListener('touchstart', handleTouchStart, { passive: true });
-    document.addEventListener('touchmove', handleTouchMove, { passive: false });
-  }
+  // Prevent body scroll for touches outside the sheet.
+  // passive:false is required to allow event.preventDefault().
+  document.addEventListener('touchmove', handleTouchMove, { passive: false });
 };
 
 const unlockBodyScroll = (lockId: symbol) => {
@@ -175,7 +161,6 @@ const unlockBodyScroll = (lockId: symbol) => {
   if (activeLockIds.size > 0) return;
 
   const { body, documentElement } = document;
-  document.removeEventListener('touchstart', handleTouchStart);
   document.removeEventListener('touchmove', handleTouchMove);
   removeViewportHeightListeners();
   const shouldRestoreScrollPosition = lockMode === 'ios-fixed';

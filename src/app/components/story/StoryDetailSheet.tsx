@@ -65,10 +65,9 @@ export function StoryDetailSheet({
 
   return (
     <>
-      <div
-        className="bottom-sheet-viewport z-40 bg-black/35 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-      />
+      {/* iOS Safari: split backdrop-blur from click target */}
+      <div className="bottom-sheet-viewport z-40 bg-black/35 backdrop-blur-sm pointer-events-none" />
+      <div className="bottom-sheet-viewport z-40" onClick={onClose} />
 
       <div
         className="bottom-sheet-panel fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-[430px] flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl animate-slide-up"

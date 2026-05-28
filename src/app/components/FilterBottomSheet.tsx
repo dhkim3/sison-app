@@ -47,10 +47,9 @@ export function FilterBottomSheet({
 
   return (
     <>
-      <div
-        className="bottom-sheet-viewport z-40 bg-black/30 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-      />
+      {/* iOS Safari: backdrop-filter can intercept touches — split into blur layer + click target */}
+      <div className="bottom-sheet-viewport z-40 bg-black/30 backdrop-blur-sm pointer-events-none" />
+      <div className="bottom-sheet-viewport z-40" onClick={onClose} />
 
       <div className="bottom-sheet-panel fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-[430px] flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl animate-slide-up">
         <div className="flex flex-shrink-0 items-start justify-between border-b border-black/5 bg-white/95 px-6 py-4 backdrop-blur-sm">

@@ -37,6 +37,8 @@ html {
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-gutter: stable;
+  /* Prevent rubber-band / overscroll at the html level on modern iOS/Chrome */
+  overscroll-behavior-y: none;
 }
 
 body,

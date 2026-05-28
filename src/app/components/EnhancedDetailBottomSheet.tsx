@@ -163,10 +163,13 @@ export function EnhancedDetailBottomSheet({
 
   return (
     <div className="bottom-sheet-viewport z-[90] flex items-end justify-center">
-      <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-      />
+      {/*
+        iOS Safari bug: backdrop-filter creates a compositing layer that can
+        intercept touch events even when the panel is visually above it.
+        Fix: split into a pointer-events:none blur layer + a separate click target.
+      */}
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm pointer-events-none" />
+      <div className="absolute inset-0" onClick={onClose} />
 
       {shareMessage && (
         <div className="fixed left-1/2 top-6 z-[100] -translate-x-1/2 rounded-full bg-[#2a2a2a] px-4 py-2 text-[13px] text-white shadow-lg">
@@ -175,7 +178,7 @@ export function EnhancedDetailBottomSheet({
       )}
 
       <div
-        className={`bottom-sheet-panel relative flex w-full max-w-[430px] flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl ${
+        className={`bottom-sheet-panel relative z-[1] flex w-full max-w-[430px] flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl ${
           disableEntryAnimation ? '' : 'animate-slide-up'
         }`}
         style={{ height: 'var(--sison-sheet-max-height)' }}
