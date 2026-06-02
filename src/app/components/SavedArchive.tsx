@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Download, X } from 'lucide-react';
 import { SegmentedTabs } from './SegmentedTabs';
 import { CompactActivityCard } from './CompactActivityCard';
 import type { TravelCard } from './TravelCardCarousel';
-import { TravelCardDetailSheet } from './TravelCardDetailSheet';
 import { EmptyState } from './EmptyState';
 import { BottomTabBar } from './BottomTabBar';
 import { PageShell } from './PageShell';
@@ -13,6 +13,11 @@ import { StoryCommentSheet } from './story/StoryCommentSheet';
 import type { StoryItem } from './story/storyTypes';
 import { getActivitySaveKey, type ActivitySaveLookup, type ActivitySaveRecord } from '../activitySaveState';
 import type { StoryInteractionProps } from '../storyInteractionState';
+import { captureElementAsPng, downloadBlob } from '../utils/captureElementAsImage';
+
+export type SavedArchiveTab = 0 | 1 | 2;
+type TravelCardActionMode = 'actions' | 'confirm-delete';
+type ArchiveTravelCard = TravelCard & { id: string };
 
 const initialArchiveStories: StoryItem[] = [
   {
@@ -94,12 +99,95 @@ const initialArchiveStories: StoryItem[] = [
   },
 ];
 
+const initialTravelCards: ArchiveTravelCard[] = [
+  {
+    id: 'gwangalli-morning',
+    photoUrl: '/home-hero-1.png',
+    title: '광안리의 부드러운 아침',
+    date: '2026.07.20',
+    locationLabel: '부산 수영구',
+    period: '7월 20일',
+    memo: '바다를 따라 걷고, 작은 선의를 남겼던 여행',
+    activities: ['광안리 해변 환경정화', '수영 공원 산책로 정비'],
+    locationSummary: '광안리 해변과 수영 근린공원을 따라 이어지는 부산의 조용한 하루 일정이에요.',
+    moodTags: ['바다', '아침산책', '작은실천'],
+    style: 'polaroid',
+  },
+  {
+    id: 'jeju-aewol-day',
+    photoUrl: '/home-hero-2.png',
+    title: '제주 애월의 조용한 하루',
+    date: '2026.06.10',
+    locationLabel: '제주 제주시',
+    period: '6월 10일 ~ 6월 12일',
+    memo: '바다를 오래 바라보고, 천천히 걸으며 마음을 정리했던 시간',
+    activities: ['애월 해안 정화', '올레길 산책로 정비'],
+    locationSummary: '제주 서쪽 해안과 낮은 산책로를 중심으로 느리게 움직이는 여행 카드예요.',
+    moodTags: ['바다', '느린여행', '작은실천'],
+    style: 'polaroid',
+  },
+  {
+    id: 'bijarim-walk',
+    photoUrl: '/home-hero-3.png',
+    title: '비자림의 고요한 산책',
+    date: '2026.06.12',
+    locationLabel: '제주 제주시',
+    period: '6월 12일',
+    memo: '숲의 결을 따라 걷고, 조용한 돌봄을 남겼던 오후',
+    activities: ['비자림 산책로 정비', '숲길 표지 정리'],
+    locationSummary: '비자림 안쪽 산책로를 중심으로 머무는 시간이 긴 제주 숲 여행이에요.',
+    moodTags: ['숲길', '고요함', '산책'],
+    style: 'polaroid',
+  },
+  {
+    id: 'anmok-coffee',
+    photoUrl: '/home-hero-1.png',
+    title: '안목해변의 이른 커피',
+    date: '2026.05.30',
+    locationLabel: '강원 강릉시',
+    period: '5월 30일',
+    memo: '아침 바다를 걷고 커피 향 사이로 돌아온 날',
+    activities: ['안목해변 아침 플로깅'],
+    locationSummary: '안목해변과 커피거리 주변을 천천히 걷는 강릉의 조용한 아침 기록이에요.',
+    moodTags: ['아침바다', '플로깅', '커피거리'],
+    style: 'polaroid',
+  },
+  {
+    id: 'tongyeong-harbor',
+    photoUrl: '/home-hero-2.png',
+    title: '통영 항구의 작은 인사',
+    date: '2026.04.26',
+    locationLabel: '경남 통영시',
+    period: '4월 26일',
+    memo: '낯선 항구에서 지역의 하루를 잠깐 도왔던 오후',
+    activities: ['통영 항구 마을 행사 도우미'],
+    locationSummary: '강구안 항구와 골목 장터를 중심으로 이어지는 통영의 느린 오후 기록이에요.',
+    moodTags: ['항구', '마을행사', '느린오후'],
+    style: 'polaroid',
+  },
+  {
+    id: 'gyeongju-light',
+    photoUrl: '/home-hero-3.png',
+    title: '경주 골목의 낮은 빛',
+    date: '2026.03.21',
+    locationLabel: '경북 경주시',
+    period: '3월 21일 ~ 3월 22일',
+    memo: '오래된 골목을 안내하며 여행지가 생활처럼 다가온 시간',
+    activities: ['경주 황리단길 작은 문화 안내', '동궁과 월지 주변 안내 정리'],
+    locationSummary: '황리단길과 고분 주변을 천천히 걸으며 지역 이야기를 만난 경주 여행 카드예요.',
+    moodTags: ['골목', '문화안내', '오후빛'],
+    style: 'polaroid',
+  },
+];
+
 interface SavedArchiveProps {
   onNavigate: (screen: string, options?: { activity?: ActivitySaveRecord; returnScreen?: 'home' | 'search' | 'saved' }) => void;
   savedActivities: ActivitySaveRecord[];
   isActivitySaved: (activity: ActivitySaveLookup) => boolean;
   onToggleSavedActivity: (activity: ActivitySaveRecord) => void;
   storyInteractions: StoryInteractionProps;
+  activeArchiveTab?: SavedArchiveTab;
+  onArchiveTabChange?: (tab: SavedArchiveTab) => void;
 }
 
 export function SavedArchive({
@@ -108,18 +196,43 @@ export function SavedArchive({
   isActivitySaved,
   onToggleSavedActivity,
   storyInteractions,
+  activeArchiveTab = 0,
+  onArchiveTabChange,
 }: SavedArchiveProps) {
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState<SavedArchiveTab>(activeArchiveTab);
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
   const [selectedStory, setSelectedStory] = useState<StoryItem | null>(null);
   const [commentStory, setCommentStory] = useState<StoryItem | null>(null);
-  const [selectedTravelCard, setSelectedTravelCard] = useState<TravelCard | null>(null);
+  const [selectedTravelCardAction, setSelectedTravelCardAction] = useState<ArchiveTravelCard | null>(null);
+  const [travelCardActionMode, setTravelCardActionMode] = useState<TravelCardActionMode>('actions');
+  const [travelCardToast, setTravelCardToast] = useState<string | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [stories, setStories] = useState<StoryItem[]>(initialArchiveStories);
+  const [travelCards, setTravelCards] = useState<ArchiveTravelCard[]>(initialTravelCards);
+  const travelCardToastTimerRef = useRef<number | null>(null);
+  const travelCardRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  useEffect(() => {
+    setActiveTab(activeArchiveTab);
+  }, [activeArchiveTab]);
+
+  useEffect(() => {
+    return () => {
+      if (travelCardToastTimerRef.current !== null) {
+        window.clearTimeout(travelCardToastTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleActivityClick = (activity: ActivitySaveRecord) => {
     setSelectedActivity(activity);
     setIsDetailOpen(true);
+  };
+
+  const handleTabChange = (index: number) => {
+    const nextTab = index as SavedArchiveTab;
+    setActiveTab(nextTab);
+    onArchiveTabChange?.(nextTab);
   };
 
   const isPastActivity = (activity: ActivitySaveRecord) => {
@@ -140,74 +253,47 @@ export function SavedArchive({
     storyInteractions.onRemoveStory?.(story.id);
   };
 
-  const travelCards: TravelCard[] = [
-    {
-      photoUrl: 'https://images.unsplash.com/photo-1565803974275-dccd2f933cbb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=600',
-      title: '광안리의 부드러운 아침',
-      date: '2026.07.20',
-      period: '7월 20일',
-      memo: '바다를 따라 걷고, 작은 선의를 남겼던 여행',
-      activities: ['광안리 해변 환경정화', '수영 공원 산책로 정비'],
-      locationSummary: '광안리 해변과 수영 근린공원을 따라 이어지는 부산의 조용한 하루 일정이에요.',
-      moodTags: ['바다', '아침산책', '작은실천'],
-      style: 'polaroid' as const,
-    },
-    {
-      photoUrl: 'https://images.unsplash.com/photo-1621478763597-11fb71047890?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=600',
-      title: '제주 애월의 조용한 하루',
-      date: '2026.06.10',
-      period: '6월 10일 ~ 6월 12일',
-      memo: '바다를 오래 바라보고, 천천히 걸으며 마음을 정리했던 시간',
-      activities: ['애월 해안 정화', '올레길 산책로 정비'],
-      locationSummary: '제주 서쪽 해안과 낮은 산책로를 중심으로 느리게 움직이는 여행 카드예요.',
-      moodTags: ['바다', '느린여행', '작은실천'],
-      style: 'polaroid' as const,
-    },
-    {
-      photoUrl: 'https://images.unsplash.com/photo-1542113028-b526238297f1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=600',
-      title: '비자림의 고요한 산책',
-      date: '2026.06.12',
-      period: '6월 12일',
-      memo: '숲의 결을 따라 걷고, 조용한 돌봄을 남겼던 오후',
-      activities: ['비자림 산책로 정비', '숲길 표지 정리'],
-      locationSummary: '비자림 안쪽 산책로를 중심으로 머무는 시간이 긴 제주 숲 여행이에요.',
-      moodTags: ['숲길', '고요함', '산책'],
-      style: 'polaroid' as const,
-    },
-    {
-      photoUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=600',
-      title: '안목해변의 이른 커피',
-      date: '2026.05.30',
-      period: '5월 30일',
-      memo: '아침 바다를 걷고 커피 향 사이로 돌아온 날',
-      activities: ['안목해변 아침 플로깅'],
-      locationSummary: '안목해변과 커피거리 주변을 천천히 걷는 강릉의 조용한 아침 기록이에요.',
-      moodTags: ['아침바다', '플로깅', '커피거리'],
-      style: 'polaroid' as const,
-    },
-    {
-      photoUrl: 'https://images.unsplash.com/photo-1519046904884-53103b34b206?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=600',
-      title: '통영 항구의 작은 인사',
-      date: '2026.04.26',
-      period: '4월 26일',
-      memo: '낯선 항구에서 지역의 하루를 잠깐 도왔던 오후',
-      activities: ['통영 항구 마을 행사 도우미'],
-      locationSummary: '강구안 항구와 골목 장터를 중심으로 이어지는 통영의 느린 오후 기록이에요.',
-      moodTags: ['항구', '마을행사', '느린오후'],
-      style: 'polaroid' as const,
-    },
-    {
-      photoUrl: 'https://images.unsplash.com/photo-1528181304800-259b08848526?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=600',
-      title: '경주 골목의 낮은 빛',
-      date: '2026.03.21',
-      period: '3월 21일 ~ 3월 22일',
-      memo: '오래된 골목을 안내하며 여행지가 생활처럼 다가온 시간',
-      activities: ['경주 황리단길 작은 문화 안내', '동궁과 월지 주변 안내 정리'],
-      locationSummary: '황리단길과 고분 주변을 천천히 걸으며 지역 이야기를 만난 경주 여행 카드예요.',
-      moodTags: ['골목', '문화안내', '오후빛'],
-      style: 'polaroid' as const,
-    },
-  ];
+  const closeTravelCardAction = () => {
+    setSelectedTravelCardAction(null);
+    setTravelCardActionMode('actions');
+  };
+
+  const showTravelCardToast = (message: string) => {
+    setTravelCardToast(message);
+
+    if (travelCardToastTimerRef.current !== null) {
+      window.clearTimeout(travelCardToastTimerRef.current);
+    }
+
+    travelCardToastTimerRef.current = window.setTimeout(() => {
+      setTravelCardToast(null);
+      travelCardToastTimerRef.current = null;
+    }, 2200);
+  };
+
+  const handleTravelCardDownload = async (card: ArchiveTravelCard) => {
+    try {
+      const cardElement = travelCardRefs.current[card.id];
+
+      if (!cardElement) {
+        throw new Error('Travel card element unavailable');
+      }
+
+      const blob = await captureElementAsPng(cardElement);
+      downloadBlob(blob, `sison-travel-card-${card.id}.png`);
+      closeTravelCardAction();
+      showTravelCardToast('여행 카드를 저장했어요.');
+    } catch (error) {
+      console.error('travel card download failed', error);
+      showTravelCardToast('카드를 저장하지 못했어요. 잠시 후 다시 시도해주세요.');
+    }
+  };
+
+  const handleTravelCardDelete = (card: ArchiveTravelCard) => {
+    setTravelCards((currentCards) => currentCards.filter((item) => item.id !== card.id));
+    closeTravelCardAction();
+    showTravelCardToast('여행 카드를 삭제했어요.');
+  };
 
   return (
     <>
@@ -225,7 +311,7 @@ export function SavedArchive({
           <SegmentedTabs
             tabs={['저장한 활동', '내 스토리', '여행 카드']}
             activeTab={activeTab}
-            onTabChange={setActiveTab}
+            onTabChange={handleTabChange}
           />
         </div>
 
@@ -303,7 +389,7 @@ export function SavedArchive({
           {activeTab === 2 && (
             <div className="px-5">
               {travelCards.length > 0 ? (() => {
-                const groups: Record<string, TravelCard[]> = {};
+                const groups: Record<string, ArchiveTravelCard[]> = {};
                 for (const card of travelCards) {
                   const [year, month] = card.date.split('.');
                   const key = `${year}.${month}`;
@@ -325,9 +411,15 @@ export function SavedArchive({
                       >
                         {sortedCards.map((card, i) => (
                           <button
-                            key={i}
+                            key={card.id}
+                            ref={(element) => {
+                              travelCardRefs.current[card.id] = element;
+                            }}
                             type="button"
-                            onClick={() => setSelectedTravelCard(card)}
+                            onClick={() => {
+                              setSelectedTravelCardAction(card);
+                              setTravelCardActionMode('actions');
+                            }}
                             className="text-left bg-white rounded-3xl p-3 hover:opacity-90 transition-opacity"
                             style={{
                               flex: '0 0 min(62vw, 246px)',
@@ -350,7 +442,7 @@ export function SavedArchive({
                                 className="text-[15px] font-semibold text-[#2a2a2a]"
                                 style={{
                                   display: '-webkit-box',
-                                  WebkitLineClamp: 2,
+                                  WebkitLineClamp: 1,
                                   WebkitBoxOrient: 'vertical',
                                   overflow: 'hidden',
                                   lineHeight: '1.35',
@@ -358,11 +450,16 @@ export function SavedArchive({
                               >
                                 {card.title}
                               </p>
-                              <p className="mt-1.5 text-[12px] leading-none text-[#9a9a9a]">
-                                {card.date}
-                              </p>
+                              <div className="mt-3 space-y-1">
+                                {card.locationLabel && (
+                                  <p className="text-[12px] font-medium leading-[1.35] text-[#6f6f6f]">
+                                    {card.locationLabel}
+                                  </p>
+                                )}
+                                <p className="text-[12px] font-normal leading-[1.35] text-[#b6b6b6]">{card.date}</p>
+                              </div>
                               <div className="mt-3 border-t border-black/5 pt-2.5">
-                                <p className="text-[11px] leading-none text-[#aaa]">시선</p>
+                                <p className="text-center text-[11px] leading-none text-[#aaa] opacity-70">시선</p>
                               </div>
                             </div>
                           </button>
@@ -426,11 +523,105 @@ export function SavedArchive({
         }}
       />
 
-      <TravelCardDetailSheet
-        card={selectedTravelCard}
-        isOpen={selectedTravelCard !== null}
-        onClose={() => setSelectedTravelCard(null)}
-      />
+      {selectedTravelCardAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-5">
+          <button
+            type="button"
+            aria-label="여행 카드 액션 닫기"
+            onClick={closeTravelCardAction}
+            className="absolute inset-0 bg-black/15"
+          />
+          <section className="relative w-full max-w-[342px] rounded-3xl border border-black/[0.04] bg-[#fdfcfa] p-4 shadow-[0_18px_42px_rgba(42,42,42,0.12)]">
+            {travelCardActionMode === 'actions' ? (
+              <>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[12px] font-medium leading-none text-[#9a9a9a]">여행 카드</p>
+                    <h3 className="mt-2 line-clamp-2 text-[17px] font-semibold leading-snug text-[#2a2a2a]">
+                      {selectedTravelCardAction.title}
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={closeTravelCardAction}
+                    aria-label="닫기"
+                    className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[#aaa] transition-colors hover:bg-[#f4f2ec] hover:text-[#777]"
+                  >
+                    <X className="h-4 w-4" strokeWidth={2} />
+                  </button>
+                </div>
+
+                <div className="mt-4 overflow-hidden rounded-[1.35rem] bg-[#f4f1ed]" style={{ aspectRatio: '16 / 10' }}>
+                  <img
+                    src={selectedTravelCardAction.photoUrl}
+                    alt={selectedTravelCardAction.title}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleTravelCardDownload(selectedTravelCardAction)}
+                  className="mt-3.5 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#2a2a2a] py-3.5 text-[14px] font-semibold text-white shadow-[0_8px_18px_rgba(42,42,42,0.12)] transition-colors hover:bg-[#1f1f1f]"
+                >
+                  <Download className="h-4 w-4" strokeWidth={2} />
+                  카드 저장하기
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setTravelCardActionMode('confirm-delete')}
+                  className="mx-auto mt-3 block px-3 py-1.5 text-[12.5px] font-medium text-[#b58a84] transition-colors hover:text-[#a56d65]"
+                >
+                  삭제
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="overflow-hidden rounded-[1.35rem] bg-[#f4f1ed]" style={{ aspectRatio: '16 / 10' }}>
+                  <img
+                    src={selectedTravelCardAction.photoUrl}
+                    alt={selectedTravelCardAction.title}
+                    className="h-full w-full object-cover opacity-90"
+                  />
+                </div>
+                <h3 className="mt-4 text-[17px] font-semibold leading-snug text-[#2a2a2a]">
+                  이 여행 카드를 삭제할까요?
+                </h3>
+                <p className="mt-2 text-[12px] leading-5 text-[#999]">삭제하면 다시 복구할 수 없어요.</p>
+                <div className="mt-5 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTravelCardActionMode('actions')}
+                    className="flex-1 rounded-2xl bg-[#f5f3ee] py-3 text-[14px] font-medium text-[#777] transition-colors hover:bg-[#efede7]"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleTravelCardDelete(selectedTravelCardAction)}
+                    className="flex-1 rounded-2xl bg-[#b76e65] py-3 text-[14px] font-semibold text-white transition-colors hover:bg-[#a85f56]"
+                  >
+                    삭제
+                  </button>
+                </div>
+              </>
+            )}
+          </section>
+        </div>
+      )}
+
+      {travelCardToast && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-[92px] z-[60] flex justify-center px-5">
+          <div
+            className="max-w-[350px] rounded-full border border-white/45 bg-[#2f3430]/88 px-4 py-2 text-center text-[12.5px] font-medium text-white shadow-[0_8px_24px_rgba(34,39,34,0.16)] backdrop-blur-md"
+            role="status"
+            aria-live="polite"
+          >
+            {travelCardToast}
+          </div>
+        </div>
+      )}
     </>
   );
 }

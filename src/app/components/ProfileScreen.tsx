@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Image as ImageIcon, LogOut, X } from 'lucide-react';
 import { ProfileHeader } from './ProfileHeader';
 import { TravelSummaryCard } from './TravelSummaryCard';
@@ -13,9 +13,10 @@ import {
   PrivacyPolicyScreen,
   type SettingsDetail,
 } from './SettingsDetailScreens';
+import type { SavedArchiveTab } from './SavedArchive';
 
 interface ProfileScreenProps {
-  onNavigate: (screen: string) => void;
+  onNavigate: (screen: string, options?: { savedTab?: SavedArchiveTab }) => void;
 }
 
 export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
@@ -34,6 +35,11 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
   const bioMaxLength = 72;
   useBottomSheetScrollLock(isProfileEditorOpen);
 
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    document.scrollingElement?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [activeSettingsDetail]);
+
   useEffect(() => {
     return () => {
       if (profileImageObjectUrl) {
@@ -51,9 +57,9 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
   }, []);
 
   const travelSummary = [
-    { label: '참여한 활동', count: 12 },
-    { label: '저장한 활동', count: 24 },
-    { label: '여행 카드', count: 8 },
+    { label: '저장한 활동', count: 24, savedTab: 0 as const },
+    { label: '내 스토리', count: 7, savedTab: 1 as const },
+    { label: '여행 카드', count: 8, savedTab: 2 as const },
   ];
 
   const handleBackToProfile = () => {
@@ -171,7 +177,12 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
               <section className="px-5">
                 <div className="grid grid-cols-3 gap-2">
                   {travelSummary.map((item, index) => (
-                    <TravelSummaryCard key={index} {...item} />
+                    <TravelSummaryCard
+                      key={index}
+                      label={item.label}
+                      count={item.count}
+                      onClick={() => onNavigate('saved', { savedTab: item.savedTab })}
+                    />
                   ))}
                 </div>
               </section>

@@ -567,8 +567,8 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
             className="sison-home-ai-card relative block w-full overflow-hidden rounded-3xl text-left transition-transform active:scale-[0.985]"
           >
             {/* Left: text content */}
-            <div className="relative z-10 flex flex-col justify-center px-5 py-[22px]" style={{ width: '47%', minHeight: '152px' }}>
-              <div className="mb-3 inline-flex items-center gap-1.5 self-start rounded-full border border-[#5ee7dc]/60 bg-white/[0.08] px-3 py-1 text-[11.5px] font-medium text-[#c8fff8]">
+            <div className="relative z-10 flex flex-col justify-center px-5 py-[16px]" style={{ width: '47%', minHeight: '124px' }}>
+              <div className="mb-2.5 inline-flex items-center gap-1.5 self-start rounded-full border border-[#5ee7dc]/60 bg-white/[0.08] px-3 py-1 text-[11.5px] font-medium text-[#c8fff8]">
                 <Leaf className="h-3 w-3 text-[#78f2e8]" strokeWidth={2.5} />
                 AI 추천
               </div>

@@ -84,8 +84,18 @@ export function StoryCard({
         >
           {story.title}
         </p>
-        <p className={`${showEngagement && (isGrid ? 'mb-1.5' : 'mb-2')} text-[11px] text-[#999]`}>
-          {metadataMode === 'history' ? `${story.region} · ${story.author}의 시선` : story.author}
+        <p
+          className={`${showEngagement && (isGrid ? 'mb-1.5' : 'mb-2')} text-[11px] text-[#999] leading-snug`}
+          style={{
+            display: '-webkit-box',
+            WebkitLineClamp: 1,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+          }}
+        >
+          {metadataMode === 'history'
+            ? `${story.region} · ${story.author}의 시선`
+            : (story.body || story.author)}
         </p>
         {showEngagement && (
           <div className="flex items-center gap-2">

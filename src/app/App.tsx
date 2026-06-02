@@ -4,6 +4,7 @@ import { SearchTab } from './components/SearchTab';
 import { AIRecommendation } from './components/AIRecommendation';
 import { StoryCreation } from './components/StoryCreation';
 import { SavedArchive } from './components/SavedArchive';
+import type { SavedArchiveTab } from './components/SavedArchive';
 import { ProfileScreen } from './components/ProfileScreen';
 import { EnhancedDetailBottomSheet } from './components/EnhancedDetailBottomSheet';
 import { clearStaleScrollLock } from './components/useBottomSheetScrollLock';
@@ -41,6 +42,7 @@ export default function App() {
   const [aiRecommendationState, setAIRecommendationState] = useState<AIRecommendationState>('closed');
   const [restoredDetailActivity, setRestoredDetailActivity] = useState<ActivitySaveRecord | null>(null);
   const [saveFeedback, setSaveFeedback] = useState<{ message: string; isVisible: boolean } | null>(null);
+  const [savedArchiveTab, setSavedArchiveTab] = useState<SavedArchiveTab>(0);
   const saveFeedbackTimers = useRef<number[]>([]);
 
   useLayoutEffect(() => {
@@ -96,7 +98,7 @@ export default function App() {
 
   const handleNavigate = (
     screen: string,
-    options?: { activity?: ActivitySaveRecord; returnScreen?: Screen }
+    options?: { activity?: ActivitySaveRecord; returnScreen?: Screen; savedTab?: SavedArchiveTab }
   ) => {
     if (screen === 'ai-recommendation') {
       setAiRecommendationActivity(options?.activity ?? null);
@@ -108,6 +110,10 @@ export default function App() {
 
     if (screen === 'search') {
       setSearchEntrySource('tab');
+    }
+
+    if (screen === 'saved' && options?.savedTab !== undefined) {
+      setSavedArchiveTab(options.savedTab);
     }
 
     setCurrentScreen(screen as Screen);
@@ -305,6 +311,8 @@ export default function App() {
           isActivitySaved={isActivitySaved}
           onToggleSavedActivity={handleToggleSavedActivity}
           storyInteractions={storyInteractions}
+          activeArchiveTab={savedArchiveTab}
+          onArchiveTabChange={setSavedArchiveTab}
         />
       )}
       {currentScreen === 'profile' && <ProfileScreen onNavigate={handleNavigate} />}

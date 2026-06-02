@@ -3,11 +3,19 @@ export interface TravelCard {
   title: string;
   date: string;
   style: 'polaroid' | 'film' | 'minimal' | 'postcard';
+  locationLabel?: string;
   period?: string;
   memo?: string;
   activities?: string[];
   locationSummary?: string;
   moodTags?: string[];
+}
+
+export function getCompactLocationLabel(location?: string) {
+  if (!location) return '';
+
+  const parts = location.trim().split(/\s+/).filter(Boolean);
+  return parts.slice(0, 2).join(' ');
 }
 
 interface TravelCardCarouselProps {
@@ -33,11 +41,16 @@ export function TravelCardCarousel({ cards, onCardClick }: TravelCardCarouselPro
                 className="w-full h-full object-cover"
               />
             </div>
-            <div className="space-y-1.5 px-1 pb-1">
-              <p className="text-sm text-[#2a2a2a] line-clamp-2">{card.title}</p>
-              <p className="text-xs text-[#999]">{card.date}</p>
-              <div className="pt-2 border-t border-black/5">
-                <p className="text-xs text-[#999]">시선</p>
+            <div className="px-1 pb-1">
+              <p className="line-clamp-1 text-sm font-semibold leading-snug text-[#2a2a2a]">{card.title}</p>
+              <div className="mt-3 space-y-1">
+                {card.locationLabel && (
+                  <p className="text-xs font-medium leading-[1.35] text-[#6f6f6f]">{card.locationLabel}</p>
+                )}
+                <p className="text-xs font-normal leading-[1.35] text-[#b6b6b6]">{card.date}</p>
+              </div>
+              <div className="mt-3 border-t border-black/5 pt-2">
+                <p className="text-center text-xs text-[#999] opacity-70">시선</p>
               </div>
             </div>
           </button>

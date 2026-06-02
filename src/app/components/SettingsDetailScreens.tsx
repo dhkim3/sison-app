@@ -1,12 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { ArrowLeft, Bell, ChevronRight, LogOut, Mail, MapPin, User, X } from 'lucide-react';
+import { ArrowLeft, BookOpen, Calendar, LogOut, Mail, MapPin, User, X } from 'lucide-react';
 
 export type SettingsDetail = 'notifications' | 'account' | 'privacy' | 'contact';
 
 interface SettingsDetailLayoutProps {
   title: string;
-  subtitle: string;
+  subtitle?: string;
   onBack: () => void;
   children: ReactNode;
   mood?: 'default' | 'editorial';
@@ -25,6 +25,7 @@ interface SettingsRowProps {
   right?: ReactNode;
   onClick?: () => void;
   tone?: 'default' | 'danger' | 'muted';
+  density?: 'default' | 'compact';
 }
 
 function SettingsDetailLayout({
@@ -52,9 +53,11 @@ function SettingsDetailLayout({
             <h2 className={`${isEditorial ? 'text-[19px] font-semibold' : 'text-xl font-bold'} text-[#2a2a2a] leading-tight`}>
               {title}
             </h2>
-            <p className={`${isEditorial ? 'mt-1.5 leading-5 text-[#9d9d9d]' : 'mt-0.5 text-[#aaa]'} text-[12px]`}>
-              {subtitle}
-            </p>
+            {subtitle && (
+              <p className={`${isEditorial ? 'mt-1.5 leading-5 text-[#9d9d9d]' : 'mt-0.5 text-[#aaa]'} text-[12px]`}>
+                {subtitle}
+              </p>
+            )}
           </div>
         </div>
       </header>
@@ -78,7 +81,16 @@ export function SettingsSection({ title, description, children }: SettingsSectio
   );
 }
 
-export function SettingsRow({ label, description, icon, right, onClick, tone = 'default' }: SettingsRowProps) {
+export function SettingsRow({
+  label,
+  description,
+  icon,
+  right,
+  onClick,
+  tone = 'default',
+  density = 'default',
+}: SettingsRowProps) {
+  const isCompact = density === 'compact';
   const content = (
     <>
       <div className="flex items-center gap-3">
@@ -91,7 +103,11 @@ export function SettingsRow({ label, description, icon, right, onClick, tone = '
           <p className={`text-[14px] font-medium ${tone === 'danger' ? 'text-[#b76e65]' : 'text-[#2a2a2a]'}`}>
             {label}
           </p>
-          {description && <p className="mt-1 text-[12px] leading-5 text-[#999]">{description}</p>}
+          {description && (
+            <p className={`${isCompact ? 'mt-0.5 leading-[1.35]' : 'mt-1 leading-5'} text-[12px] text-[#999]`}>
+              {description}
+            </p>
+          )}
         </div>
       </div>
       {right}
@@ -131,14 +147,14 @@ function SoftSwitch({
       <button
         type="button"
         onClick={() => onChange(!checked)}
-        className={`relative h-6 w-10 flex-shrink-0 rounded-full transition-colors ${
-          checked ? 'bg-[#a8d5ba]' : 'bg-[#e9e6df]'
+        className={`relative h-[24px] w-[42px] flex-shrink-0 rounded-full transition-colors ${
+          checked ? 'bg-[#9fceb1]' : 'bg-[#e8e5de]'
         }`}
         aria-pressed={checked}
       >
         <span
-          className="absolute top-1 h-4 w-4 rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.08)] transition-transform"
-          style={{ transform: checked ? 'translateX(20px)' : 'translateX(4px)' }}
+          className="absolute left-[3px] top-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.12)] transition-transform"
+          style={{ transform: checked ? 'translateX(18px)' : 'translateX(0)' }}
         />
       </button>
     );
@@ -175,16 +191,16 @@ function NotificationPreferenceRow({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 py-3.5 border-b border-black/[0.04] last:border-0">
-      <div className="flex min-w-0 items-start gap-3">
-        <div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[#f7f6f0]">
+    <div className="flex min-h-[72px] items-center justify-between gap-3 border-b border-black/[0.04] py-3.5 last:border-0">
+      <div className="flex min-w-0 items-center gap-3.5">
+        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#f6f7f1]">
           {icon}
         </div>
         <div className="min-w-0">
-          <p className="text-[13.5px] font-medium leading-snug text-[#333]">
+          <p className="text-[14px] font-medium leading-snug text-[#333]">
             {label}
           </p>
-          <p className="mt-1.5 text-[12px] font-normal leading-[1.55] text-[#9a9a9a]">
+          <p className="mt-1 text-[12px] font-normal leading-[1.45] text-[#9a9a9a]">
             {description}
           </p>
         </div>
@@ -196,9 +212,7 @@ function NotificationPreferenceRow({
 
 export function NotificationSettingsScreen({ onBack }: { onBack: () => void }) {
   const [settings, setSettings] = useState({
-    recommendations: true,
     reminders: true,
-    savedRegions: false,
     stories: true,
   });
 
@@ -209,110 +223,51 @@ export function NotificationSettingsScreen({ onBack }: { onBack: () => void }) {
   return (
     <SettingsDetailLayout
       title="알림"
-      subtitle="여행의 흐름에 맞는 소식만 조용히"
       onBack={onBack}
       mood="editorial"
     >
       <section>
-        <div className="mb-4 px-1">
-          <h3 className="text-[14px] font-medium leading-snug text-[#2a2a2a]">
-            알림의 결을 고르기
-          </h3>
-          <p className="mt-2 text-[12px] font-normal leading-5 text-[#9d9d9d]">
-            필요한 순간에만, 여행의 기분을 해치지 않도록 전해드릴게요.
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-black/[0.04] bg-white/85 px-4 shadow-[0_1px_3px_rgba(0,0,0,0.025)]">
-          <NotificationPreferenceRow
-            label="활동 추천"
-            description="여행지와 일정에 어울리는 활동이 있을 때"
-            icon={<Bell className="h-3.5 w-3.5 text-[#82b996]" strokeWidth={1.8} />}
-            checked={settings.recommendations}
-            onChange={(value) => updateSetting('recommendations', value)}
-          />
+        <div className="rounded-2xl border border-black/[0.04] bg-white/90 px-4 shadow-[0_1px_3px_rgba(0,0,0,0.025)]">
           <NotificationPreferenceRow
             label="여행 일정 리마인드"
-            description="참여 예정 활동 전날 가볍게 알려드려요"
-            icon={<Bell className="h-3.5 w-3.5 text-[#82b996]" strokeWidth={1.8} />}
+            description="저장된 활동 전날에 알려드려요"
+            icon={<Calendar className="h-3.5 w-3.5 text-[#8aa8a0]" strokeWidth={1.8} />}
             checked={settings.reminders}
             onChange={(value) => updateSetting('reminders', value)}
           />
           <NotificationPreferenceRow
-            label="저장한 지역 새 활동"
-            description="관심 지역에 새 활동이 열리면 조용히 알려드려요"
-            icon={<MapPin className="h-3.5 w-3.5 text-[#c9a09a]" strokeWidth={1.8} />}
-            checked={settings.savedRegions}
-            onChange={(value) => updateSetting('savedRegions', value)}
-          />
-          <NotificationPreferenceRow
             label="스토리 업데이트"
             description="내가 남긴 시선과 연결된 소식"
-            icon={<Bell className="h-3.5 w-3.5 text-[#82b996]" strokeWidth={1.8} />}
+            icon={<BookOpen className="h-3.5 w-3.5 text-[#9ea7bf]" strokeWidth={1.8} />}
             checked={settings.stories}
             onChange={(value) => updateSetting('stories', value)}
           />
         </div>
-      </section>
-
-      <section className="rounded-2xl bg-[#eef7f2]/70 px-4 py-3.5">
-        <p className="text-[12px] font-normal leading-5 text-[#6f8b78]">
-          알림은 여행을 재촉하지 않고, 놓치기 쉬운 작은 가능성만 살짝 건넬게요.
-        </p>
       </section>
     </SettingsDetailLayout>
   );
 }
 
 export function AccountSettingsScreen({ onBack }: { onBack: () => void }) {
-  const interestRegions = ['부산', '제주', '강릉'];
-
   return (
     <SettingsDetailLayout
       title="계정 설정"
       subtitle="나의 여행 기록이 머무는 공간"
       onBack={onBack}
     >
-      <section className="rounded-3xl bg-white border border-black/5 shadow-sm p-5">
-        <div className="flex items-center gap-4">
-          <img
-            src="https://images.unsplash.com/photo-1516962126636-27ad087061cc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=200"
-            alt="프로필 이미지"
-            className="w-16 h-16 rounded-full object-cover"
-          />
-          <div>
-            <p className="text-[16px] font-semibold text-[#2a2a2a]">여행자</p>
-            <p className="mt-1 text-[12px] text-[#999]">여행 속 작은 순간들을 기록하고 있어요</p>
-          </div>
-        </div>
-      </section>
-
       <SettingsSection title="기본 정보">
         <SettingsRow
           label="닉네임"
           description="여행자"
           icon={<User className="w-4 h-4 text-[#6fb58a]" strokeWidth={2} />}
-          right={<ChevronRight className="w-4 h-4 text-[#ccc]" strokeWidth={2} />}
+          density="compact"
         />
         <SettingsRow
           label="이메일"
           description="traveler@sison.app"
           icon={<Mail className="w-4 h-4 text-[#6fb58a]" strokeWidth={2} />}
+          density="compact"
         />
-      </SettingsSection>
-
-      <SettingsSection title="관심 지역" description="자주 떠나는 곳을 중심으로 추천을 정리해요.">
-        <div className="px-5 py-4 flex flex-wrap gap-2">
-          {interestRegions.map((region) => (
-            <button
-              key={region}
-              type="button"
-              className="rounded-full bg-[#eef7f2] px-3 py-2 text-[12px] font-medium text-[#4f8d67]"
-            >
-              {region}
-            </button>
-          ))}
-        </div>
       </SettingsSection>
 
       <SettingsSection>
@@ -326,6 +281,7 @@ export function AccountSettingsScreen({ onBack }: { onBack: () => void }) {
           description="기록을 천천히 확인한 뒤 결정해 주세요"
           icon={<X className="w-4 h-4 text-[#b76e65]" strokeWidth={2} />}
           tone="danger"
+          density="compact"
         />
       </SettingsSection>
     </SettingsDetailLayout>
@@ -432,6 +388,55 @@ export function PrivacyPolicyScreen({ onBack }: { onBack: () => void }) {
 }
 
 export function ContactSettingsScreen({ onBack }: { onBack: () => void }) {
+  const [contactTitle, setContactTitle] = useState('');
+  const [contactBody, setContactBody] = useState('');
+  const [contactErrors, setContactErrors] = useState({ title: false, body: false });
+  const [isToastVisible, setIsToastVisible] = useState(false);
+  const toastTimerRef = useRef<number | null>(null);
+
+  const titleValue = contactTitle.trim();
+  const bodyValue = contactBody.trim();
+  const canSubmit = titleValue.length > 0 && bodyValue.length > 0;
+  const showTitleError = contactErrors.title && titleValue.length === 0;
+  const showBodyError = contactErrors.body && bodyValue.length === 0;
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current !== null) {
+        window.clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleSubmit = () => {
+    if (!canSubmit) {
+      setContactErrors({
+        title: titleValue.length === 0,
+        body: bodyValue.length === 0,
+      });
+      return;
+    }
+
+    console.log('contact submitted', {
+      title: titleValue,
+      body: bodyValue,
+    });
+
+    setContactTitle('');
+    setContactBody('');
+    setContactErrors({ title: false, body: false });
+    setIsToastVisible(true);
+
+    if (toastTimerRef.current !== null) {
+      window.clearTimeout(toastTimerRef.current);
+    }
+
+    toastTimerRef.current = window.setTimeout(() => {
+      setIsToastVisible(false);
+      toastTimerRef.current = null;
+    }, 2200);
+  };
+
   return (
     <SettingsDetailLayout
       title="문의하기"
@@ -446,9 +451,21 @@ export function ContactSettingsScreen({ onBack }: { onBack: () => void }) {
           <input
             id="contact-title"
             type="text"
-            placeholder="어떤 도움이 필요하신가요?"
-            className="w-full rounded-2xl bg-[#f8f8f5] border border-black/5 px-4 py-3.5 text-[14px] outline-none placeholder:text-[#bbb]"
+            value={contactTitle}
+            onChange={(event) => {
+              setContactTitle(event.target.value);
+              setContactErrors((current) => ({ ...current, title: false }));
+            }}
+            onFocus={() => setContactErrors((current) => ({ ...current, title: false }))}
+            placeholder="문의 제목을 입력해주세요"
+            aria-invalid={showTitleError}
+            className={`w-full rounded-2xl bg-[#f8f8f5] border px-4 py-3.5 text-[14px] outline-none transition-colors placeholder:text-[#bbb] ${
+              showTitleError ? 'border-[#d9aaa3]' : 'border-black/5 focus:border-[#a8d5ba]/70'
+            }`}
           />
+          <p className="mt-1.5 min-h-4 text-[11.5px] leading-4 text-[#b76e65]">
+            {showTitleError ? '문의 제목을 입력해주세요.' : ''}
+          </p>
         </div>
 
         <div>
@@ -457,19 +474,49 @@ export function ContactSettingsScreen({ onBack }: { onBack: () => void }) {
           </label>
           <textarea
             id="contact-body"
-            placeholder="상황을 천천히 적어주세요."
+            value={contactBody}
+            onChange={(event) => {
+              setContactBody(event.target.value);
+              setContactErrors((current) => ({ ...current, body: false }));
+            }}
+            onFocus={() => setContactErrors((current) => ({ ...current, body: false }))}
+            placeholder="궁금한 점이나 불편한 점을 남겨주세요"
             rows={6}
-            className="w-full resize-none rounded-2xl bg-[#f8f8f5] border border-black/5 px-4 py-3.5 text-[14px] leading-6 outline-none placeholder:text-[#bbb]"
+            aria-invalid={showBodyError}
+            className={`w-full resize-none rounded-2xl bg-[#f8f8f5] border px-4 py-3.5 text-[14px] leading-6 outline-none transition-colors placeholder:text-[#bbb] ${
+              showBodyError ? 'border-[#d9aaa3]' : 'border-black/5 focus:border-[#a8d5ba]/70'
+            }`}
           />
+          <p className="mt-1.5 min-h-4 text-[11.5px] leading-4 text-[#b76e65]">
+            {showBodyError ? '문의 내용을 입력해주세요.' : ''}
+          </p>
         </div>
 
         <button
           type="button"
-          className="w-full rounded-2xl bg-[#2a2a2a] py-3.5 text-[15px] font-medium text-white hover:bg-[#1a1a1a] transition-colors"
+          onClick={handleSubmit}
+          className="w-full rounded-2xl bg-[#2a2a2a] py-3.5 text-[15px] font-medium text-white transition-colors hover:bg-[#1a1a1a]"
         >
           보내기
         </button>
       </section>
+
+      <div
+        aria-hidden={!isToastVisible}
+        className={`pointer-events-none fixed left-1/2 bottom-[92px] z-50 w-[calc(100%-40px)] max-w-[342px] -translate-x-1/2 transition-all duration-300 ${
+          isToastVisible ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'
+        }`}
+      >
+        <section
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className="rounded-2xl border border-[#dcece2] bg-[#f4faf6]/95 px-4 py-3.5 shadow-[0_10px_28px_rgba(39,45,40,0.12)] backdrop-blur-md"
+        >
+          <p className="text-[14px] font-semibold leading-snug text-[#426a50]">문의가 접수되었어요.</p>
+          <p className="mt-0.5 text-[12px] leading-5 text-[#6f8b78]">남겨주신 내용을 확인할게요.</p>
+        </section>
+      </div>
 
       <SettingsSection>
         <SettingsRow

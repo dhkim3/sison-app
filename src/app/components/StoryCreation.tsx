@@ -4,6 +4,7 @@ import { MyActivitiesView } from './story/MyActivitiesView';
 import { StoryUploadView } from './story/StoryUploadView';
 import { CardCreationView } from './story/CardCreationView';
 import type { StoryInteractionProps } from '../storyInteractionState';
+import type { StoryItem } from './story/storyTypes';
 
 interface StoryCreationProps {
   onNavigate: (screen: string) => void;
@@ -17,7 +18,11 @@ export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationPr
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
   const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([]);
+  const [storyTitle, setStoryTitle] = useState('');
   const [storyText, setStoryText] = useState('');
+  const [didTrySubmitStory, setDidTrySubmitStory] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
+  const [createdStories, setCreatedStories] = useState<StoryItem[]>([]);
 
   useEffect(() => {
     return () => {
@@ -157,36 +162,70 @@ export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationPr
     setSelectedActivity(activity);
     setCurrentView('upload');
     handlePhotosChange([]);
+    setStoryTitle('');
     setStoryText('');
+    setDidTrySubmitStory(false);
+    setSaveMessage('');
   };
 
-  const handleBackToMap = () => {
+  const handleBackToMap = (preserveUploadedPhoto = false) => {
     setCurrentView('map');
     setSelectedRegion(null);
     setSelectedActivity(null);
-    handlePhotosChange([]);
+    if (preserveUploadedPhoto) {
+      setUploadedPhotos([]);
+    } else {
+      handlePhotosChange([]);
+    }
+    setStoryTitle('');
     setStoryText('');
+    setDidTrySubmitStory(false);
+    setSaveMessage('');
   };
 
   const handleBackToActivities = () => {
     setCurrentView('my-activities');
     setSelectedActivity(null);
     handlePhotosChange([]);
+    setStoryTitle('');
     setStoryText('');
+    setDidTrySubmitStory(false);
+    setSaveMessage('');
   };
 
   const handleGoToCardCreation = () => {
+    if (storyTitle.trim().length === 0) {
+      setDidTrySubmitStory(true);
+      return;
+    }
+
     setCurrentView('card');
   };
 
   const handleSaveStory = () => {
-    alert('업로드 완료');
-    handleBackToMap();
-  };
+    if (storyTitle.trim().length === 0) {
+      setDidTrySubmitStory(true);
+      return;
+    }
 
-  const handleSaveCard = () => {
-    alert('카드가 저장되었습니다');
-    handleBackToMap();
+    const nextStory: StoryItem = {
+      id: Date.now(),
+      title: storyTitle.trim(),
+      region: selectedActivity?.region ?? '여행',
+      author: '여행자',
+      likes: 0,
+      comments: 0,
+      imageUrl: uploadedPhotos[0] ?? selectedActivity?.imageUrl ?? '',
+      body: storyText.trim(),
+      relatedActivity: selectedActivity?.title,
+    };
+
+    console.log('story uploaded', nextStory);
+    setCreatedStories((currentStories) => [nextStory, ...currentStories]);
+    setSaveMessage('스토리가 저장되었어요.');
+    window.setTimeout(() => {
+      handleBackToMap(true);
+    }, 700);
   };
 
   return (
@@ -198,13 +237,14 @@ export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationPr
           selectedRegion={selectedRegion}
           onSelectRegion={setSelectedRegion}
           storyInteractions={storyInteractions}
+          userStories={createdStories}
         />
       )}
 
       {currentView === 'my-activities' && (
         <MyActivitiesView
           activities={storySelectableActivities}
-          onBack={handleBackToMap}
+          onBack={() => handleBackToMap()}
           onSelectActivity={handleSelectActivity}
           onNavigate={onNavigate}
         />
@@ -218,9 +258,18 @@ export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationPr
           onCreateCard={handleGoToCardCreation}
           photos={uploadedPhotos}
           onPhotosChange={handlePhotosChange}
+          storyTitle={storyTitle}
+          onTitleChange={(nextTitle) => {
+            setStoryTitle(nextTitle);
+            if (nextTitle.trim().length > 0) {
+              setDidTrySubmitStory(false);
+            }
+          }}
           storyText={storyText}
           onTextChange={setStoryText}
           onNavigate={onNavigate}
+          didTrySubmit={didTrySubmitStory}
+          saveMessage={saveMessage}
         />
       )}
 
@@ -228,8 +277,8 @@ export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationPr
         <CardCreationView
           activity={selectedActivity}
           photo={uploadedPhotos[0]}
+          storyTitle={storyTitle}
           onBack={() => setCurrentView('upload')}
-          onSave={handleSaveCard}
           onNavigate={onNavigate}
         />
       )}

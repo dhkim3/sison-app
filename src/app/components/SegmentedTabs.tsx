@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface SegmentedTabsProps {
   tabs: string[];
@@ -9,13 +9,17 @@ interface SegmentedTabsProps {
 export function SegmentedTabs({ tabs, activeTab = 0, onTabChange }: SegmentedTabsProps) {
   const [active, setActive] = useState(activeTab);
 
+  useEffect(() => {
+    setActive(activeTab);
+  }, [activeTab]);
+
   const handleTabChange = (index: number) => {
     setActive(index);
     onTabChange?.(index);
   };
 
   return (
-    <div className="bg-[#f8f8f5] rounded-2xl p-1 flex gap-1">
+    <div className="bg-[#f8f8f5] rounded-2xl p-1 flex gap-1 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
       {tabs.map((tab, index) => {
         const isActive = index === active;
         return (

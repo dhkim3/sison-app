@@ -2,13 +2,44 @@ interface AICardPreviewProps {
   photoUrl?: string;
   activityTitle: string;
   date: string;
+  locationLabel?: string;
   style?: 'polaroid' | 'film' | 'minimal' | 'postcard';
+}
+
+function TravelCardCaption({
+  title,
+  date,
+  locationLabel,
+  titleClassName = 'text-sm font-semibold text-[#2a2a2a]',
+  signatureClassName = 'text-xs text-[#a8d5ba]',
+}: {
+  title: string;
+  date: string;
+  locationLabel?: string;
+  titleClassName?: string;
+  signatureClassName?: string;
+}) {
+  return (
+    <div>
+      <p className={`line-clamp-1 leading-snug ${titleClassName}`}>{title}</p>
+      <div className="mt-3 space-y-1">
+        {locationLabel && (
+          <p className="text-xs font-medium leading-[1.35] text-[#6f6f6f]">{locationLabel}</p>
+        )}
+        <p className="text-xs font-normal leading-[1.35] text-[#b6b6b6]">{date}</p>
+      </div>
+      <div className="mt-3 border-t border-black/5 pt-2">
+        <p className={`text-center ${signatureClassName} opacity-70`}>시선</p>
+      </div>
+    </div>
+  );
 }
 
 export function AICardPreview({
   photoUrl,
   activityTitle,
   date,
+  locationLabel,
   style = 'polaroid',
 }: AICardPreviewProps) {
   const isPolaroid = style === 'polaroid';
@@ -30,10 +61,8 @@ export function AICardPreview({
               </div>
             )}
           </div>
-          <div className="text-center space-y-1 pb-2">
-            <p className="text-sm text-[#2a2a2a]">{activityTitle}</p>
-            <p className="text-xs text-[#999]">{date}</p>
-            <p className="text-xs text-[#a8d5ba] mt-2">시선</p>
+          <div className="pb-2 text-center">
+            <TravelCardCaption title={activityTitle} date={date} locationLabel={locationLabel} />
           </div>
         </div>
       )}
@@ -56,9 +85,14 @@ export function AICardPreview({
                 </div>
               )}
             </div>
-            <div className="text-center space-y-0.5 pb-1">
-              <p className="text-xs text-[#2a2a2a]">{activityTitle}</p>
-              <p className="text-xs text-[#999]">{date} · 시선</p>
+            <div className="pb-1 text-center">
+              <TravelCardCaption
+                title={activityTitle}
+                date={date}
+                locationLabel={locationLabel}
+                titleClassName="text-xs font-semibold text-[#2a2a2a]"
+                signatureClassName="text-xs text-[#999]"
+              />
             </div>
           </div>
         </div>
@@ -76,12 +110,8 @@ export function AICardPreview({
               </div>
             )}
           </div>
-          <div className="p-6 space-y-2">
-            <p className="text-sm text-[#2a2a2a]">{activityTitle}</p>
-            <p className="text-xs text-[#999]">{date}</p>
-            <div className="pt-2 border-t border-black/5">
-              <p className="text-xs text-[#a8d5ba]">시선</p>
-            </div>
+          <div className="p-6">
+            <TravelCardCaption title={activityTitle} date={date} locationLabel={locationLabel} />
           </div>
         </div>
       )}
@@ -98,12 +128,13 @@ export function AICardPreview({
               </div>
             )}
           </div>
-          <div className="p-5 space-y-2 bg-white">
-            <p className="text-sm text-[#2a2a2a] italic">{activityTitle}</p>
-            <div className="flex items-center justify-between text-xs text-[#999]">
-              <span>{date}</span>
-              <span className="text-[#a8d5ba]">시선</span>
-            </div>
+          <div className="bg-white p-5">
+            <TravelCardCaption
+              title={activityTitle}
+              date={date}
+              locationLabel={locationLabel}
+              titleClassName="text-sm font-semibold italic text-[#2a2a2a]"
+            />
           </div>
         </div>
       )}

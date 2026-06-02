@@ -360,7 +360,7 @@ export function SearchTab({
     <>
       <PageShell>
         {/* Header */}
-        <header className="sticky top-0 z-20 bg-[#fdfcfa]/95 backdrop-blur-sm">
+        <header className="sticky top-0 z-20 bg-[#fdfcfa]/95 backdrop-blur-sm shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
           <div className="px-5 py-3.5">
             <div className="flex items-center gap-3">
               {shouldShowBackButton && (
@@ -413,7 +413,7 @@ export function SearchTab({
         {hasSearched && (
           <>
             {/* Filters */}
-            <div className="px-5 py-3 border-b border-black/5">
+            <div className="px-5 py-3">
               <div className="flex items-center">
                 <FilterChips selectedFilters={selectedFilters} onOpen={() => setIsFilterOpen(true)} />
               </div>

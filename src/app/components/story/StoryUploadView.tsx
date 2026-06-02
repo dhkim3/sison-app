@@ -11,8 +11,12 @@ interface StoryUploadViewProps {
   photos: string[];
   onPhotosChange: (photos: string[]) => void;
   storyText: string;
+  storyTitle: string;
   onTextChange: (text: string) => void;
+  onTitleChange: (title: string) => void;
   onNavigate: (screen: string) => void;
+  didTrySubmit?: boolean;
+  saveMessage?: string;
 }
 
 export function StoryUploadView({
@@ -23,10 +27,16 @@ export function StoryUploadView({
   photos,
   onPhotosChange,
   storyText,
+  storyTitle,
   onTextChange,
+  onTitleChange,
   onNavigate,
+  didTrySubmit = false,
+  saveMessage = '',
 }: StoryUploadViewProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const titleValue = storyTitle.trim();
+  const showTitleError = didTrySubmit && titleValue.length === 0;
 
   const handleAddPhoto = () => {
     fileInputRef.current?.click();
@@ -115,17 +125,15 @@ export function StoryUploadView({
               <button
                 type="button"
                 onClick={handleAddPhoto}
-                className="flex h-[128px] w-full flex-col items-center justify-center gap-2.5 rounded-2xl border border-dashed border-black/10 bg-[#f8f8f5] transition-all hover:border-[#a8d5ba] hover:bg-[#e8f5ed]/30"
+                className="flex h-[84px] w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-black/10 bg-[#f8f8f5] transition-all hover:border-[#a8d5ba] hover:bg-[#e8f5ed]/30"
               >
-                <ImageIcon className="h-8 w-8 text-[#aaa]" strokeWidth={1.5} />
-                <div className="text-center">
-                  <p className="text-[13px] font-medium text-[#5a5a5a]">사진 추가하기</p>
-                </div>
+                <ImageIcon className="h-6 w-6 text-[#aaa]" strokeWidth={1.5} />
+                <p className="text-[13px] font-medium text-[#5a5a5a]">사진 추가하기</p>
               </button>
             ) : (
               // Selected representative photo
               <div className="space-y-2.5">
-                <div className="relative h-[128px] overflow-hidden rounded-2xl bg-[#f8f8f5]">
+                <div className="relative h-[84px] overflow-hidden rounded-2xl bg-[#f8f8f5]">
                   <img
                     src={photos[0]}
                     alt="선택한 여행 사진"
@@ -151,28 +159,65 @@ export function StoryUploadView({
             )}
           </section>
 
+          {/* Title Input */}
+          <section>
+            <div className="mb-2.5">
+              <h4 className="text-[15px] text-[#2a2a2a] mb-0.5 font-semibold">제목</h4>
+              <p className="text-[11px] text-[#bbb]">스토리를 한 줄로 표현해보세요</p>
+            </div>
+
+            <div
+              className={`rounded-xl border bg-white overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[#a8d5ba]/40 ${
+                showTitleError ? 'border-[#d9aaa3]' : 'border-black/10'
+              }`}
+            >
+              <input
+                type="text"
+                value={storyTitle}
+                onChange={(e) => onTitleChange(e.target.value)}
+                placeholder="스토리 제목을 입력해주세요"
+                aria-invalid={showTitleError}
+                className="w-full px-3.5 py-2.5 text-[13px] leading-relaxed outline-none placeholder:text-[#bbb] bg-transparent"
+                maxLength={40}
+              />
+              <div className="px-3.5 pb-2 flex items-center justify-between">
+                <span className="text-[11px] text-[#b76e65] min-h-[1em]">
+                  {showTitleError ? '스토리 제목을 입력해주세요.' : ''}
+                </span>
+                <span className="text-[11px] text-[#bbb]">{storyTitle.length} / 40</span>
+              </div>
+            </div>
+          </section>
+
           {/* Text Input */}
           <section>
-            <div className="mb-3.5">
-              <h4 className="text-[#2a2a2a] mb-0.5 font-semibold">기록</h4>
+            <div className="mb-2.5">
+              <h4 className="text-[14px] text-[#2a2a2a] mb-0.5 font-semibold">내용</h4>
               <p className="text-[11px] text-[#bbb]">그날의 장면을 짧게 남겨보세요</p>
             </div>
 
-            <textarea
-              value={storyText}
-              onChange={(e) => onTextChange(e.target.value)}
-              placeholder="오늘 여행에서 기억에 남은 순간을 남겨보세요."
-              className="w-full h-28 p-3.5 bg-white rounded-xl border border-black/10 text-[13px] leading-relaxed placeholder:text-[#bbb] outline-none focus:ring-1 focus:ring-[#a8d5ba]/40 transition-all resize-none"
-              maxLength={300}
-            />
-
-            <div className="flex justify-between items-center mt-1.5">
-              <span className="text-[11px] text-[#bbb]">{storyText.length} / 300</span>
+            <div className="rounded-xl border border-black/10 bg-white overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[#a8d5ba]/40">
+              <textarea
+                value={storyText}
+                onChange={(e) => onTextChange(e.target.value)}
+                placeholder="오늘 여행에서 기억에 남은 순간을 남겨보세요."
+                className="w-full h-28 px-3.5 py-3 text-[13px] leading-relaxed placeholder:text-[#bbb] outline-none bg-transparent resize-none"
+                maxLength={300}
+              />
+              <div className="px-3.5 pb-2 flex justify-end">
+                <span className="text-[11px] text-[#bbb]">{storyText.length} / 300</span>
+              </div>
             </div>
           </section>
 
           {/* Action Buttons */}
           <section className="space-y-2.5 pt-2">
+            {saveMessage && (
+              <p className="text-center text-[12px] leading-5 text-[#6f8b78]" role="status" aria-live="polite">
+                {saveMessage}
+              </p>
+            )}
+
             <button
               type="button"
               onClick={onSave}

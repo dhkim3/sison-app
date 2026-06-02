@@ -14,6 +14,7 @@ interface RegionMapViewProps {
   selectedRegion: string | null;
   onSelectRegion: (region: string | null) => void;
   storyInteractions: StoryInteractionProps;
+  userStories?: StoryItem[];
 }
 
 const regions = [
@@ -133,12 +134,14 @@ export function RegionMapView({
   selectedRegion,
   onSelectRegion,
   storyInteractions,
+  userStories = [],
 }: RegionMapViewProps) {
   const [selectedStory, setSelectedStory] = useState<StoryItem | null>(null);
   const [commentStory, setCommentStory] = useState<StoryItem | null>(null);
+  const stories = [...userStories, ...mockStories];
   const visibleStories = selectedRegion
-    ? mockStories.filter((s) => s.region === selectedRegion)
-    : mockStories;
+    ? stories.filter((s) => s.region === selectedRegion)
+    : stories;
 
   return (
     <>
