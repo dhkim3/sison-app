@@ -19,14 +19,29 @@
 
 :root {
   --sison-sheet-safe-top: max(16px, env(safe-area-inset-top));
-  --sison-sheet-max-height: min(90svh, calc(100svh - var(--sison-sheet-safe-top)));
-  --sison-sheet-tall-height: min(92svh, calc(100svh - var(--sison-sheet-safe-top)));
+  /* --sison-viewport-height is kept accurate by JS (App.tsx + useBottomSheetScrollLock)
+     using window.visualViewport.height, which stays correct even when body is position:fixed
+     on iOS Safari (dvh alone returns wrong values in that context). */
+  --sison-sheet-max-height: min(
+    calc(var(--sison-viewport-height, 100svh) * 0.9),
+    calc(var(--sison-viewport-height, 100svh) - var(--sison-sheet-safe-top))
+  );
+  --sison-sheet-tall-height: min(
+    calc(var(--sison-viewport-height, 100svh) * 0.92),
+    calc(var(--sison-viewport-height, 100svh) - var(--sison-sheet-safe-top))
+  );
 }
 
 @supports (height: 100dvh) {
   :root {
-    --sison-sheet-max-height: min(90dvh, calc(100dvh - var(--sison-sheet-safe-top)));
-    --sison-sheet-tall-height: min(92dvh, calc(100dvh - var(--sison-sheet-safe-top)));
+    --sison-sheet-max-height: min(
+      calc(var(--sison-viewport-height, 100dvh) * 0.9),
+      calc(var(--sison-viewport-height, 100dvh) - var(--sison-sheet-safe-top))
+    );
+    --sison-sheet-tall-height: min(
+      calc(var(--sison-viewport-height, 100dvh) * 0.92),
+      calc(var(--sison-viewport-height, 100dvh) - var(--sison-sheet-safe-top))
+    );
   }
 }
 
@@ -84,7 +99,7 @@ body.bottom-sheet-scroll-locked {
   align-items: flex-end;
   justify-content: center;
   width: 100%;
-  max-height: 100dvh;
+  max-height: var(--sison-viewport-height, 100dvh);
   overflow: hidden;
   pointer-events: none;
 }
@@ -104,8 +119,8 @@ body.bottom-sheet-scroll-locked {
 }
 
 .bottom-sheet-panel-full {
-  height: 100dvh;
-  max-height: 100dvh;
+  height: var(--sison-viewport-height, 100dvh);
+  max-height: var(--sison-viewport-height, 100dvh);
 }
 
 .bottom-sheet-keyboard-padding {
@@ -114,12 +129,19 @@ body.bottom-sheet-scroll-locked {
 
 @supports not (height: 100dvh) {
   :root {
-    --sison-sheet-max-height: min(90vh, calc(100vh - var(--sison-sheet-safe-top)));
-    --sison-sheet-tall-height: min(92vh, calc(100vh - var(--sison-sheet-safe-top)));
+    --sison-sheet-max-height: min(
+      calc(var(--sison-viewport-height, 100vh) * 0.9),
+      calc(var(--sison-viewport-height, 100vh) - var(--sison-sheet-safe-top))
+    );
+    --sison-sheet-tall-height: min(
+      calc(var(--sison-viewport-height, 100vh) * 0.92),
+      calc(var(--sison-viewport-height, 100vh) - var(--sison-sheet-safe-top))
+    );
   }
 
   .bottom-sheet-panel-full {
-    height: 100vh;
+    height: var(--sison-viewport-height, 100vh);
+    max-height: var(--sison-viewport-height, 100vh);
   }
 }
 
