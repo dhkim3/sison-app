@@ -8,6 +8,10 @@
   display: none;
 }
 
+.sison-top-bar {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
 /* Safe area inset for mobile devices */
 .safe-area-inset-bottom {
   padding-bottom: env(safe-area-inset-bottom);
@@ -49,10 +53,7 @@ html {
   width: 100%;
   max-width: 100%;
   min-height: 100%;
-  overflow-x: hidden;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
-  /* Prevent rubber-band / overscroll at the html level on modern iOS/Chrome */
+  /* overflow 미설정: html에 overflow를 주면 body→viewport 전파가 끊겨 PC 마우스 휠 스크롤이 작동하지 않음 */
   overscroll-behavior-y: none;
 }
 
@@ -69,6 +70,7 @@ body {
   margin: 0;
   overflow-y: auto;
   overscroll-behavior-y: none;
+  scrollbar-gutter: stable;
 }
 
 html.bottom-sheet-scroll-locked,

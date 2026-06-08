@@ -14,6 +14,7 @@ interface CardCreationViewProps {
 }
 
 const BASE_FRAMES = ['기본', '바다', '숲', '노을', '도시'];
+const AI_FRAME = 'AI';
 
 // Quiet editorial gradients for AI-generated frames
 const AI_FRAME_VARIANTS = [
@@ -31,7 +32,7 @@ export function CardCreationView({
 }: CardCreationViewProps) {
   const [selectedFrame, setSelectedFrame] = useState<string>('기본');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [hasAIFrame, setHasAIFrame] = useState(false);
+  const [hasGeneratedAIFrame, setHasGeneratedAIFrame] = useState(false);
   // Start at last index so first generation wraps to 0 (lavender-sky)
   const [aiVariantIndex, setAiVariantIndex] = useState(AI_FRAME_VARIANTS.length - 1);
   const [showAIWave, setShowAIWave] = useState(false);
@@ -55,13 +56,13 @@ export function CardCreationView({
     const nextIndex = (aiVariantIndex + 1) % AI_FRAME_VARIANTS.length;
     setAiVariantIndex(nextIndex);
     setIsGenerating(true);
-    setSelectedFrame('AI');
     setShowAIWave(true);
 
     genTimerRef.current = setTimeout(() => {
       setShowAIWave(false);
       setIsGenerating(false);
-      setHasAIFrame(true);
+      setHasGeneratedAIFrame(true);
+      setSelectedFrame(AI_FRAME);
     }, 2000);
   };
 
@@ -79,9 +80,9 @@ export function CardCreationView({
   };
 
   const getFrameGradient = () => {
-    if (selectedFrame === 'AI') {
+    if (selectedFrame === AI_FRAME) {
       // Show AI variant during and after generation; plain fallback before first generate
-      if (hasAIFrame || isGenerating) return AI_FRAME_VARIANTS[aiVariantIndex].bg;
+      if (hasGeneratedAIFrame || isGenerating) return AI_FRAME_VARIANTS[aiVariantIndex].bg;
       return 'from-[#fdfcfa] to-[#f8f8f5]';
     }
     switch (selectedFrame) {
@@ -97,7 +98,7 @@ export function CardCreationView({
     <>
       <PageShell>
         {/* Header */}
-        <header className="sticky top-0 z-20 bg-[#fdfcfa]/95 backdrop-blur-sm border-b border-black/5">
+        <header className="sison-top-bar sticky top-0 z-20 bg-[#fdfcfa]/95 backdrop-blur-sm">
           <div className="px-6 py-3.5">
             <div className="flex items-center gap-3">
               <button
@@ -139,19 +140,20 @@ export function CardCreationView({
                 </button>
               ))}
 
-              {/* AI Frame tab — always visible, subtle purple accent */}
-              <button
-                type="button"
-                onClick={() => setSelectedFrame('AI')}
-                className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[13px] font-medium transition-all ${
-                  selectedFrame === 'AI'
-                    ? 'bg-[#e8e6f5] text-[#5a56d0] shadow-[0_1px_3px_rgba(107,90,168,0.12)]'
-                    : 'bg-[#f8f8f5] text-[#9a92c8] hover:bg-[#f0edf8]'
-                }`}
-              >
-                <Sparkles className="w-3 h-3" strokeWidth={2} />
-                AI 프레임
-              </button>
+              {hasGeneratedAIFrame && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedFrame(AI_FRAME)}
+                  className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[13px] font-medium transition-all ${
+                    selectedFrame === AI_FRAME
+                      ? 'bg-[#e8e6f5] text-[#5a56d0] shadow-[0_1px_3px_rgba(107,90,168,0.12)]'
+                      : 'bg-[#f8f8f5] text-[#9a92c8] hover:bg-[#f0edf8]'
+                  }`}
+                >
+                  <Sparkles className="w-3 h-3" strokeWidth={2} />
+                  AI 프레임
+                </button>
+              )}
             </div>
           </section>
 
@@ -215,8 +217,8 @@ export function CardCreationView({
               className={`w-full py-3 rounded-xl transition-all flex items-center justify-center gap-2 text-[13px] font-medium ${
                 isGenerating
                   ? 'bg-[#f8f8f5] text-[#ccc] cursor-not-allowed'
-                  : hasAIFrame
-                  ? 'bg-[#f8f8f5] text-[#5a5a5a] hover:bg-[#e8f5ed] hover:text-[#2a2a2a]'
+                  : hasGeneratedAIFrame
+                  ? 'bg-[#efecfc] text-[#5a56d0] hover:bg-[#e5e1fa]'
                   : 'bg-[#efecfc] text-[#5a56d0] hover:bg-[#e5e1fa]'
               }`}
             >
@@ -224,7 +226,7 @@ export function CardCreationView({
               <span>
                 {isGenerating
                   ? 'AI 프레임 생성 중...'
-                  : hasAIFrame
+                  : hasGeneratedAIFrame
                   ? '다시 만들기'
                   : 'AI 프레임 만들기'}
               </span>

@@ -230,7 +230,6 @@ export function DefaultSearchState({
       <section>
         <div className="mb-3">
           <h3 className="mb-1">실시간 인기 지역</h3>
-          <p className="text-[12px] text-[#aaa]">여행의 속도에 맞춰 둘러보세요</p>
         </div>
         <div className="space-y-2.5">
           {recommendedRegions.map((region) => (
@@ -256,7 +255,7 @@ export function DefaultSearchState({
 
       {/* Popular Destinations */}
       <section>
-        <h3 className="mb-3">인기 여행지</h3>
+        <h3 className="mb-3">추천 여행지</h3>
         <div className="flex gap-3 overflow-x-auto -mx-6 px-6 pb-2 scrollbar-hide">
           {destinations.map((dest, index) => (
             <DestinationCard

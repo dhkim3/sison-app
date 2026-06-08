@@ -4,7 +4,6 @@ import type { StoryItem } from './storyTypes';
 interface StoryCardProps {
   story: StoryItem;
   onClick: (story: StoryItem) => void;
-  layout?: 'rail' | 'grid';
   isLiked?: boolean;
   likeCount?: number;
   commentCount?: number;
@@ -16,7 +15,6 @@ interface StoryCardProps {
 export function StoryCard({
   story,
   onClick,
-  layout = 'rail',
   isLiked = false,
   likeCount = story.likes,
   commentCount = story.comments,
@@ -24,20 +22,13 @@ export function StoryCard({
   onOpenComments,
   metadataMode = 'engagement',
 }: StoryCardProps) {
-  const isGrid = layout === 'grid';
   const showEngagement = metadataMode === 'engagement';
-  const cardStyle = isGrid
-    ? {
-        width: '100%',
-        backgroundColor: '#ffffff',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.055)',
-      }
-    : {
-        width: '38vw',
-        maxWidth: '160px',
-        backgroundColor: '#ffffff',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.07)',
-      };
+  const cardStyle = {
+    width: '100%',
+    height: 'auto',
+    backgroundColor: '#ffffff',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.055)',
+  };
 
   return (
     <div
@@ -50,10 +41,10 @@ export function StoryCard({
           onClick(story);
         }
       }}
-      className={`${isGrid ? '' : 'flex-shrink-0'} rounded-2xl overflow-hidden text-left transition-opacity hover:opacity-90`}
+      className="rounded-2xl overflow-hidden text-left transition-opacity hover:opacity-90"
       style={cardStyle}
     >
-      <div className="relative" style={{ height: isGrid ? '140px' : undefined, paddingBottom: isGrid ? undefined : '100%' }}>
+      <div className="relative h-[140px]">
         <img
           src={story.imageUrl}
           alt={story.title}
@@ -85,7 +76,7 @@ export function StoryCard({
           {story.title}
         </p>
         <p
-          className={`${showEngagement && (isGrid ? 'mb-1.5' : 'mb-2')} text-[11px] text-[#999] leading-snug`}
+          className={`${showEngagement ? 'mb-1.5' : ''} text-[11px] text-[#999] leading-snug`}
           style={{
             display: '-webkit-box',
             WebkitLineClamp: 1,

@@ -503,7 +503,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
     <>
       <PageShell>
         {/* Top Navigation */}
-        <header className="sticky top-0 z-10 bg-[#fdfcfa]/95 backdrop-blur-sm">
+        <header className="sison-top-bar sticky top-0 z-10 bg-[#fdfcfa]/95 backdrop-blur-sm">
           <div className="px-5 py-3.5 flex items-center justify-between">
             <div>
               <h1 className="text-xl font-bold text-[#2a2a2a] leading-tight">시선</h1>

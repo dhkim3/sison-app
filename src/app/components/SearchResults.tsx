@@ -146,7 +146,7 @@ export function SearchResults({
     <>
       <PageShell>
         {/* Header */}
-        <header className="sticky top-0 z-20 bg-[#fdfcfa]/95 backdrop-blur-sm border-b border-black/5">
+        <header className="sison-top-bar sticky top-0 z-20 bg-[#fdfcfa]/95 backdrop-blur-sm">
           <div className="px-6 py-4 flex items-center gap-4">
             <button
               onClick={() => onNavigate('home')}

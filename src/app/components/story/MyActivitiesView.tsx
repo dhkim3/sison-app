@@ -68,7 +68,7 @@ export function MyActivitiesView({
     <>
       <PageShell>
         {/* Header */}
-        <header className="sticky top-0 z-20 bg-[#fdfcfa]/95 backdrop-blur-sm shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+        <header className="sison-top-bar sticky top-0 z-20 bg-[#fdfcfa]/95 backdrop-blur-sm">
           <div className="px-6 py-3.5">
             <div className="flex items-center gap-3 mb-0.5">
               <button

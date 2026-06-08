@@ -62,7 +62,7 @@ export function StoryUploadView({
     <>
       <PageShell>
         {/* Header */}
-        <header className="sticky top-0 z-20 bg-[#fdfcfa]/95 backdrop-blur-sm border-b border-black/5">
+        <header className="sison-top-bar sticky top-0 z-20 bg-[#fdfcfa]/95 backdrop-blur-sm">
           <div className="px-6 py-3.5">
             <div className="flex items-center gap-3">
               <button
@@ -133,25 +133,27 @@ export function StoryUploadView({
             ) : (
               // Selected representative photo
               <div className="space-y-2.5">
-                <div className="relative h-[84px] overflow-hidden rounded-2xl bg-[#f8f8f5]">
-                  <img
-                    src={photos[0]}
-                    alt="선택한 여행 사진"
-                    className="h-full w-full object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleRemovePhoto}
-                    aria-label="사진 삭제"
-                    className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/65 text-white shadow-sm backdrop-blur-sm transition-colors hover:bg-black/80"
-                  >
-                    <X className="h-4 w-4" strokeWidth={2} />
-                  </button>
+                <div className="flex h-[84px] w-full items-center justify-start">
+                  <div className="relative h-[84px] w-[84px] overflow-hidden rounded-2xl bg-[#f8f8f5]">
+                    <img
+                      src={photos[0]}
+                      alt="선택한 여행 사진"
+                      className="h-full w-full object-cover object-center"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRemovePhoto}
+                      aria-label="사진 삭제"
+                      className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white shadow-sm backdrop-blur-sm transition-colors hover:bg-black/75"
+                    >
+                      <X className="h-3 w-3" strokeWidth={2} />
+                    </button>
+                  </div>
                 </div>
                 <button
                   type="button"
                   onClick={handleAddPhoto}
-                  className="w-full rounded-xl bg-[#f8f8f5] py-2.5 text-[13px] font-medium text-[#5a5a5a] transition-colors hover:bg-[#e8f5ed]"
+                  className="w-full rounded-xl bg-[#f8f8f5] py-2 text-[13px] font-medium text-[#5a5a5a] transition-colors hover:bg-[#e8f5ed]"
                 >
                   다른 사진 선택
                 </button>

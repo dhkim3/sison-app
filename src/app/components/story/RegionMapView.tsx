@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { ArrowLeft, Plus } from 'lucide-react';
 import { BottomTabBar } from '../BottomTabBar';
 import { PageShell } from '../PageShell';
 import { StoryCard } from './StoryCard';
@@ -138,194 +138,273 @@ export function RegionMapView({
 }: RegionMapViewProps) {
   const [selectedStory, setSelectedStory] = useState<StoryItem | null>(null);
   const [commentStory, setCommentStory] = useState<StoryItem | null>(null);
+  const [activeStoryList, setActiveStoryList] = useState<'recent' | 'current-location' | null>(null);
   const stories = [...userStories, ...mockStories];
+  const currentRegion = '부산';
   const visibleStories = selectedRegion
     ? stories.filter((s) => s.region === selectedRegion)
     : stories;
+  const recentStories = visibleStories.slice(0, 5);
+  const currentRegionStories = stories.filter((story) => story.region === currentRegion).slice(0, 5);
+  const fullStoryList =
+    activeStoryList === 'current-location'
+      ? stories.filter((story) => story.region === currentRegion)
+      : stories;
+  const fullStoryListTitle = activeStoryList === 'current-location' ? '현재 위치 스토리' : '최근 올라온 스토리';
+
+  const renderStoryCard = (story: StoryItem) => (
+    <StoryCard
+      key={story.id}
+      story={story}
+      onClick={setSelectedStory}
+      isLiked={storyInteractions.isStoryLiked(story.id)}
+      likeCount={storyInteractions.getStoryLikeCount(story)}
+      commentCount={storyInteractions.getStoryCommentCount(story)}
+      onToggleLike={(nextStory) => storyInteractions.onToggleStoryLike(nextStory.id)}
+      onOpenComments={setCommentStory}
+    />
+  );
 
   return (
     <>
       <PageShell backgroundColor="#fafaf8">
         {/* Header */}
-        <header
-          className="sticky top-0 z-20 backdrop-blur-sm"
-          style={{ backgroundColor: 'rgba(250,250,248,0.92)' }}
-        >
-          <div className="px-5 py-3.5 flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-[#2a2a2a] leading-tight">스토리</h2>
-              <p className="text-[12px] text-[#aaa] mt-0.5">
-                여행지에서 남겨진 작은 시선을 둘러보세요.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={onCreateStory}
-              className="w-10 h-10 rounded-full flex items-center justify-center transition-opacity hover:opacity-80"
-              style={{
-                backgroundColor: '#6fb58a',
-                boxShadow: '0 3px 10px rgba(111,181,138,0.38)',
-              }}
-            >
-              <Plus className="w-5 h-5 text-white" strokeWidth={2.5} />
-            </button>
-          </div>
-        </header>
-
-        {/* Map Section */}
-        <section className="px-5 pt-3 pb-4">
-          <div
-            className="relative w-full rounded-2xl overflow-hidden"
-            style={{
-              height: '47vw',
-              maxHeight: '260px',
-              background: 'linear-gradient(145deg, #f4f0e8 0%, #eef3ee 100%)',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.72), inset 0 -18px 42px rgba(164,153,135,0.08)',
-            }}
+        {activeStoryList ? (
+          <header
+            className="sison-top-bar sticky top-0 z-20 backdrop-blur-sm"
+            style={{ backgroundColor: 'rgba(250,250,248,0.92)' }}
           >
-            {/* Map background SVG */}
-            <svg
-              viewBox="0 0 360 220"
-              className="absolute inset-0 w-full h-full"
-              xmlns="http://www.w3.org/2000/svg"
-              preserveAspectRatio="none"
-            >
-              <path
-                d="M 153 25 C 177 14 213 13 235 28 C 256 42 267 65 264 88 C 260 118 236 140 226 165 C 216 190 187 197 160 184 C 134 172 116 150 102 125 C 88 99 83 70 97 49 C 111 29 130 35 153 25 Z"
-                fill="rgba(255,255,255,0.34)"
-                stroke="none"
-              />
-              <path
-                d="M 151 23
-                   C 169 17 196 17 216 23
-                   C 239 30 251 44 257 64
-                   C 264 85 256 103 247 119
-                   C 237 136 229 150 224 166
-                   C 219 184 202 192 184 189
-                   C 162 185 143 174 128 157
-                   C 111 138 98 113 92 87
-                   C 87 65 91 47 105 38
-                   C 119 29 134 29 151 23 Z"
-                fill="#e6ebe4"
-                stroke="#d9d4ca"
-                strokeWidth="1"
-              />
-              <path
-                d="M 111 56 C 135 61 158 66 184 64
-                   M 95 88 C 125 94 158 98 203 91
-                   M 108 123 C 141 118 176 122 215 134
-                   M 132 158 C 158 146 188 147 219 160
-                   M 153 24 C 147 56 145 91 150 128
-                   M 185 25 C 180 61 178 101 183 143
-                   M 220 36 C 211 74 208 113 214 164"
-                fill="none"
-                stroke="rgba(190,184,174,0.42)"
-                strokeWidth="0.8"
-                strokeLinecap="round"
-              />
-              <path
-                d="M 103 38 C 86 52 79 72 83 96 C 87 123 104 151 129 175"
-                fill="none"
-                stroke="rgba(255,255,255,0.46)"
-                strokeWidth="10"
-                strokeLinecap="round"
-              />
-              <path
-                d="M 253 60 C 271 83 269 114 251 139"
-                fill="none"
-                stroke="rgba(255,255,255,0.38)"
-                strokeWidth="8"
-                strokeLinecap="round"
-              />
-              <ellipse
-                cx="80"
-                cy="190"
-                rx="24"
-                ry="11"
-                transform="rotate(-4 80 190)"
-                fill="#e6ebe4"
-                stroke="#d9d4ca"
-                strokeWidth="1"
-              />
-            </svg>
+            <div className="px-5 py-3.5 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setActiveStoryList(null)}
+                className="p-2 -ml-2 hover:bg-black/5 rounded-full transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5 text-[#2a2a2a]" strokeWidth={2} />
+              </button>
+              <h2 className="text-xl font-bold text-[#2a2a2a] leading-tight">{fullStoryListTitle}</h2>
+            </div>
+          </header>
+        ) : (
+          <header
+            className="sison-top-bar sticky top-0 z-20 backdrop-blur-sm"
+            style={{ backgroundColor: 'rgba(250,250,248,0.92)' }}
+          >
+            <div className="px-5 py-3.5 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-[#2a2a2a] leading-tight">스토리</h2>
+                <p className="text-[12px] text-[#aaa] mt-0.5">
+                  여행지에서 남겨진 작은 시선을 둘러보세요.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onCreateStory}
+                className="w-10 h-10 rounded-full flex items-center justify-center transition-opacity hover:opacity-80"
+                style={{
+                  backgroundColor: '#6fb58a',
+                  boxShadow: '0 3px 10px rgba(111,181,138,0.38)',
+                }}
+              >
+                <Plus className="w-5 h-5 text-white" strokeWidth={2.5} />
+              </button>
+            </div>
+          </header>
+        )}
 
-            {/* Region markers */}
-            {regions.map((region) => {
-              const isSelected = selectedRegion === region.name;
-              const isOtherSelected = selectedRegion !== null && !isSelected;
-              const bgColor = isSelected ? '#6f9f83' : 'rgba(255,255,255,0.88)';
-              const textColor = isSelected ? '#ffffff' : '#6f6b63';
+        {activeStoryList ? (
+          <section className="px-5 pt-3 pb-24">
+            {fullStoryList.length === 0 ? (
+              <div className="py-10 text-center">
+                <p className="text-[13px] text-[#bbb] mb-1">아직 남겨진 시선이 없어요</p>
+                <p className="text-[11px] text-[#ccc]">첫 번째 기록을 남겨보세요</p>
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: '12px',
+                }}
+              >
+                {fullStoryList.map((story) => renderStoryCard(story))}
+              </div>
+            )}
+          </section>
+        ) : (
+          <>
+            {/* Map Section */}
+            <section className="px-5 pt-3 pb-4">
+              <div
+                className="relative w-full rounded-2xl overflow-hidden"
+                style={{
+                  height: '47vw',
+                  maxHeight: '260px',
+                  background: 'linear-gradient(145deg, #f4f0e8 0%, #eef3ee 100%)',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.72), inset 0 -18px 42px rgba(164,153,135,0.08)',
+                }}
+              >
+                {/* Map background SVG */}
+                <svg
+                  viewBox="0 0 360 220"
+                  className="absolute inset-0 w-full h-full"
+                  xmlns="http://www.w3.org/2000/svg"
+                  preserveAspectRatio="none"
+                >
+                  <path
+                    d="M 153 25 C 177 14 213 13 235 28 C 256 42 267 65 264 88 C 260 118 236 140 226 165 C 216 190 187 197 160 184 C 134 172 116 150 102 125 C 88 99 83 70 97 49 C 111 29 130 35 153 25 Z"
+                    fill="rgba(255,255,255,0.34)"
+                    stroke="none"
+                  />
+                  <path
+                    d="M 151 23
+                       C 169 17 196 17 216 23
+                       C 239 30 251 44 257 64
+                       C 264 85 256 103 247 119
+                       C 237 136 229 150 224 166
+                       C 219 184 202 192 184 189
+                       C 162 185 143 174 128 157
+                       C 111 138 98 113 92 87
+                       C 87 65 91 47 105 38
+                       C 119 29 134 29 151 23 Z"
+                    fill="#e6ebe4"
+                    stroke="#d9d4ca"
+                    strokeWidth="1"
+                  />
+                  <path
+                    d="M 111 56 C 135 61 158 66 184 64
+                       M 95 88 C 125 94 158 98 203 91
+                       M 108 123 C 141 118 176 122 215 134
+                       M 132 158 C 158 146 188 147 219 160
+                       M 153 24 C 147 56 145 91 150 128
+                       M 185 25 C 180 61 178 101 183 143
+                       M 220 36 C 211 74 208 113 214 164"
+                    fill="none"
+                    stroke="rgba(190,184,174,0.42)"
+                    strokeWidth="0.8"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M 103 38 C 86 52 79 72 83 96 C 87 123 104 151 129 175"
+                    fill="none"
+                    stroke="rgba(255,255,255,0.46)"
+                    strokeWidth="10"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M 253 60 C 271 83 269 114 251 139"
+                    fill="none"
+                    stroke="rgba(255,255,255,0.38)"
+                    strokeWidth="8"
+                    strokeLinecap="round"
+                  />
+                  <ellipse
+                    cx="80"
+                    cy="190"
+                    rx="24"
+                    ry="11"
+                    transform="rotate(-4 80 190)"
+                    fill="#e6ebe4"
+                    stroke="#d9d4ca"
+                    strokeWidth="1"
+                  />
+                </svg>
 
-              return (
+                {/* Region markers */}
+                {regions.map((region) => {
+                  const isSelected = selectedRegion === region.name;
+                  const isOtherSelected = selectedRegion !== null && !isSelected;
+                  const bgColor = isSelected ? '#6f9f83' : 'rgba(255,255,255,0.88)';
+                  const textColor = isSelected ? '#ffffff' : '#6f6b63';
+
+                  return (
+                    <button
+                      type="button"
+                      key={region.name}
+                      onClick={() => onSelectRegion(isSelected ? null : region.name)}
+                      className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-200"
+                      style={{
+                        top: region.top,
+                        left: region.left,
+                        opacity: isOtherSelected ? 0.4 : 1,
+                      }}
+                    >
+                      <span
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold whitespace-nowrap"
+                        style={{
+                          backgroundColor: bgColor,
+                          color: textColor,
+                          border: isSelected ? '1px solid rgba(111,159,131,0.34)' : '1px solid rgba(120,112,99,0.08)',
+                          boxShadow: isSelected
+                            ? '0 2px 8px rgba(111,159,131,0.20)'
+                            : '0 1px 5px rgba(84,75,62,0.08)',
+                        }}
+                      >
+                        {region.name} {region.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            {/* Recent Stories Section */}
+            <section className="pb-6">
+              <div className="px-5 mb-3 flex items-center justify-between">
+                <h3 className="text-[15px] font-semibold text-[#2a2a2a]">최근 올라온 스토리</h3>
                 <button
                   type="button"
-                  key={region.name}
-                  onClick={() => onSelectRegion(isSelected ? null : region.name)}
-                  className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-200"
-                  style={{
-                    top: region.top,
-                    left: region.left,
-                    opacity: isOtherSelected ? 0.4 : 1,
-                  }}
+                  onClick={() => setActiveStoryList('recent')}
+                  className="text-[12px] text-[#999]"
                 >
-                  <span
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold whitespace-nowrap"
-                    style={{
-                      backgroundColor: bgColor,
-                      color: textColor,
-                      border: isSelected ? '1px solid rgba(111,159,131,0.34)' : '1px solid rgba(120,112,99,0.08)',
-                      boxShadow: isSelected
-                        ? '0 2px 8px rgba(111,159,131,0.20)'
-                        : '0 1px 5px rgba(84,75,62,0.08)',
-                    }}
-                  >
-                    {region.name} {region.count}
-                  </span>
+                  전체보기 →
                 </button>
-              );
-            })}
-          </div>
-        </section>
+              </div>
 
-        {/* Recent Stories Section */}
-        <section className="pb-6">
-          <div className="px-5 mb-3 flex items-center justify-between">
-            <h3 className="text-[15px] font-semibold text-[#2a2a2a]">
-              {selectedRegion ? `${selectedRegion}에서 남겨진 시선` : '최근 올라온 스토리'}
-            </h3>
-            <button type="button" className="text-[12px] text-[#999]">더보기</button>
-          </div>
+              {visibleStories.length === 0 ? (
+                <div className="px-5 py-10 text-center">
+                  <p className="text-[13px] text-[#bbb] mb-1">아직 이 지역에 남겨진 시선이 없어요</p>
+                  <p className="text-[11px] text-[#ccc]">첫 번째 기록을 남겨보세요</p>
+                </div>
+              ) : (
+                <div className="flex items-start gap-3 overflow-x-auto scrollbar-hide px-5 pb-2">
+                  {recentStories.map((story) => (
+                    <div key={story.id} className="w-[160px] flex-none">
+                      {renderStoryCard(story)}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
 
-          {visibleStories.length === 0 ? (
-            <div className="px-5 py-10 text-center">
-              <p className="text-[13px] text-[#bbb] mb-1">아직 이 지역에 남겨진 시선이 없어요</p>
-              <p className="text-[11px] text-[#ccc]">첫 번째 기록을 남겨보세요</p>
-            </div>
-          ) : (
-            <div
-              className="px-5"
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: '12px',
-              }}
-            >
-              {visibleStories.map((story) => (
-                <StoryCard
-                  key={story.id}
-                  story={story}
-                  layout="grid"
-                  onClick={setSelectedStory}
-                  isLiked={storyInteractions.isStoryLiked(story.id)}
-                  likeCount={storyInteractions.getStoryLikeCount(story)}
-                  commentCount={storyInteractions.getStoryCommentCount(story)}
-                  onToggleLike={(nextStory) => storyInteractions.onToggleStoryLike(nextStory.id)}
-                  onOpenComments={setCommentStory}
-                />
-              ))}
-            </div>
-          )}
-        </section>
+            <section className="pb-6">
+              <div className="px-5 mb-3 flex items-center justify-between">
+                <h3 className="text-[15px] font-semibold text-[#2a2a2a]">현재 위치 스토리</h3>
+                <button
+                  type="button"
+                  onClick={() => setActiveStoryList('current-location')}
+                  className="text-[12px] text-[#999]"
+                >
+                  전체보기 →
+                </button>
+              </div>
+
+              {currentRegionStories.length === 0 ? (
+                <div className="px-5">
+                  <p className="text-[13px] leading-5 text-[#bbb]">아직 이 근처의 스토리가 많지 않아요.</p>
+                </div>
+              ) : (
+                <div className="flex items-start gap-3 overflow-x-auto scrollbar-hide px-5 pb-2">
+                  {currentRegionStories.map((story) => (
+                    <div key={story.id} className="w-[160px] flex-none">
+                      {renderStoryCard(story)}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          </>
+        )}
       </PageShell>
 
       <StoryDetailSheet

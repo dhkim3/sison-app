@@ -157,7 +157,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
         ) : (
           <>
             {/* Header */}
-            <header className="sticky top-0 z-20 bg-[#fdfcfa]/95 backdrop-blur-sm">
+            <header className="sison-top-bar sticky top-0 z-20 bg-[#fdfcfa]/95 backdrop-blur-sm">
               <div className="px-5 py-3.5">
                 <h2 className="text-xl font-bold text-[#2a2a2a] leading-tight">내 정보</h2>
                 <p className="text-[12px] text-[#aaa] mt-0.5">나의 여행 기록</p>
