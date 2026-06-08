@@ -23,10 +23,9 @@ const activityMoodSuggestions = [
   '아이와 함께할 수 있는',
 ];
 const loadingMessages = [
-  '여행지 주변 활동을 살펴보고 있어요',
-  '일정에 맞는 시간을 비교하고 있어요',
-  '분위기에 어울리는 활동을 고르고 있어요',
-  '딱 맞는 활동 3개를 정리하고 있어요',
+  '여행 일정을 살펴보고 있어요',
+  '주변 활동을 찾고 있어요',
+  '가볍게 이어갈 수 있는 일정을 정리하고 있어요',
 ];
 
 const aiInputClassName =
@@ -388,11 +387,11 @@ export function HomeAIRecommendationFlow({
     setStep(4);
     loadingMessageTimerRef.current = window.setInterval(() => {
       setLoadingMessageIndex((currentIndex) => Math.min(currentIndex + 1, loadingMessages.length - 1));
-    }, 520);
+    }, 700);
     loadingCompleteTimerRef.current = window.setTimeout(() => {
       clearLoadingTimers();
       setStep(5);
-    }, 2100);
+    }, 1900);
   };
 
   const restartRecommendation = () => {
@@ -424,14 +423,7 @@ export function HomeAIRecommendationFlow({
           transitionTimingFunction: isPresented ? aiFlowOpenTransitionEasing : aiFlowCloseTransitionEasing,
         }}
       >
-        <div className="sison-ai-gradient-base pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_84%_6%,rgba(130,112,255,0.13),transparent_30%),radial-gradient(circle_at_12%_10%,rgba(107,184,255,0.16),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,255,0.98))]" />
-        <div
-          className="sison-ai-gradient-breathe pointer-events-none absolute inset-[-18%] bg-[radial-gradient(ellipse_at_18%_18%,rgba(118,187,255,0.22),transparent_34%),radial-gradient(ellipse_at_82%_14%,rgba(169,142,255,0.18),transparent_32%),radial-gradient(ellipse_at_48%_76%,rgba(160,232,255,0.14),transparent_38%)] blur-2xl"
-        />
-        <div
-          className="sison-ai-gradient-drift pointer-events-none absolute inset-[-10%] bg-[linear-gradient(115deg,transparent_16%,rgba(116,172,255,0.08)_34%,transparent_52%,rgba(178,143,255,0.08)_70%,transparent_88%)] blur-xl"
-        />
-        <div className="sison-ai-gradient-halo pointer-events-none absolute right-[-50px] top-[-54px] h-40 w-40 rounded-full bg-[#a39bff]/14 blur-3xl" />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(253,252,250,0.98),rgba(248,250,246,0.98))]" />
         <header className="sticky top-0 z-10 flex flex-shrink-0 items-center justify-between border-b border-[#eef1fb] bg-white/72 px-5 pb-3 pt-4 backdrop-blur-md">
           <button
             type="button"
@@ -719,48 +711,57 @@ export function HomeAIRecommendationFlow({
             )}
 
             {step === 4 && (
-              <section className="flex min-h-[470px] flex-col justify-center">
-                <div className="relative overflow-hidden rounded-[1.75rem] border border-[#dfe5fb] bg-white/82 px-5 py-8 shadow-[0_16px_38px_rgba(91,105,170,0.10),inset_0_1px_0_rgba(255,255,255,0.82)]">
-                  <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(109,168,255,0.08),rgba(152,136,255,0.11),rgba(255,255,255,0.0))]" />
+              <section className="py-2">
+                <div className="relative overflow-hidden rounded-[1.75rem] border border-[#e7eee7] bg-[#fdfbf6]/92 px-5 py-6 shadow-[0_14px_34px_rgba(84,102,84,0.08),inset_0_1px_0_rgba(255,255,255,0.88)]">
                   <div
-                    className="pointer-events-none absolute inset-y-0 left-[-34%] w-[72%] bg-[linear-gradient(90deg,transparent,rgba(125,141,255,0.18),transparent)] blur-xl"
-                    style={{ animation: 'sisonAiLoadingSweep 2.4s ease-in-out infinite' }}
+                    aria-hidden="true"
+                    className="absolute right-5 top-5 h-1.5 w-1.5 rounded-full bg-[#a8d5ba]/70"
+                  />
+                  <div
+                    aria-hidden="true"
+                    className="absolute right-8 top-8 h-1 w-1 rounded-full bg-[#d7c7a8]/60"
                   />
 
-                  <div className="relative mx-auto mb-7 flex h-24 w-24 items-center justify-center rounded-[2rem] border border-[#e2e6fb] bg-[#f7f9ff]/90 shadow-[0_18px_34px_rgba(112,126,255,0.14),inset_0_1px_0_rgba(255,255,255,0.85)]">
-                    <Sparkles className="h-7 w-7 text-[#7f72ff]" strokeWidth={1.8} />
-                    {[0, 1, 2].map((item) => (
-                      <span
-                        key={item}
-                        className="absolute h-2 w-2 rounded-full bg-[#8cc7ee]"
-                        style={{
-                          left: `${22 + item * 27}px`,
-                          bottom: `${18 + (item % 2) * 48}px`,
-                          animation: `sisonAiLoadingPulse ${1.7 + item * 0.18}s ease-in-out ${item * 0.18}s infinite`,
-                        }}
-                      />
-                    ))}
-                  </div>
-
-                  <div className="relative text-center">
-                    <p className="mb-2 text-[12px] font-medium text-[#7f72ff]">추천을 정리하는 중</p>
-                    <h2 className="min-h-[58px] text-[22px] font-semibold leading-snug text-[#303850]">
+                  <div className="relative">
+                    <p className="mb-3 text-[12px] font-medium text-[#7ca58c]">일정을 차분히 정리하는 중</p>
+                    <h2
+                      key={loadingMessageIndex}
+                      className="min-h-[58px] text-[22px] font-semibold leading-snug text-[#2f3a33]"
+                      style={{ animation: 'sisonAiLoadingTextIn 320ms ease-out both' }}
+                    >
                       {loadingMessages[loadingMessageIndex]}
                     </h2>
-                    <p className="mx-auto mt-4 max-w-[250px] text-[13px] leading-6 text-[#7a8499]">
-                      {region}의 일정과 {timeLabel || '가능한 시간'}에 맞춰 가볍게 이어질 활동을 고르고 있어요.
+                    <p className="mt-3 max-w-[280px] text-[13px] leading-6 text-[#8b9189]">
+                      {region}의 일정과 {timeLabel || '가능한 시간'}에 맞춰 부담 없이 이어지는 활동을 살펴보고 있어요.
                     </p>
 
-                    <div className="mt-7 flex justify-center gap-2">
-                      {loadingMessages.map((message, index) => (
-                        <span
-                          key={message}
-                          className={`h-1.5 rounded-full transition-all duration-300 ${
-                            index <= loadingMessageIndex ? 'w-6 bg-[#8d8fff]' : 'w-1.5 bg-[#dce2fb]'
-                          }`}
-                        />
-                      ))}
+                    <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-[#edf1ea]">
+                      <span
+                        className="block h-full rounded-full bg-[#a8d5ba] transition-all duration-500 ease-out"
+                        style={{
+                          width: `${((loadingMessageIndex + 1) / loadingMessages.length) * 100}%`,
+                        }}
+                      />
                     </div>
+                  </div>
+
+                  <div className="relative mt-6 space-y-2.5" aria-hidden="true">
+                    {[0, 1, 2].map((item) => (
+                      <div
+                        key={item}
+                        className="sison-ai-calm-skeleton rounded-2xl border border-[#edf0e9] bg-white/72 p-3.5 shadow-[0_6px_16px_rgba(92,108,91,0.04)]"
+                        style={{ animationDelay: `${item * 120}ms` }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="h-12 w-12 flex-shrink-0 rounded-xl bg-[#eef3ee]" />
+                          <div className="min-w-0 flex-1 space-y-2.5">
+                            <div className="h-3 w-4/5 rounded-full bg-[#eef3ee]" />
+                            <div className="h-2.5 w-3/5 rounded-full bg-[#f1eee7]" />
+                          </div>
+                          <div className="h-7 w-7 flex-shrink-0 rounded-full bg-[#eef3ee]" />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </section>

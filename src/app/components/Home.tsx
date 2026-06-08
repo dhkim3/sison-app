@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bell, Bookmark, Calendar, Clock, Leaf, MapPin } from 'lucide-react';
+import { Bell, Bookmark, Calendar, Clock, MapPin } from 'lucide-react';
 import { formatActivityDate, getRecruitmentDeadlineLabel } from '../activityFormatters';
 import { EnhancedSearchCard } from './EnhancedSearchCard';
 import { CalendarBottomSheet } from './CalendarBottomSheet';
@@ -488,8 +488,8 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
       activities: recentActivities.slice(0, 3),
     },
     {
-      title: '조용한 활동',
-      description: '조금 더 여유롭게 참여할 수 있어요',
+      title: '숨은 활동',
+      description: '아직 많이 알려지지 않은 활동이에요',
       activities: hiddenPlaceActivities.slice(0, 3),
     },
   ];
@@ -564,122 +564,16 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
           <button
             type="button"
             onClick={() => setIsAIRecommendationFlowOpen(true)}
-            className="sison-home-ai-card relative block w-full overflow-hidden rounded-3xl text-left transition-transform active:scale-[0.985]"
+            aria-label="AI 일정 추천받기"
+            className="block w-full cursor-pointer overflow-hidden rounded-3xl border-0 bg-white p-0 shadow-[0_10px_26px_rgba(36,31,78,0.14),0_2px_8px_rgba(36,31,78,0.08)] ring-1 ring-black/[0.035] transition duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a8d5ba] active:scale-[0.985] active:opacity-95"
           >
-            {/* Left: text content */}
-            <div className="relative z-10 flex flex-col justify-center px-5 py-[16px]" style={{ width: '47%', minHeight: '124px' }}>
-              <div className="mb-2.5 inline-flex items-center gap-1.5 self-start rounded-full border border-[#5ee7dc]/60 bg-white/[0.08] px-3 py-1 text-[11.5px] font-medium text-[#c8fff8]">
-                <Leaf className="h-3 w-3 text-[#78f2e8]" strokeWidth={2.5} />
-                AI 추천
-              </div>
-              <h3 className="text-[18px] font-bold leading-snug text-white">
-                내 여행에 맞는<br />활동을 찾아볼까요?
-              </h3>
-            </div>
-
-            {/* Right: static orbital visualization */}
-            <div
-              className="absolute inset-y-0 right-0"
-              style={{ width: '56%' }}
+            <img
+              src="/ai_recommend_card_03.png"
+              alt=""
               aria-hidden="true"
-            >
-              {/* Purple-violet radial glow */}
-              <div
-                className="absolute inset-0"
-                style={{
-                  background:
-                    'radial-gradient(ellipse at 56% 50%, rgba(118,68,255,0.72) 0%, rgba(72,30,210,0.40) 44%, transparent 72%)',
-                }}
-              />
-
-              {/* SVG: orbits, planets, star dots */}
-              <svg
-                className="absolute inset-0 w-full h-full"
-                viewBox="0 0 200 140"
-                preserveAspectRatio="xMidYMid meet"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <defs>
-                  <filter id="ai-planet-glow" x="-80%" y="-80%" width="260%" height="260%">
-                    <feGaussianBlur stdDeviation="3" result="blur" />
-                    <feMerge>
-                      <feMergeNode in="blur" />
-                      <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                  </filter>
-                  <filter id="ai-star-glow" x="-100%" y="-100%" width="300%" height="300%">
-                    <feGaussianBlur stdDeviation="1.5" result="blur" />
-                    <feMerge>
-                      <feMergeNode in="blur" />
-                      <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                  </filter>
-                  <radialGradient id="ai-planet1-grad" cx="35%" cy="30%" r="65%">
-                    <stop offset="0%" stopColor="#dcc8ff" />
-                    <stop offset="100%" stopColor="#5836c8" />
-                  </radialGradient>
-                  <radialGradient id="ai-planet2-grad" cx="35%" cy="30%" r="65%">
-                    <stop offset="0%" stopColor="#c8b4ff" />
-                    <stop offset="100%" stopColor="#4a28b8" />
-                  </radialGradient>
-                </defs>
-
-                {/* Background concentric rings */}
-                <circle cx="100" cy="70" r="58" stroke="rgba(180,145,255,0.09)" strokeWidth="1" />
-                <circle cx="100" cy="70" r="43" stroke="rgba(200,162,255,0.11)" strokeWidth="1" />
-
-                {/* Orbit 1: large dashed ellipse, rotated -22° */}
-                <g transform="rotate(-22, 100, 70)">
-                  <ellipse
-                    cx="100" cy="70"
-                    rx="82" ry="42"
-                    stroke="rgba(190,160,255,0.44)"
-                    strokeWidth="1.5"
-                    strokeDasharray="4.5 5.5"
-                  />
-                  {/* Planet at θ=130°: x=47.3, y=102.2 */}
-                  <circle cx="47.3" cy="102.2" r="5.5" fill="url(#ai-planet1-grad)" filter="url(#ai-planet-glow)" />
-                </g>
-
-                {/* Orbit 2: medium dashed ellipse, rotated +20° */}
-                <g transform="rotate(20, 100, 70)">
-                  <ellipse
-                    cx="100" cy="70"
-                    rx="60" ry="30"
-                    stroke="rgba(150,168,255,0.28)"
-                    strokeWidth="1"
-                    strokeDasharray="3.5 4.5"
-                  />
-                  {/* Planet at θ=340°: x=156.4, y=59.7 */}
-                  <circle cx="156.4" cy="59.7" r="4.5" fill="url(#ai-planet2-grad)" filter="url(#ai-planet-glow)" />
-                </g>
-
-                {/* Star sparkle dots */}
-                <circle cx="22" cy="24" r="1.8" fill="rgba(255,255,255,0.88)" filter="url(#ai-star-glow)" />
-                <circle cx="56" cy="12" r="1.3" fill="rgba(255,255,255,0.72)" filter="url(#ai-star-glow)" />
-                <circle cx="152" cy="18" r="2" fill="rgba(255,255,255,0.92)" filter="url(#ai-star-glow)" />
-                <circle cx="174" cy="30" r="1.4" fill="rgba(255,255,255,0.68)" filter="url(#ai-star-glow)" />
-                <circle cx="168" cy="118" r="1.6" fill="rgba(255,255,255,0.72)" filter="url(#ai-star-glow)" />
-                <circle cx="32" cy="112" r="1.3" fill="rgba(255,255,255,0.62)" filter="url(#ai-star-glow)" />
-                <circle cx="185" cy="85" r="1" fill="rgba(255,255,255,0.55)" />
-                <circle cx="12" cy="70" r="1" fill="rgba(255,255,255,0.48)" />
-                <circle cx="90" cy="8" r="1.2" fill="rgba(255,255,255,0.60)" />
-              </svg>
-
-              {/* Center glow halo */}
-              <div
-                className="absolute rounded-full"
-                style={{
-                  width: '120px', height: '120px',
-                  left: '50%', top: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  background:
-                    'radial-gradient(circle, rgba(225,195,255,0.38) 0%, rgba(165,110,255,0.22) 38%, transparent 68%)',
-                }}
-              />
-
-            </div>
+              draggable={false}
+              className="block h-auto w-full select-none object-contain"
+            />
           </button>
         </section>
 
@@ -720,7 +614,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
                       onBookmarkClick={() => onToggleSavedActivity(activity)}
                       onClick={() => { setSelectedActivity(activity); setIsDetailOpen(true); }}
                     />
-                  ) : section.title === '조용한 활동' ? (
+                  ) : section.title === '숨은 활동' ? (
                     <HiddenPlaceActivityCard
                       key={`${section.title}-${activity.title}`}
                       activity={activity}

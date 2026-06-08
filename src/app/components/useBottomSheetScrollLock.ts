@@ -96,6 +96,7 @@ export const clearStaleScrollLock = () => {
   body.style.right = '';
   body.style.width = '';
   body.style.overflow = '';
+  body.style.paddingRight = '';
   lockMode = null;
 
   if (shouldRestoreScroll) {
@@ -174,6 +175,7 @@ const unlockBodyScroll = (lockId: symbol) => {
   body.style.right = originalBodyStyle.right;
   body.style.width = originalBodyStyle.width;
   body.style.overflow = originalBodyStyle.overflow;
+  body.style.paddingRight = '';
   lockMode = null;
 
   if (shouldRestoreScrollPosition) {

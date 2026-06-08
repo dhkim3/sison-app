@@ -55,6 +55,7 @@ html {
   min-height: 100%;
   /* overflow 미설정: html에 overflow를 주면 body→viewport 전파가 끊겨 PC 마우스 휠 스크롤이 작동하지 않음 */
   overscroll-behavior-y: none;
+  scrollbar-gutter: stable;
 }
 
 body,
@@ -211,130 +212,32 @@ body.bottom-sheet-scroll-locked {
   }
 }
 
-@keyframes sisonAiLoadingSweep {
-  0% {
-    transform: translateX(-42%);
-    opacity: 0.2;
+@keyframes sisonAiLoadingTextIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
   }
-  45% {
-    opacity: 0.82;
-  }
-  100% {
-    transform: translateX(42%);
-    opacity: 0.2;
-  }
-}
-
-@keyframes sisonAiLoadingPulse {
-  0%,
-  100% {
-    transform: scale(0.92);
-    opacity: 0.36;
-  }
-  50% {
-    transform: scale(1.08);
-    opacity: 0.92;
-  }
-}
-
-@keyframes sison-ai-gradient-base-breathe {
-  0%,
-  100% {
-    opacity: 0.9;
-    filter: blur(0);
-  }
-  50% {
+  to {
     opacity: 1;
-    filter: blur(1.5px);
+    transform: translateY(0);
   }
 }
 
-@keyframes sison-ai-gradient-breathe {
-  0%,
-  100% {
-    opacity: 0.5;
-    transform: translate3d(-1.5%, -1%, 0) scale(1);
-    filter: blur(38px);
+@keyframes sisonAiCalmSkeletonIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
   }
-  48% {
-    opacity: 0.7;
-    transform: translate3d(2%, 1.5%, 0) scale(1.035);
-    filter: blur(32px);
-  }
-  76% {
-    opacity: 0.58;
-    transform: translate3d(0.5%, -1.5%, 0) scale(1.018);
-    filter: blur(36px);
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-@keyframes sison-ai-gradient-drift {
-  0%,
-  100% {
-    opacity: 0.3;
-    transform: translate3d(1.5%, 1%, 0) scale(1) rotate(-1.5deg);
-    filter: blur(24px);
-  }
-  50% {
-    opacity: 0.46;
-    transform: translate3d(-2%, -1%, 0) scale(1.025) rotate(1.5deg);
-    filter: blur(21px);
-  }
+.sison-ai-calm-skeleton {
+  opacity: 0;
+  animation: sisonAiCalmSkeletonIn 420ms ease-out forwards;
 }
-
-@keyframes sison-ai-gradient-halo {
-  0%,
-  100% {
-    opacity: 0.58;
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  52% {
-    opacity: 0.82;
-    transform: translate3d(-8px, 5px, 0) scale(1.08);
-  }
-}
-
-.sison-ai-gradient-base {
-  opacity: 0.94;
-  animation: sison-ai-gradient-base-breathe 8.2s ease-in-out infinite;
-}
-
-.sison-ai-gradient-breathe {
-  opacity: 0.56;
-  animation: sison-ai-gradient-breathe 7.4s ease-in-out infinite;
-}
-
-.sison-ai-gradient-drift {
-  opacity: 0.34;
-  animation: sison-ai-gradient-drift 8.8s ease-in-out infinite;
-}
-
-.sison-ai-gradient-halo {
-  opacity: 0.64;
-  animation: sison-ai-gradient-halo 8s ease-in-out infinite;
-}
-
-.sison-home-ai-card {
-  isolation: isolate;
-  min-height: 152px;
-  background: linear-gradient(
-    112deg,
-    #080f28 0%,
-    #0c1645 30%,
-    #180e62 52%,
-    #2a169a 70%,
-    #3e1ec4 86%,
-    #5326dc 100%
-  );
-  border: 1px solid rgba(80, 48, 188, 0.42);
-  box-shadow: 0 10px 28px rgba(5, 3, 36, 0.32);
-}
-
-.sison-home-ai-card::before,
-.sison-home-ai-card::after {
-  display: none;
-}
-
 
 @keyframes recruiting-dot-breathe {
   0%,
@@ -412,15 +315,6 @@ body.bottom-sheet-scroll-locked {
   }
 }
 
-@keyframes ai-wave-content-reveal {
-  from {
-    clip-path: inset(0 0 100% 0 round 1.5rem);
-  }
-  to {
-    clip-path: inset(0 0 0 0 round 1.5rem);
-  }
-}
-
 .ai-loading-shimmer {
   background: linear-gradient(90deg, #edf2ee 0%, #f7faf8 44%, #e3eee7 72%, #edf2ee 100%);
   background-size: 240% 100%;
@@ -455,71 +349,17 @@ body.bottom-sheet-scroll-locked {
   animation-delay: 0.38s;
 }
 
-.ai-wave-reveal-stage {
-  isolation: isolate;
-}
-
-.ai-result-wave {
-  position: absolute;
-  z-index: 8;
-  left: 0.75rem;
-  right: 0.75rem;
-  height: 34%;
-  border-radius: 2rem;
-  pointer-events: none;
-  background:
-    linear-gradient(
-      180deg,
-      transparent 0%,
-      rgba(117, 176, 255, 0.1) 20%,
-      rgba(157, 137, 255, 0.18) 42%,
-      rgba(168, 213, 186, 0.16) 58%,
-      rgba(255, 255, 255, 0.08) 76%,
-      transparent 100%
-    );
-  filter: blur(8px);
-  animation: ai-result-wave-scan 2.05s ease-in-out forwards;
-}
-
-.ai-wave-reveal-item {
-  position: relative;
-  z-index: 1;
-  clip-path: inset(0 0 100% 0 round 1.5rem);
-  animation: ai-wave-content-reveal 0.56s ease-out var(--reveal-delay, 0ms) forwards;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .sison-ai-gradient-base,
-  .sison-ai-gradient-breathe,
-  .sison-ai-gradient-drift,
-  .sison-ai-gradient-halo {
-    animation: none;
-  }
-
-  .sison-ai-gradient-base,
-  .sison-ai-gradient-breathe,
-  .sison-ai-gradient-drift,
-  .sison-ai-gradient-halo {
-    transform: none;
-  }
-
   .recruiting-status-dot::after,
+  .sison-ai-calm-skeleton,
   .ai-loading-shimmer,
   .ai-loading-step,
-  .ai-loading-line,
-  .ai-wave-reveal-item {
+    .ai-loading-line {
     animation: none;
     opacity: 1;
     transform: none;
   }
 
-  .ai-result-wave {
-    display: none;
-  }
-
-  .ai-wave-reveal-item {
-    clip-path: none;
-  }
 }
 
 /* Screen transition animations */

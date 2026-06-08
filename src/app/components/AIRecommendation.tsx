@@ -1,8 +1,9 @@
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Download, MapPin, Clock } from 'lucide-react';
 import { PageShell } from './PageShell';
 import { useBottomSheetScrollLock } from './useBottomSheetScrollLock';
 import type { ActivitySaveRecord } from '../activitySaveState';
+import { captureElementAsPng, downloadBlob } from '../utils/captureElementAsImage';
 
 interface AIRecommendationProps {
   activity: ActivitySaveRecord | null;
@@ -142,7 +143,6 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
   const captureRef = useRef<HTMLDivElement>(null);
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [isPreparing, setIsPreparing] = useState(true);
-  const [isRevealing, setIsRevealing] = useState(false);
   const [preparationMessageIndex, setPreparationMessageIndex] = useState(0);
   const preparationMessageTimerRef = useRef<number | null>(null);
   const preparationCompleteTimerRef = useRef<number | null>(null);
@@ -162,15 +162,6 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
     }
   };
 
-  const getPrefersReducedMotion = () => (
-    typeof window !== 'undefined' &&
-    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-  );
-
-  const getRevealStyle = (delayMs: number): CSSProperties => ({
-    '--reveal-delay': `${delayMs}ms`,
-  } as CSSProperties);
-
   const handleBack = () => {
     onBack();
   };
@@ -189,7 +180,6 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
 
     clearPreparationTimers();
     setIsPreparing(true);
-    setIsRevealing(false);
     setPreparationMessageIndex(0);
 
     preparationMessageTimerRef.current = window.setInterval(() => {
@@ -201,7 +191,6 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
     preparationCompleteTimerRef.current = window.setTimeout(() => {
       clearPreparationTimers();
       setIsPreparing(false);
-      setIsRevealing(!getPrefersReducedMotion());
     }, 2350);
 
     return clearPreparationTimers;
@@ -223,82 +212,12 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
     const sourceElement = captureRef.current;
     if (!sourceElement) return;
 
-    await document.fonts?.ready;
-
-    const clone = sourceElement.cloneNode(true) as HTMLElement;
-    const copyComputedStyles = (source: Element, target: Element) => {
-      const computedStyle = window.getComputedStyle(source);
-
-      Array.from(computedStyle).forEach((property) => {
-        (target as HTMLElement).style.setProperty(
-          property,
-          computedStyle.getPropertyValue(property),
-          computedStyle.getPropertyPriority(property)
-        );
-      });
-
-      Array.from(source.children).forEach((child, index) => {
-        const targetChild = target.children[index];
-        if (targetChild) copyComputedStyles(child, targetChild);
-      });
-    };
-
-    copyComputedStyles(sourceElement, clone);
-
-    const width = Math.ceil(sourceElement.scrollWidth);
-    const height = Math.ceil(sourceElement.scrollHeight);
-    clone.style.width = `${width}px`;
-    clone.style.minHeight = `${height}px`;
-    clone.style.background = '#fdfcfa';
-    clone.style.boxSizing = 'border-box';
-
-    const wrapper = document.createElement('div');
-    wrapper.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-    wrapper.style.width = `${width}px`;
-    wrapper.style.minHeight = `${height}px`;
-    wrapper.style.background = '#fdfcfa';
-    wrapper.appendChild(clone);
-
-    const serializedHtml = new XMLSerializer().serializeToString(wrapper);
-    const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-        <foreignObject width="100%" height="100%">
-          ${serializedHtml}
-        </foreignObject>
-      </svg>
-    `;
-
-    const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-    const svgUrl = URL.createObjectURL(svgBlob);
-    const image = new Image();
-
-    image.onload = () => {
-      const scale = 2;
-      const canvas = document.createElement('canvas');
-      canvas.width = width * scale;
-      canvas.height = height * scale;
-      const context = canvas.getContext('2d');
-      if (!context) {
-        URL.revokeObjectURL(svgUrl);
-        return;
-      }
-
-      context.fillStyle = '#fdfcfa';
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      context.drawImage(image, 0, 0, canvas.width, canvas.height);
-
-      const link = document.createElement('a');
-      link.download = `${selectedActivity.title.replace(/[\\/:*?"<>|]/g, '').slice(0, 20) || 'sison'}-itinerary.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-      URL.revokeObjectURL(svgUrl);
-    };
-
-    image.onerror = () => {
-      URL.revokeObjectURL(svgUrl);
-    };
-
-    image.src = svgUrl;
+    try {
+      const blob = await captureElementAsPng(sourceElement);
+      downloadBlob(blob, `${selectedActivity.title.replace(/[\\/:*?"<>|]/g, '').slice(0, 20) || 'sison'}-itinerary.png`);
+    } catch (error) {
+      console.error('AI recommendation screenshot download failed', error);
+    }
   };
 
   if (!shouldRender) return null;
@@ -393,19 +312,8 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
               </section>
             </div>
           ) : (
-            <div ref={captureRef} className="ai-wave-reveal-stage relative px-6 py-6 space-y-8">
-              {isRevealing && (
-                <div
-                  className="ai-result-wave"
-                  aria-hidden="true"
-                  onAnimationEnd={() => setIsRevealing(false)}
-                />
-              )}
-
-              <section
-                className="ai-wave-reveal-item"
-                style={getRevealStyle(120)}
-              >
+            <div ref={captureRef} className="relative px-6 py-6 space-y-8">
+              <section>
                 <div className="bg-white rounded-3xl p-5 shadow-sm border border-black/5">
                   <h3 className="mb-4">{selectedActivity.title}</h3>
                   <div className="space-y-2">
@@ -425,28 +333,21 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
                 </div>
               </section>
 
-              <section
-                className="ai-wave-reveal-item"
-                style={getRevealStyle(280)}
-              >
+              <section>
                 <div className="bg-[#e8f5ed] rounded-2xl p-5">
                   <p className="text-sm text-[#2a2a2a] leading-relaxed">{plan.note}</p>
                 </div>
               </section>
 
               <section>
-                <h3
-                  className="ai-wave-reveal-item mb-4"
-                  style={getRevealStyle(400)}
-                >
+                <h3 className="mb-4">
                   추천 일정
                 </h3>
                 <div className="space-y-3">
                   {plan.itinerary.map((item, index) => (
                     <div
                       key={`${item.time}-${index}`}
-                      className="ai-wave-reveal-item bg-white rounded-2xl p-4 shadow-sm border border-black/5"
-                      style={getRevealStyle(460 + index * 150)}
+                      className="bg-white rounded-2xl p-4 shadow-sm border border-black/5"
                     >
                       <div className="flex gap-4">
                         <div className="text-sm text-[#a8d5ba] font-medium min-w-[45px]">
@@ -463,18 +364,14 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
               </section>
 
               <section>
-                <h3
-                  className="ai-wave-reveal-item mb-5"
-                  style={getRevealStyle(1020)}
-                >
+                <h3 className="mb-5">
                   근처 추천 장소
                 </h3>
                 <div className="space-y-2">
                   {plan.nearbySpots.map((spot, index) => (
                     <div
                       key={`${spot.title}-${index}`}
-                      className="ai-wave-reveal-item flex items-center justify-between gap-4 py-3 px-4 bg-white rounded-2xl border border-black/5"
-                      style={getRevealStyle(1100 + index * 120)}
+                      className="flex items-center justify-between gap-4 py-3 px-4 bg-white rounded-2xl border border-black/5"
                     >
                       <span className="text-sm text-[#2a2a2a]">{spot.title}</span>
                       <span className="text-sm text-[#999] flex-shrink-0">{spot.distance}</span>
@@ -483,10 +380,7 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
                 </div>
               </section>
 
-              <section
-                className="ai-wave-reveal-item pt-2 pb-3"
-                style={getRevealStyle(1500)}
-              >
+              <section className="pt-2 pb-3">
                 <button
                   type="button"
                   onClick={handleSaveScreenshot}
