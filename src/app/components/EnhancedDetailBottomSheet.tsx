@@ -36,6 +36,8 @@ interface EnhancedDetailBottomSheetProps {
     registrationOrganization?: string;
     volunteerPlace?: string;
     category?: string;
+    sourceUrl?: string;
+    progrmRegistNo?: string;
   };
 }
 
@@ -157,6 +159,12 @@ export function EnhancedDetailBottomSheet({
   const handleKakaoMapOpen = () => {
     const kakaoMapUrl = `https://map.kakao.com/link/search/${encodeURIComponent(volunteerPlace)}`;
     window.open(kakaoMapUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleSourceOpen = () => {
+    if (!activity.sourceUrl) return;
+
+    window.open(activity.sourceUrl, '_blank', 'noopener,noreferrer');
   };
 
   if (!isOpen) return null;
@@ -330,7 +338,12 @@ export function EnhancedDetailBottomSheet({
             {/* Action Buttons */}
             <div className="space-y-3 pt-4 pb-6">
               {/* Primary CTA */}
-              <button type="button" className="w-full bg-[#2a2a2a] text-white py-4 rounded-2xl transition-all hover:bg-[#1a1a1a]">
+              <button
+                type="button"
+                onClick={handleSourceOpen}
+                disabled={!activity.sourceUrl}
+                className="w-full bg-[#2a2a2a] text-white py-4 rounded-2xl transition-all hover:bg-[#1a1a1a] disabled:cursor-not-allowed disabled:bg-[#d7d3cc]"
+              >
                 1365에서 신청하기
               </button>
 

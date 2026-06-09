@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { DefaultSearchState } from './DefaultSearchState';
 import { CalendarBottomSheet } from './CalendarBottomSheet';
@@ -49,6 +49,35 @@ interface SearchTabProps {
   onToggleSavedActivity: (activity: ActivitySaveRecord) => void;
 }
 
+interface VolunteerActivity {
+  id: string;
+  title: string;
+  location: string;
+  region: string;
+  recruitmentStartDate: string;
+  recruitmentEndDate: string;
+  activityStartDate: string;
+  activityEndDate: string;
+  time: string;
+  category: string;
+  organization: string;
+  capacity: number | null;
+  currentParticipants: number | null;
+  status: '모집중' | '지난 활동';
+  imageUrl: string;
+  sourceUrl?: string;
+  progrmRegistNo: string;
+}
+
+interface VolunteerSearchResponse {
+  ok: boolean;
+  items: VolunteerActivity[];
+  totalCount: number;
+  page?: number;
+  size?: number;
+  error?: string;
+}
+
 export function SearchTab({
   onNavigate,
   searchState,
@@ -72,6 +101,9 @@ export function SearchTab({
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [activities, setActivities] = useState<ActivitySaveRecord[]>([]);
+  const [isLoadingResults, setIsLoadingResults] = useState(false);
+  const [searchError, setSearchError] = useState('');
 
   const formatDateRange = () => {
     if (!startDate || !endDate) return '';
@@ -87,6 +119,117 @@ export function SearchTab({
     return formatDateRangeFullForDates(startDate, endDate);
   };
 
+  const formatApiDate = (date: Date | null) => {
+    if (!date) return '';
+
+    return [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, '0'),
+      String(date.getDate()).padStart(2, '0'),
+    ].join('');
+  };
+
+  const formatCapacityLabel = (value: number | null) => (value === null ? '확인 필요' : `${value}명`);
+
+  const mapApiActivityToCardActivity = (activity: VolunteerActivity): ActivitySaveRecord => ({
+    id: activity.id || activity.progrmRegistNo,
+    imageUrl: activity.imageUrl,
+    title: activity.title || '제목 확인 필요',
+    location: activity.location || activity.region || '장소 확인 필요',
+    recruitmentStartDate: activity.recruitmentStartDate,
+    recruitmentEndDate: activity.recruitmentEndDate,
+    date: activity.activityStartDate,
+    time: activity.time || '시간 확인 필요',
+    status: activity.status,
+    isRecruiting: activity.status === '모집중',
+    description: activity.organization
+      ? `${activity.organization}에서 모집하는 1365 봉사활동입니다.`
+      : '1365에서 제공한 봉사활동입니다.',
+    materials: '1365 상세 페이지에서 확인해주세요.',
+    capacity: formatCapacityLabel(activity.capacity),
+    currentParticipants: formatCapacityLabel(activity.currentParticipants),
+    recommendation: '여행 일정과 가까운 시간에 참여할 수 있는 활동인지 살펴보세요.',
+    category: activity.category,
+    volunteerPeriod:
+      activity.activityStartDate && activity.activityEndDate
+        ? `${activity.activityStartDate} - ${activity.activityEndDate}`
+        : activity.activityStartDate,
+    volunteerTime: activity.time || '시간 확인 필요',
+    volunteerField: activity.category || '봉사분야 확인 필요',
+    volunteerTarget: '1365 상세 페이지에서 확인해주세요.',
+    recruitingOrganization: activity.organization || '모집기관 확인 필요',
+    volunteerPlace: activity.location || activity.region || '장소 확인 필요',
+    sourceUrl: activity.sourceUrl,
+    progrmRegistNo: activity.progrmRegistNo,
+  });
+
+  const fetchVolunteerActivities = async (keyword: string, nextStartDate: Date | null, nextEndDate: Date | null) => {
+    const params = new URLSearchParams({
+      keyword: keyword.trim(),
+      page: '1',
+      size: '10',
+    });
+    const apiStartDate = formatApiDate(nextStartDate);
+    const apiEndDate = formatApiDate(nextEndDate);
+
+    if (apiStartDate) params.set('startDate', apiStartDate);
+    if (apiEndDate) params.set('endDate', apiEndDate);
+
+    setIsLoadingResults(true);
+    setSearchError('');
+
+    const requestUrl = `/api/volunteer/search?${params.toString()}`;
+
+    try {
+      const response = await fetch(requestUrl);
+      const responseText = await response.text();
+      let payload: VolunteerSearchResponse | null = null;
+
+      try {
+        payload = JSON.parse(responseText) as VolunteerSearchResponse;
+      } catch {
+        console.error('Volunteer search returned non-JSON response:', {
+          requestUrl,
+          status: response.status,
+          responseText: responseText.slice(0, 1000),
+        });
+        throw new Error('검색 API가 JSON이 아닌 응답을 반환했어요.');
+      }
+
+      if (!response.ok || !payload.ok) {
+        console.error('Volunteer search API failed:', {
+          requestUrl,
+          status: response.status,
+          responseText: responseText.slice(0, 1000),
+          errorMessage: payload.error,
+        });
+        throw new Error(payload.error || '1365 검색 요청에 실패했어요.');
+      }
+
+      const nextActivities = Array.isArray(payload.items)
+        ? payload.items.map(mapApiActivityToCardActivity)
+        : [];
+
+      setActivities(nextActivities);
+    } catch (error) {
+      console.error('Volunteer search failed:', {
+        requestUrl,
+        status: 'request-error',
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      setActivities([]);
+      setSearchError('검색 결과를 불러오지 못했어요. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setIsLoadingResults(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!searchState.hasSearched) return;
+
+    void fetchVolunteerActivities(searchState.destination, searchState.startDate, searchState.endDate);
+  }, []);
+
   const handleSearch = (dest: string, dates: string, people: number) => {
     setDestination(dest);
     setSummaryDateRange(dates);
@@ -101,6 +244,7 @@ export function SearchTab({
       peopleCount: people,
       hasSearched: true,
     });
+    void fetchVolunteerActivities(dest, startDate, endDate);
   };
 
   const handleBackToExploration = () => {
@@ -171,157 +315,8 @@ export function SearchTab({
       peopleCount: values.peopleCount,
       hasSearched: true,
     });
+    void fetchVolunteerActivities(values.destination, values.startDate, values.endDate);
   };
-
-  const activities = [
-    {
-      imageUrl: 'https://images.unsplash.com/photo-1565803974275-dccd2f933cbb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=1080',
-      title: '광안리 해변 환경정화',
-      location: '부산 수영구 광안리해수욕장',
-      distance: '도보 10분',
-      recruitmentStartDate: '2026.05.20',
-      recruitmentEndDate: '2026.05.23',
-      date: '2026.05.24',
-      time: '09:00 - 11:00',
-      category: '환경정화',
-      reason: '여행 일정 안에서 가볍게 참여하기 좋아요.',
-      isRecruiting: true,
-      description: '광안리 바다를 가까이 느끼며 가볍게 참여할 수 있는 활동이에요. 아침 산책을 겸한 해변 정화 활동으로, 광안리 백사장과 주변 산책로를 따라 걸으며 환경 보호에 참여할 수 있습니다.',
-      materials: '장갑, 집게 제공',
-      capacity: '20명',
-      currentParticipants: '15명',
-      recommendation: '광안리 바다를 가까이 느끼며 가볍게 참여할 수 있는 활동이에요. 여행 중 부담 없이 새로운 경험을 만들기 좋아요.',
-      duration: '2시간',
-      difficulty: '쉬움',
-      indoorOutdoor: '실외',
-    },
-    {
-      imageUrl: 'https://images.unsplash.com/photo-1775116259654-404b3376c02e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=1080',
-      title: '수영 공원 산책로 정비',
-      location: '부산 수영구 수영 근린공원',
-      distance: '차량 15분',
-      recruitmentStartDate: '2026.05.20',
-      recruitmentEndDate: '2026.05.23',
-      date: '2026.05.24',
-      time: '14:00 - 16:00',
-      category: '산책형 활동',
-      reason: '오후 시간을 활용해 여유롭게 참여할 수 있어요.',
-      isRecruiting: true,
-      description: '공원 산책로를 따라 걸으며 간단한 정비 활동을 합니다. 벤치 청소, 꽃길 관리 등 가벼운 활동으로 구성되어 있습니다.',
-      materials: '편한 복장',
-      capacity: '15명',
-      currentParticipants: '8명',
-      recommendation: '공원 산책을 즐기면서 자연스럽게 봉사할 수 있는 활동입니다. 여유로운 오후 시간을 의미있게 보낼 수 있어요.',
-      duration: '2시간',
-      difficulty: '쉬움',
-      indoorOutdoor: '실외',
-    },
-    {
-      imageUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=1080',
-      title: '안목해변 아침 플로깅',
-      location: '강원 강릉시 안목해변',
-      distance: '도보 8분',
-      recruitmentStartDate: '2026.05.22',
-      recruitmentEndDate: '2026.05.28',
-      date: '2026.05.30',
-      time: '08:00 - 10:00',
-      category: '환경정화',
-      reason: '커피거리 산책 전 조용히 참여하기 좋아요.',
-      isRecruiting: true,
-      description: '안목해변 백사장과 커피거리 주변을 천천히 걸으며 작은 쓰레기를 줍는 아침 플로깅입니다. 바다를 바라보며 여행의 시작을 단정하게 열 수 있어요.',
-      materials: '생분해 봉투, 집게 제공',
-      capacity: '18명',
-      currentParticipants: '9명',
-      recommendation: '짧은 일정에도 부담 없이 넣기 좋은 해변 활동이에요.',
-      duration: '2시간',
-      difficulty: '쉬움',
-      indoorOutdoor: '실외',
-    },
-    {
-      imageUrl: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=1080',
-      title: '비자림 숲길 표지 정리',
-      location: '제주 제주시 구좌읍 비자림',
-      distance: '차량 35분',
-      recruitmentStartDate: '2026.06.02',
-      recruitmentEndDate: '2026.06.08',
-      date: '2026.06.11',
-      time: '09:30 - 12:00',
-      category: '산책형 활동',
-      reason: '숲을 천천히 걷는 여행자에게 잘 맞아요.',
-      isRecruiting: true,
-      description: '비자림 산책로의 낙엽과 작은 가지를 정리하고 안내 표지를 닦는 활동입니다. 깊은 숲의 고요함 속에서 오래 기억될 시간을 만들 수 있어요.',
-      materials: '장갑, 손수건, 편한 신발',
-      capacity: '12명',
-      currentParticipants: '6명',
-      recommendation: '활동 뒤 근처 마을 카페에서 쉬어가기 좋은 일정이에요.',
-      duration: '2시간 30분',
-      difficulty: '보통',
-      indoorOutdoor: '실외',
-    },
-    {
-      imageUrl: 'https://images.unsplash.com/photo-1528181304800-259b08848526?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=1080',
-      title: '경주 황리단길 작은 문화 안내',
-      location: '경북 경주시 황남동',
-      distance: '도보 12분',
-      recruitmentStartDate: '2026.06.12',
-      recruitmentEndDate: '2026.06.18',
-      date: '2026.06.20',
-      time: '13:00 - 16:00',
-      category: '교육·문화',
-      reason: '느린 오후 일정에 어울리는 지역 문화 활동이에요.',
-      isRecruiting: true,
-      description: '골목 행사 방문객에게 길 안내와 작은 전시 설명을 돕는 활동입니다. 여행자가 지역의 이야기를 조금 더 가까이 만나는 시간이 됩니다.',
-      materials: '안내 리플릿 제공',
-      capacity: '10명',
-      currentParticipants: '4명',
-      recommendation: '경주 산책과 자연스럽게 이어지는 조용한 문화 봉사예요.',
-      duration: '3시간',
-      difficulty: '쉬움',
-      indoorOutdoor: '실외',
-    },
-    {
-      imageUrl: 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=1080',
-      title: '여수 돌산 해안 쓰담 걷기',
-      location: '전남 여수시 돌산읍',
-      distance: '차량 20분',
-      recruitmentStartDate: '2026.07.01',
-      recruitmentEndDate: '2026.07.07',
-      date: '2026.07.09',
-      time: '16:00 - 18:00',
-      category: '환경정화',
-      reason: '노을 전 해안 산책과 함께하기 좋아요.',
-      isRecruiting: true,
-      description: '돌산 해안 산책길을 따라 걸으며 해변과 방파제 주변을 정리합니다. 바람이 선선해지는 오후에 여수 바다를 돌보는 활동이에요.',
-      materials: '장갑, 집게, 물 제공',
-      capacity: '16명',
-      currentParticipants: '11명',
-      recommendation: '활동 후 해질녘 전망대 코스로 이어가기 좋습니다.',
-      duration: '2시간',
-      difficulty: '쉬움',
-      indoorOutdoor: '실외',
-    },
-    {
-      imageUrl: 'https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=1080',
-      title: '전주 한옥마을 골목 행사 도우미',
-      location: '전북 전주시 완산구 한옥마을',
-      distance: '도보 6분',
-      recruitmentStartDate: '2026.07.05',
-      recruitmentEndDate: '2026.07.12',
-      date: '2026.07.14',
-      time: '10:00 - 13:00',
-      category: '지역 행사',
-      reason: '한옥마을의 아침 분위기를 가까이 느낄 수 있어요.',
-      isRecruiting: true,
-      description: '작은 마을 장터에서 방문객 동선 안내와 체험 부스 정리를 돕습니다. 여행 중 만나는 지역의 생활감이 은근하게 남는 활동입니다.',
-      materials: '활동 명찰, 안내문 제공',
-      capacity: '14명',
-      currentParticipants: '7명',
-      recommendation: '전주 골목 여행과 자연스럽게 이어지는 일정이에요.',
-      duration: '3시간',
-      difficulty: '쉬움',
-      indoorOutdoor: '실외',
-    },
-  ];
 
   const handleActivityClick = (activity: any) => {
     setSelectedActivity(activity);
@@ -339,14 +334,15 @@ export function SearchTab({
   const displayedActivities = activities.filter((activity) => {
     const searchableText = `${activity.title} ${activity.location}`.toLowerCase();
     const matchesDestination = normalizedDestination ? searchableText.includes(normalizedDestination) : true;
-    const activityDate = parseActivityDate(activity.date);
+    const activityDate = parseActivityDate(activity.date || '');
     const matchesDate =
       startDate && endDate && activityDate
         ? activityDate >= startDate && activityDate <= endDate
         : true;
     const capacity = Number.parseInt(activity.capacity, 10) || 0;
     const matchesPeople = peopleCount > 0 && capacity > 0 ? capacity >= peopleCount : true;
-    const normalizedCategory = categoryLabelMap[activity.category] || activity.category;
+    const activityCategory = activity.category || '';
+    const normalizedCategory = categoryLabelMap[activityCategory] || activityCategory;
     const matchesCategory = selectedFilters.length === 0 || selectedFilters.includes(normalizedCategory);
 
     return matchesDestination && matchesDate && matchesPeople && matchesCategory;
@@ -420,17 +416,37 @@ export function SearchTab({
             </div>
 
             {/* Results Count */}
-            <div className="px-5 py-3">
-              <p className="text-[13px] text-[#999]">
-                총 <span className="text-[#2a2a2a] font-semibold">{displayedActivities.length}개</span>의 활동을 찾았어요
-              </p>
-            </div>
+            {!searchError && (
+              <div className="px-5 py-3">
+                <p className="text-[13px] text-[#999]">
+                  {isLoadingResults ? (
+                    '1365에서 활동을 찾고 있어요'
+                  ) : (
+                    <>
+                      총 <span className="text-[#2a2a2a] font-semibold">{displayedActivities.length}개</span>의 활동을 찾았어요
+                    </>
+                  )}
+                </p>
+              </div>
+            )}
 
             {/* Activity Cards */}
             <div className="px-5 space-y-2.5 pb-8">
-              {displayedActivities.map((activity, index) => (
+              {isLoadingResults && (
+                <div className="rounded-3xl bg-white border border-black/5 px-5 py-8 text-center shadow-sm">
+                  <p className="text-[15px] font-medium text-[#2a2a2a]">활동을 불러오는 중이에요</p>
+                  <p className="mt-1.5 text-[13px] text-[#999]">잠시만 기다려주세요</p>
+                </div>
+              )}
+              {!isLoadingResults && searchError && (
+                <div className="rounded-3xl bg-white border border-black/5 px-5 py-8 text-center shadow-sm">
+                  <p className="text-[15px] font-medium text-[#2a2a2a]">{searchError}</p>
+                  <p className="mt-1.5 text-[13px] text-[#999]">검색어나 일정을 조금 바꿔 다시 시도해보세요</p>
+                </div>
+              )}
+              {!isLoadingResults && !searchError && displayedActivities.map((activity) => (
                 <CompactActivityCard
-                  key={index}
+                  key={activity.id || `${activity.title}-${activity.date}`}
                   imageUrl={activity.imageUrl}
                   title={activity.title}
                   location={activity.location}
@@ -438,13 +454,14 @@ export function SearchTab({
                   recruitmentEndDate={activity.recruitmentEndDate}
                   date={activity.date}
                   time={activity.time}
+                  isPastActivity={!activity.isRecruiting}
                   showBookmark={true}
                   isSaved={isActivitySaved(activity)}
                   onBookmarkClick={() => onToggleSavedActivity(activity)}
                   onClick={() => handleActivityClick(activity)}
                 />
               ))}
-              {displayedActivities.length === 0 && (
+              {!isLoadingResults && !searchError && displayedActivities.length === 0 && (
                 <div className="rounded-3xl bg-white border border-black/5 px-5 py-8 text-center shadow-sm">
                   <p className="text-[15px] font-medium text-[#2a2a2a]">조건에 맞는 활동이 아직 없어요</p>
                   <p className="mt-1.5 text-[13px] text-[#999]">여행지나 일정을 조금 넓혀 다시 찾아보세요</p>

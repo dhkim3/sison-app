@@ -27,6 +27,8 @@ export interface ActivitySaveRecord {
   recruitingOrganization?: string;
   registrationOrganization?: string;
   volunteerPlace?: string;
+  sourceUrl?: string;
+  progrmRegistNo?: string;
 }
 
 export type ActivitySaveLookup = Pick<ActivitySaveRecord, 'title'> & {
