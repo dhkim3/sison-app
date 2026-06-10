@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Search, Calendar, Users, MapPin } from 'lucide-react';
+import { Search, Calendar, Users, MapPin, X } from 'lucide-react';
 import { SearchHistory } from './SearchHistory';
 import { DestinationCard } from './DestinationCard';
 
@@ -12,6 +12,7 @@ interface DefaultSearchStateProps {
   peopleCount: number;
   onDestinationChange: (value: string) => void;
   onDateConfirm?: (start: Date, end: Date) => void;
+  onDateClear?: () => void;
   onPeopleConfirm?: (count: number) => void;
 }
 
@@ -23,6 +24,7 @@ export function DefaultSearchState({
   dateRange,
   peopleCount,
   onDestinationChange,
+  onDateClear,
 }: DefaultSearchStateProps) {
   const [isDiscoveryOpen, setIsDiscoveryOpen] = useState(false);
   const destinationInputRef = useRef<HTMLInputElement>(null);
@@ -179,19 +181,39 @@ export function DefaultSearchState({
         <div
           className="flex gap-3 mb-4"
         >
-          <button
-            type="button"
+          <div
+            role="button"
+            tabIndex={0}
             onMouseDown={(event) => {
               if (isDiscoveryOpen) {
                 event.preventDefault();
               }
             }}
             onClick={() => transitionToSelection(onDateClick)}
-            className="flex-1 flex items-center gap-2 px-4 py-3 bg-[#f8f8f5] rounded-2xl hover:bg-[#f0f0eb] transition-colors"
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                transitionToSelection(onDateClick);
+              }
+            }}
+            className="flex h-12 flex-1 cursor-pointer items-center gap-2 rounded-2xl bg-[#f8f8f5] px-4 transition-colors hover:bg-[#f0f0eb]"
           >
             <Calendar className="w-4 h-4 text-[#5a5a5a]" strokeWidth={2} />
-            <span className="text-sm text-[#5a5a5a]">{dateRange || '여행 일정'}</span>
-          </button>
+            <span className="min-w-0 flex-1 truncate text-sm text-[#5a5a5a]">{dateRange || '여행 일정'}</span>
+            {dateRange && onDateClear && (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onDateClear();
+                }}
+                aria-label="여행 일정 초기화"
+                className="-mr-2 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/80 text-[#aaa] transition-colors hover:bg-white hover:text-[#777] active:scale-95"
+              >
+                <X className="h-3.5 w-3.5" strokeWidth={2} />
+              </button>
+            )}
+          </div>
           <button
             type="button"
             onMouseDown={(event) => {
@@ -200,7 +222,7 @@ export function DefaultSearchState({
               }
             }}
             onClick={() => transitionToSelection(onPeopleClick)}
-            className="flex-1 flex items-center gap-2 px-4 py-3 bg-[#f8f8f5] rounded-2xl hover:bg-[#f0f0eb] transition-colors"
+            className="flex h-12 flex-1 items-center gap-2 rounded-2xl bg-[#f8f8f5] px-4 transition-colors hover:bg-[#f0f0eb]"
           >
             <Users className="w-4 h-4 text-[#5a5a5a]" strokeWidth={2} />
             <span className="text-sm text-[#5a5a5a]">{peopleCount > 0 ? `${peopleCount}명` : '인원'}</span>

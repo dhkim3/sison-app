@@ -17,7 +17,7 @@ interface CompactActivityCardProps {
   isSaved?: boolean;
   onBookmarkClick?: () => void;
   onClick?: () => void;
-  variant?: 'default' | 'aiRecommendation';
+  variant?: 'default' | 'home' | 'searchResult' | 'aiRecommendation';
 }
 
 export function CompactActivityCard({
@@ -40,6 +40,16 @@ export function CompactActivityCard({
     ? '지난 활동'
     : getRecruitmentDeadlineLabel(recruitmentEndDate);
   const isAIRecommendation = variant === 'aiRecommendation';
+  const isHome = variant === 'home';
+  const isSearchResult = variant === 'searchResult';
+  const cardHeight = isSearchResult ? '126px' : isAIRecommendation ? '122px' : '118px';
+  const imageWidth = isSearchResult ? '37%' : '38%';
+  const contentClassName = isSearchResult
+    ? 'flex-1 px-3.5 py-2.5 flex flex-col justify-center text-left min-w-0'
+    : isHome
+      ? 'flex-1 px-3.5 py-2.5 flex flex-col justify-center text-left min-w-0'
+      : 'flex-1 px-3.5 py-3 flex flex-col justify-center text-left min-w-0';
+  const metadataClassName = isSearchResult || isHome ? 'mt-2 space-y-1' : 'mt-2.5 space-y-1.5';
 
   return (
     <div
@@ -58,15 +68,15 @@ export function CompactActivityCard({
           ? 'rounded-[1.35rem] border border-[#e1e6f7] shadow-[0_12px_26px_rgba(80,96,145,0.08)] hover:shadow-[0_14px_30px_rgba(80,96,145,0.11)] hover:border-[#d8def3]'
           : 'rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.04)] border border-black/5 hover:shadow-[0_2px_6px_rgba(0,0,0,0.08)] hover:border-transparent'
       }`}
-      style={{ height: isAIRecommendation ? '122px' : '118px' }}
+      style={isHome ? { minHeight: cardHeight } : { height: cardHeight }}
     >
-      <div className="flex h-full">
+      <div className={`flex ${isHome ? 'min-h-[118px]' : 'h-full'}`}>
         {/* Image - Left Side */}
-        <div className="relative flex-shrink-0 bg-[#f5f5f5]" style={{ width: '38%' }}>
+        <div className="relative flex-shrink-0 bg-[#f5f5f5]" style={{ width: imageWidth }}>
           <img
             src={imageUrl}
             alt={title}
-            className="w-full h-full object-cover"
+            className="absolute inset-0 w-full h-full object-cover"
           />
           {isPastActivity && (
             <div
@@ -93,7 +103,7 @@ export function CompactActivityCard({
         </div>
 
         {/* Content - Right Side */}
-        <div className="flex-1 px-3.5 py-3 flex flex-col justify-center text-left min-w-0">
+        <div className={contentClassName}>
           <div>
             {/* Title */}
             <h4 className="text-[15px] text-[#2a2a2a] font-medium line-clamp-2 leading-[1.3]">
@@ -102,7 +112,7 @@ export function CompactActivityCard({
           </div>
 
           {/* Metadata */}
-          <div className="mt-2.5 space-y-1.5">
+          <div className={metadataClassName}>
             {dateTime && (
               <div
                 style={{

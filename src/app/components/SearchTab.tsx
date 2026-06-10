@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { DefaultSearchState } from './DefaultSearchState';
 import { CalendarBottomSheet } from './CalendarBottomSheet';
@@ -12,7 +12,7 @@ import { EnhancedDetailBottomSheet } from './EnhancedDetailBottomSheet';
 import { BottomTabBar } from './BottomTabBar';
 import { PageShell } from './PageShell';
 import type { ActivitySaveLookup, ActivitySaveRecord } from '../activitySaveState';
-import type { SearchState } from '../searchState';
+import { createSearchKey, type SearchCondition, type SearchState } from '../searchState';
 
 const activityCategoryFilters = [
   '생활편의',
@@ -44,7 +44,7 @@ interface SearchTabProps {
   searchState: SearchState;
   entrySource?: 'tab' | 'home-search';
   onHomeSearchBack?: () => void;
-  onSearchStateChange: (state: SearchState) => void;
+  onSearchStateChange: Dispatch<SetStateAction<SearchState>>;
   isActivitySaved: (activity: ActivitySaveLookup) => boolean;
   onToggleSavedActivity: (activity: ActivitySaveRecord) => void;
 }
@@ -61,10 +61,12 @@ interface VolunteerActivity {
   time: string;
   category: string;
   organization: string;
-  capacity: number | null;
-  currentParticipants: number | null;
+  capacity: string | number | null;
+  currentParticipants: string | number | null;
+  volunteerTarget?: string | null;
   status: '모집중' | '지난 활동';
   imageUrl: string;
+  applyUrl?: string;
   sourceUrl?: string;
   progrmRegistNo: string;
 }
@@ -101,9 +103,12 @@ export function SearchTab({
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
-  const [activities, setActivities] = useState<ActivitySaveRecord[]>([]);
-  const [isLoadingResults, setIsLoadingResults] = useState(false);
-  const [searchError, setSearchError] = useState('');
+  const searchApiState = searchState.api;
+  const searchApiStateRef = useRef(searchApiState);
+
+  useEffect(() => {
+    searchApiStateRef.current = searchApiState;
+  }, [searchApiState]);
 
   const formatDateRange = () => {
     if (!startDate || !endDate) return '';
@@ -129,7 +134,19 @@ export function SearchTab({
     ].join('');
   };
 
-  const formatCapacityLabel = (value: number | null) => (value === null ? '확인 필요' : `${value}명`);
+  const formatCapacityLabel = (value: string | number | null) => {
+    if (value === null || value === undefined) return '확인 필요';
+    if (typeof value === 'number') return `${value.toLocaleString('ko-KR')}명`;
+
+    const trimmedValue = value.trim();
+    if (!trimmedValue) return '확인 필요';
+    if (/[명人]$/.test(trimmedValue)) return trimmedValue;
+
+    const normalizedNumber = Number(trimmedValue.replace(/,/g, ''));
+    return Number.isFinite(normalizedNumber)
+      ? `${normalizedNumber.toLocaleString('ko-KR')}명`
+      : trimmedValue;
+  };
 
   const mapApiActivityToCardActivity = (activity: VolunteerActivity): ActivitySaveRecord => ({
     id: activity.id || activity.progrmRegistNo,
@@ -156,18 +173,58 @@ export function SearchTab({
         : activity.activityStartDate,
     volunteerTime: activity.time || '시간 확인 필요',
     volunteerField: activity.category || '봉사분야 확인 필요',
-    volunteerTarget: '1365 상세 페이지에서 확인해주세요.',
+    volunteerTarget: activity.volunteerTarget || '1365 상세 페이지에서 확인해주세요.',
     recruitingOrganization: activity.organization || '모집기관 확인 필요',
     volunteerPlace: activity.location || activity.region || '장소 확인 필요',
+    applyUrl: activity.applyUrl || activity.sourceUrl,
     sourceUrl: activity.sourceUrl,
     progrmRegistNo: activity.progrmRegistNo,
   });
 
-  const fetchVolunteerActivities = async (keyword: string, nextStartDate: Date | null, nextEndDate: Date | null) => {
+  const buildSearchCondition = (
+    nextDestination: string,
+    nextStartDate: Date | null,
+    nextEndDate: Date | null,
+    nextPeopleCount: number,
+  ): SearchCondition => ({
+    destination: nextDestination,
+    startDate: nextStartDate,
+    endDate: nextEndDate,
+    peopleCount: nextPeopleCount,
+    page: 1,
+  });
+
+  const updateSearchShellState = (nextState: Omit<SearchState, 'api'>) => {
+    onSearchStateChange((currentState) => ({
+      ...currentState,
+      ...nextState,
+      api: currentState.api,
+    }));
+  };
+
+  const SEARCH_PAGE_SIZE = 15;
+
+  const fetchVolunteerActivities = async (
+    keyword: string,
+    nextStartDate: Date | null,
+    nextEndDate: Date | null,
+    nextPeopleCount: number,
+  ) => {
+    const searchCondition = buildSearchCondition(keyword, nextStartDate, nextEndDate, nextPeopleCount);
+    const searchKey = createSearchKey(searchCondition);
+    const currentApiState = searchApiStateRef.current;
+
+    if (
+      (currentApiState.hasSearched && currentApiState.lastSearchKey === searchKey) ||
+      (currentApiState.isLoading && currentApiState.pendingSearchKey === searchKey)
+    ) {
+      return;
+    }
+
     const params = new URLSearchParams({
       keyword: keyword.trim(),
       page: '1',
-      size: '10',
+      size: String(SEARCH_PAGE_SIZE),
     });
     const apiStartDate = formatApiDate(nextStartDate);
     const apiEndDate = formatApiDate(nextEndDate);
@@ -175,8 +232,27 @@ export function SearchTab({
     if (apiStartDate) params.set('startDate', apiStartDate);
     if (apiEndDate) params.set('endDate', apiEndDate);
 
-    setIsLoadingResults(true);
-    setSearchError('');
+    searchApiStateRef.current = {
+      ...currentApiState,
+      pendingSearchKey: searchKey,
+      failedSearchKey: null,
+      isLoading: true,
+      isLoadingMore: false,
+      currentPage: 1,
+      error: null,
+    };
+    onSearchStateChange((currentState) => ({
+      ...currentState,
+      api: {
+        ...currentState.api,
+        pendingSearchKey: searchKey,
+        failedSearchKey: null,
+        isLoading: true,
+        isLoadingMore: false,
+        currentPage: 1,
+        error: null,
+      },
+    }));
 
     const requestUrl = `/api/volunteer/search?${params.toString()}`;
 
@@ -210,24 +286,131 @@ export function SearchTab({
         ? payload.items.map(mapApiActivityToCardActivity)
         : [];
 
-      setActivities(nextActivities);
+      if (searchApiStateRef.current.pendingSearchKey !== searchKey) return;
+
+      const nextApiState = {
+        ...searchApiStateRef.current,
+        lastSearchKey: searchKey,
+        pendingSearchKey: null,
+        failedSearchKey: null,
+        lastSuccessfulSearchCondition: searchCondition,
+        results: nextActivities,
+        totalCount: payload.totalCount ?? nextActivities.length,
+        currentPage: 1,
+        hasSearched: true,
+        isLoading: false,
+        error: null,
+      };
+      searchApiStateRef.current = nextApiState;
+      onSearchStateChange((currentState) => ({
+        ...currentState,
+        api: nextApiState,
+      }));
     } catch (error) {
       console.error('Volunteer search failed:', {
         requestUrl,
         status: 'request-error',
         errorMessage: error instanceof Error ? error.message : String(error),
       });
-      setActivities([]);
-      setSearchError('검색 결과를 불러오지 못했어요. 잠시 후 다시 시도해주세요.');
-    } finally {
-      setIsLoadingResults(false);
+      if (searchApiStateRef.current.pendingSearchKey !== searchKey) return;
+
+      const nextApiState = {
+        ...searchApiStateRef.current,
+        pendingSearchKey: null,
+        failedSearchKey: searchKey,
+        isLoading: false,
+        error: '검색 결과를 불러오지 못했어요. 잠시 후 다시 시도해주세요.',
+      };
+      searchApiStateRef.current = nextApiState;
+      onSearchStateChange((currentState) => ({
+        ...currentState,
+        api: nextApiState,
+      }));
+    }
+  };
+
+  const loadMoreActivities = async () => {
+    const currentApiState = searchApiStateRef.current;
+    if (currentApiState.isLoadingMore || currentApiState.isLoading) return;
+
+    const nextPage = currentApiState.currentPage + 1;
+    const params = new URLSearchParams({
+      keyword: destination.trim(),
+      page: String(nextPage),
+      size: String(SEARCH_PAGE_SIZE),
+    });
+    const apiStartDate = formatApiDate(startDate);
+    const apiEndDate = formatApiDate(endDate);
+
+    if (apiStartDate) params.set('startDate', apiStartDate);
+    if (apiEndDate) params.set('endDate', apiEndDate);
+
+    searchApiStateRef.current = { ...currentApiState, isLoadingMore: true };
+    onSearchStateChange((currentState) => ({
+      ...currentState,
+      api: { ...currentState.api, isLoadingMore: true },
+    }));
+
+    const requestUrl = `/api/volunteer/search?${params.toString()}`;
+
+    try {
+      const response = await fetch(requestUrl);
+      const responseText = await response.text();
+      let payload: VolunteerSearchResponse | null = null;
+
+      try {
+        payload = JSON.parse(responseText) as VolunteerSearchResponse;
+      } catch {
+        throw new Error('검색 API가 JSON이 아닌 응답을 반환했어요.');
+      }
+
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || '1365 검색 요청에 실패했어요.');
+      }
+
+      const moreActivities = Array.isArray(payload.items)
+        ? payload.items.map(mapApiActivityToCardActivity)
+        : [];
+
+      onSearchStateChange((currentState) => ({
+        ...currentState,
+        api: {
+          ...currentState.api,
+          results: [...currentState.api.results, ...moreActivities],
+          totalCount: payload!.totalCount ?? currentState.api.totalCount,
+          currentPage: nextPage,
+          isLoadingMore: false,
+        },
+      }));
+      searchApiStateRef.current = {
+        ...searchApiStateRef.current,
+        results: [...searchApiStateRef.current.results, ...moreActivities],
+        totalCount: payload.totalCount ?? searchApiStateRef.current.totalCount,
+        currentPage: nextPage,
+        isLoadingMore: false,
+      };
+    } catch (error) {
+      console.error('Volunteer load more failed:', {
+        requestUrl,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      onSearchStateChange((currentState) => ({
+        ...currentState,
+        api: { ...currentState.api, isLoadingMore: false },
+      }));
+      searchApiStateRef.current = { ...searchApiStateRef.current, isLoadingMore: false };
     }
   };
 
   useEffect(() => {
     if (!searchState.hasSearched) return;
 
-    void fetchVolunteerActivities(searchState.destination, searchState.startDate, searchState.endDate);
+    void fetchVolunteerActivities(
+      searchState.destination,
+      searchState.startDate,
+      searchState.endDate,
+      searchState.peopleCount,
+    );
   }, []);
 
   const handleSearch = (dest: string, dates: string, people: number) => {
@@ -236,7 +419,7 @@ export function SearchTab({
     setPeopleCount(people);
     setSummaryPeople(people > 0 ? `${people}명` : '');
     setHasSearched(true);
-    onSearchStateChange({
+    updateSearchShellState({
       destination: dest,
       startDate,
       endDate,
@@ -244,7 +427,7 @@ export function SearchTab({
       peopleCount: people,
       hasSearched: true,
     });
-    void fetchVolunteerActivities(dest, startDate, endDate);
+    void fetchVolunteerActivities(dest, startDate, endDate, people);
   };
 
   const handleBackToExploration = () => {
@@ -254,7 +437,7 @@ export function SearchTab({
     }
 
     setHasSearched(false);
-    onSearchStateChange({
+    updateSearchShellState({
       destination,
       startDate,
       endDate,
@@ -269,7 +452,7 @@ export function SearchTab({
     setEndDate(end);
     const nextDateRange = formatDateRangeFullForDates(start, end);
     setSummaryDateRange(nextDateRange);
-    onSearchStateChange({
+    updateSearchShellState({
       destination,
       startDate: start,
       endDate: end,
@@ -279,10 +462,24 @@ export function SearchTab({
     });
   };
 
+  const handleDateClear = () => {
+    setStartDate(null);
+    setEndDate(null);
+    setSummaryDateRange('');
+    updateSearchShellState({
+      destination,
+      startDate: null,
+      endDate: null,
+      dateRangeLabel: '',
+      peopleCount,
+      hasSearched,
+    });
+  };
+
   const handlePeopleConfirm = (count: number) => {
     setPeopleCount(count);
     setSummaryPeople(count > 0 ? `${count}명` : '');
-    onSearchStateChange({
+    updateSearchShellState({
       destination,
       startDate,
       endDate,
@@ -307,7 +504,7 @@ export function SearchTab({
     setEndDate(values.endDate);
     setIsSearchEditOpen(false);
     setHasSearched(true);
-    onSearchStateChange({
+    updateSearchShellState({
       destination: values.destination,
       startDate: values.startDate,
       endDate: values.endDate,
@@ -315,7 +512,7 @@ export function SearchTab({
       peopleCount: values.peopleCount,
       hasSearched: true,
     });
-    void fetchVolunteerActivities(values.destination, values.startDate, values.endDate);
+    void fetchVolunteerActivities(values.destination, values.startDate, values.endDate, values.peopleCount);
   };
 
   const handleActivityClick = (activity: any) => {
@@ -323,30 +520,31 @@ export function SearchTab({
     setIsDetailOpen(true);
   };
 
-  const parseActivityDate = (value: string) => {
-    const [year, month, day] = value.split('.').map(Number);
-    if (!year || !month || !day) return null;
-
-    return new Date(year, month - 1, day);
-  };
-
   const normalizedDestination = destination.trim().toLowerCase();
+  const currentSearchKey = createSearchKey(buildSearchCondition(destination, startDate, endDate, peopleCount));
+  const hasCachedResultsForCurrentSearch =
+    searchApiState.hasSearched && searchApiState.lastSearchKey === currentSearchKey;
+  const activities = hasCachedResultsForCurrentSearch ? searchApiState.results : [];
+  const isLoadingResults =
+    searchApiState.isLoading && searchApiState.pendingSearchKey === currentSearchKey;
+  const searchError =
+    !isLoadingResults && searchApiState.failedSearchKey === currentSearchKey
+      ? searchApiState.error || ''
+      : '';
   const displayedActivities = activities.filter((activity) => {
     const searchableText = `${activity.title} ${activity.location}`.toLowerCase();
     const matchesDestination = normalizedDestination ? searchableText.includes(normalizedDestination) : true;
-    const activityDate = parseActivityDate(activity.date || '');
-    const matchesDate =
-      startDate && endDate && activityDate
-        ? activityDate >= startDate && activityDate <= endDate
-        : true;
     const capacity = Number.parseInt(activity.capacity, 10) || 0;
     const matchesPeople = peopleCount > 0 && capacity > 0 ? capacity >= peopleCount : true;
     const activityCategory = activity.category || '';
     const normalizedCategory = categoryLabelMap[activityCategory] || activityCategory;
     const matchesCategory = selectedFilters.length === 0 || selectedFilters.includes(normalizedCategory);
 
-    return matchesDestination && matchesDate && matchesPeople && matchesCategory;
+    return matchesDestination && matchesPeople && matchesCategory;
   });
+
+  const hasMoreResults = hasCachedResultsForCurrentSearch &&
+    searchApiState.totalCount > searchApiState.results.length;
 
   const currentSummaryDateRange = summaryDateRange || formatDateRangeFull();
   const currentPeopleCount = summaryPeople ? Number.parseInt(summaryPeople, 10) || peopleCount : peopleCount;
@@ -400,6 +598,7 @@ export function SearchTab({
               peopleCount={peopleCount}
               onDestinationChange={setDestination}
               onDateConfirm={handleDateConfirm}
+              onDateClear={handleDateClear}
               onPeopleConfirm={handlePeopleConfirm}
             />
           </div>
@@ -423,7 +622,7 @@ export function SearchTab({
                     '1365에서 활동을 찾고 있어요'
                   ) : (
                     <>
-                      총 <span className="text-[#2a2a2a] font-semibold">{displayedActivities.length}개</span>의 활동을 찾았어요
+                      총 <span className="text-[#2a2a2a] font-semibold">{searchApiState.totalCount}개</span>의 활동을 찾았어요
                     </>
                   )}
                 </p>
@@ -447,6 +646,7 @@ export function SearchTab({
               {!isLoadingResults && !searchError && displayedActivities.map((activity) => (
                 <CompactActivityCard
                   key={activity.id || `${activity.title}-${activity.date}`}
+                  variant="searchResult"
                   imageUrl={activity.imageUrl}
                   title={activity.title}
                   location={activity.location}
@@ -467,6 +667,21 @@ export function SearchTab({
                   <p className="mt-1.5 text-[13px] text-[#999]">여행지나 일정을 조금 넓혀 다시 찾아보세요</p>
                 </div>
               )}
+
+              {/* 더보기 */}
+              {!isLoadingResults && !searchError && hasMoreResults && (
+                <div className="pt-2 pb-2 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => void loadMoreActivities()}
+                    disabled={searchApiState.isLoadingMore}
+                    className="px-6 py-2.5 rounded-full border border-black/10 bg-white text-[13px] text-[#555] font-medium disabled:opacity-50 transition-opacity active:bg-black/5"
+                  >
+                    {searchApiState.isLoadingMore ? '불러오는 중…' : '더보기'}
+                  </button>
+                </div>
+              )}
+
             </div>
           </>
         )}

@@ -22,6 +22,7 @@ const defaultActivity: ActivitySaveRecord = {
   materials: '',
   capacity: '12명',
   currentParticipants: '4명',
+  volunteerTarget: '성인',
   recommendation: '',
   isRecruiting: true,
 };

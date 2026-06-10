@@ -313,6 +313,14 @@ export function HomeAIRecommendationFlow({
     }, 420);
   };
 
+  const clearSelectedDateRange = () => {
+    clearCalendarAdvanceTimer();
+    setSelectedStartDate(null);
+    setSelectedEndDate(null);
+    setDateLabel('');
+    setDateValue('');
+  };
+
   const days = useMemo(() => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
@@ -628,13 +636,26 @@ export function HomeAIRecommendationFlow({
                     }`}
                   >
                     <Calendar className="h-3.5 w-3.5 text-[#7d8dff]" strokeWidth={2} />
-                    <span>
+                    <span className="min-w-0 flex-1">
                       {selectedStartDate
                         ? selectedEndDate
                           ? `${formatDateRangeLabel(selectedStartDate, selectedEndDate)}로 정했어요`
                           : `${formatDateLabel(selectedStartDate)}부터 언제까지 가능할까요?`
                         : '가능한 시작일을 먼저 골라주세요'}
                     </span>
+                    {selectedStartDate && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          clearSelectedDateRange();
+                        }}
+                        aria-label="여행 일정 초기화"
+                        className="-mr-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/80 text-[#9aa2b7] transition-colors hover:bg-white hover:text-[#68738f] active:scale-95"
+                      >
+                        <X className="h-3.5 w-3.5" strokeWidth={2} />
+                      </button>
+                    )}
                   </div>
                 </div>
               </section>

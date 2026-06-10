@@ -11,14 +11,107 @@ import { PageShell } from './PageShell';
 import { NotificationSheet } from './NotificationSheet';
 import { HomeAIRecommendationFlow } from './HomeAIRecommendationFlow';
 import type { ActivitySaveLookup, ActivitySaveRecord } from '../activitySaveState';
-import type { SearchState } from '../searchState';
+import type { SearchFormState } from '../searchState';
 
 interface HomeProps {
   onNavigate: (screen: string, options?: { activity?: ActivitySaveRecord; returnScreen?: 'home' | 'search' | 'saved' }) => void;
-  onSearchSubmit: (values: Omit<SearchState, 'hasSearched'>) => void;
+  onSearchSubmit: (values: SearchFormState) => void;
   isActivitySaved: (activity: ActivitySaveLookup) => boolean;
   onToggleSavedActivity: (activity: ActivitySaveRecord) => void;
 }
+
+type RecentActivity = ActivitySaveRecord & {
+  recentLabel?: string;
+  recentSortDate?: string;
+};
+
+interface VolunteerApiActivity {
+  id: string;
+  title: string;
+  location: string;
+  region: string;
+  recruitmentStartDate: string;
+  recruitmentEndDate: string;
+  activityStartDate: string;
+  activityEndDate: string;
+  time: string;
+  category: string;
+  organization: string;
+  capacity: string | number | null;
+  currentParticipants: string | number | null;
+  volunteerTarget?: string | null;
+  volunteerType?: string | null;
+  status: '모집중' | '지난 활동';
+  imageUrl: string;
+  applyUrl?: string;
+  sourceUrl?: string;
+  recentSortBasis?: 'registration' | 'recruitmentStart' | 'responseOrder';
+  recentSortDate?: string;
+  progrmRegistNo: string;
+}
+
+interface VolunteerApiResponse {
+  ok: boolean;
+  items: VolunteerApiActivity[];
+  error?: string;
+}
+
+const formatParticipantLabel = (value: string | number | null) => {
+  if (value === null || value === undefined) return '확인 필요';
+  if (typeof value === 'number') return `${value.toLocaleString('ko-KR')}명`;
+
+  const trimmedValue = value.trim();
+  if (!trimmedValue) return '확인 필요';
+  if (/[명人]$/.test(trimmedValue)) return trimmedValue;
+
+  const normalizedNumber = Number(trimmedValue.replace(/,/g, ''));
+  return Number.isFinite(normalizedNumber)
+    ? `${normalizedNumber.toLocaleString('ko-KR')}명`
+    : trimmedValue;
+};
+
+const getRecruitingLabel = (activity: VolunteerApiActivity) =>
+  activity.category || '기타';
+
+const isRecruitingSection = (sectionTitle: string) => sectionTitle === '모집중인 활동';
+const isHiddenSection = (sectionTitle: string) => sectionTitle === '숨은 활동';
+
+
+const mapVolunteerApiActivityToRecentActivity = (activity: VolunteerApiActivity): RecentActivity => ({
+  id: activity.id || activity.progrmRegistNo,
+  imageUrl: activity.imageUrl,
+  title: activity.title || '제목 확인 필요',
+  location: activity.location || activity.region || '장소 확인 필요',
+  recruitmentStartDate: activity.recruitmentStartDate,
+  recruitmentEndDate: activity.recruitmentEndDate,
+  date: activity.activityStartDate,
+  time: activity.time || '시간 확인 필요',
+  status: activity.status,
+  isRecruiting: activity.status === '모집중',
+  description: activity.organization
+    ? `${activity.organization}에서 모집하는 1365 봉사활동입니다.`
+    : '1365에서 제공한 봉사활동입니다.',
+  materials: '1365 상세 페이지에서 확인해주세요.',
+  capacity: formatParticipantLabel(activity.capacity),
+  currentParticipants: formatParticipantLabel(activity.currentParticipants),
+  volunteerTarget: activity.volunteerTarget || undefined,
+  volunteerType: activity.volunteerType || undefined,
+  recommendation: '현재 모집중인 1365 활동 중 여행 흐름에 맞는지 살펴보세요.',
+  category: activity.category,
+  volunteerPeriod:
+    activity.activityStartDate && activity.activityEndDate
+      ? `${activity.activityStartDate} - ${activity.activityEndDate}`
+      : activity.activityStartDate,
+  volunteerTime: activity.time || '시간 확인 필요',
+  volunteerField: activity.category || '봉사분야 확인 필요',
+  recruitingOrganization: activity.organization || '모집기관 확인 필요',
+  volunteerPlace: activity.location || activity.region || '장소 확인 필요',
+  applyUrl: activity.applyUrl || activity.sourceUrl,
+  sourceUrl: activity.sourceUrl,
+  progrmRegistNo: activity.progrmRegistNo,
+  recentLabel: getRecruitingLabel(activity),
+  recentSortDate: activity.recentSortDate,
+});
 
 const heroImages = [
   {
@@ -87,8 +180,8 @@ function HiddenPlaceActivityCard({
         />
       </button>
 
-      <div className="absolute inset-y-0 left-0 flex w-[78%] flex-col justify-center px-4 py-4 text-white">
-        <h4 className="max-w-[230px] text-[18px] font-semibold leading-snug text-white drop-shadow-sm">
+      <div className="absolute inset-y-0 left-0 flex w-full flex-col justify-center pl-4 pr-[56px] py-4 text-white">
+        <h4 className="line-clamp-2 text-[15px] font-medium leading-[1.3] text-white drop-shadow-sm">
           {activity.title}
         </h4>
         <div className="mt-2 space-y-1.5">
@@ -116,7 +209,7 @@ function HiddenPlaceActivityCard({
 }
 
 interface RecentTimelineActivityCardProps {
-  activity: ActivitySaveRecord;
+  activity: RecentActivity;
   isSaved: boolean;
   index: number;
   isLast: boolean;
@@ -132,10 +225,9 @@ function RecentTimelineActivityCard({
   onBookmarkClick,
   onClick,
 }: RecentTimelineActivityCardProps) {
-  const registeredLabels = ['방금 등록', '2시간 전 등록', '5시간 전 등록'];
   const dotColors = ['bg-[#6fa985]', 'bg-[#5f9fc9]', 'bg-[#8270bd]'];
   const registeredTextColors = ['text-[#6fa985]', 'text-[#5f9fc9]', 'text-[#8270bd]'];
-  const registeredLabel = registeredLabels[index] || '오늘 등록';
+  const registeredLabel = activity.recentLabel || '새로 열린 일정';
   const registeredTextColor = registeredTextColors[index % registeredTextColors.length];
   const dateTime = [formatActivityDate(activity.date), activity.time].filter(Boolean).join(' · ');
   const recruitmentMetadata = getRecruitmentDeadlineLabel(activity.recruitmentEndDate);
@@ -157,9 +249,9 @@ function RecentTimelineActivityCard({
             onClick();
           }
         }}
-        className="w-full cursor-pointer rounded-2xl border border-black/[0.04] bg-white px-4 py-3 shadow-[0_2px_12px_rgba(39,45,40,0.035)] transition-all active:scale-[0.985]"
+        className="w-full cursor-pointer rounded-2xl border border-black/[0.04] bg-white px-4 pb-3 pt-2.5 shadow-[0_2px_12px_rgba(39,45,40,0.035)] transition-all active:scale-[0.985]"
       >
-        <div className="mb-2.5 flex items-center justify-between gap-3">
+        <div className="mb-1.5 flex items-center justify-between gap-3">
           <span className={`text-[12px] font-medium leading-none ${registeredTextColor}`}>
             {registeredLabel}
           </span>
@@ -181,7 +273,7 @@ function RecentTimelineActivityCard({
 
         <div className="grid grid-cols-[minmax(0,1fr)_82px] gap-3">
           <div className="min-w-0">
-            <h4 className="line-clamp-2 text-[16px] font-semibold leading-snug text-[#2a2a2a]">
+            <h4 className="line-clamp-2 text-[15px] font-medium leading-[1.3] text-[#2a2a2a]">
               {activity.title}
             </h4>
 
@@ -232,6 +324,12 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isAIRecommendationFlowOpen, setIsAIRecommendationFlowOpen] = useState(false);
   const [activeHeroIndex, setActiveHeroIndex] = useState(0);
+  const [apiLightweightActivities, setApiLightweightActivities] = useState<RecentActivity[]>([]);
+  const [isLightweightActivitiesLoading, setIsLightweightActivitiesLoading] = useState(true);
+  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
+  const [isRecentActivitiesLoading, setIsRecentActivitiesLoading] = useState(true);
+  const [hiddenActivities, setHiddenActivities] = useState<RecentActivity[]>([]);
+  const [isHiddenActivitiesLoading, setIsHiddenActivitiesLoading] = useState(true);
 
   useEffect(() => {
     heroImages.forEach((image) => {
@@ -246,6 +344,135 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
     }, 7000);
 
     return () => window.clearInterval(heroTimer);
+  }, []);
+
+  useEffect(() => {
+    const abortController = new AbortController();
+    const params = new URLSearchParams({
+      keyword: '',
+      page: '1',
+      size: '30',
+      sort: 'lightweight',
+    });
+
+    const fetchLightweightActivities = async () => {
+      setIsLightweightActivitiesLoading(true);
+
+      try {
+        const response = await fetch(`/api/volunteer/search?${params.toString()}`, {
+          signal: abortController.signal,
+        });
+        const payload = await response.json() as VolunteerApiResponse;
+
+        if (!response.ok || !payload.ok) {
+          throw new Error(payload.error || '가벼운 활동을 불러오지 못했어요.');
+        }
+
+        const nextActivities = Array.isArray(payload.items)
+          ? payload.items.map(mapVolunteerApiActivityToRecentActivity).slice(0, 3)
+          : [];
+
+        setApiLightweightActivities(nextActivities);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        console.error('Home lightweight activities failed:', error);
+      } finally {
+        if (!abortController.signal.aborted) {
+          setIsLightweightActivitiesLoading(false);
+        }
+      }
+    };
+
+    void fetchLightweightActivities();
+    return () => abortController.abort();
+  }, []);
+
+  useEffect(() => {
+    const abortController = new AbortController();
+    const params = new URLSearchParams({
+      keyword: '',
+      page: '1',
+      size: '30',
+      sort: 'recruiting',
+    });
+
+    const fetchRecentActivities = async () => {
+      setIsRecentActivitiesLoading(true);
+
+      try {
+        const response = await fetch(`/api/volunteer/search?${params.toString()}`, {
+          signal: abortController.signal,
+        });
+        const payload = await response.json() as VolunteerApiResponse;
+
+        if (!response.ok || !payload.ok) {
+          throw new Error(payload.error || '모집중인 활동을 불러오지 못했어요.');
+        }
+
+        const nextActivities = Array.isArray(payload.items)
+          ? payload.items.map(mapVolunteerApiActivityToRecentActivity).slice(0, 3)
+          : [];
+
+        setRecentActivities(nextActivities);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+
+        console.error('Home recruiting volunteer activities failed:', error);
+        setRecentActivities([]);
+      } finally {
+        if (!abortController.signal.aborted) {
+          setIsRecentActivitiesLoading(false);
+        }
+      }
+    };
+
+    void fetchRecentActivities();
+
+    return () => abortController.abort();
+  }, []);
+
+  useEffect(() => {
+    const abortController = new AbortController();
+    const params = new URLSearchParams({
+      keyword: '',
+      page: '1',
+      size: '50',
+      sort: 'hidden',
+    });
+
+    const fetchHiddenActivities = async () => {
+      setIsHiddenActivitiesLoading(true);
+
+      try {
+        const response = await fetch(`/api/volunteer/search?${params.toString()}`, {
+          signal: abortController.signal,
+        });
+        const payload = await response.json() as VolunteerApiResponse;
+
+        if (!response.ok || !payload.ok) {
+          throw new Error(payload.error || '숨은 활동을 불러오지 못했어요.');
+        }
+
+        const nextActivities = Array.isArray(payload.items)
+          ? payload.items.map(mapVolunteerApiActivityToRecentActivity).slice(0, 3)
+          : [];
+
+        setHiddenActivities(nextActivities);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+
+        console.error('Home hidden volunteer activities failed:', error);
+        setHiddenActivities([]);
+      } finally {
+        if (!abortController.signal.aborted) {
+          setIsHiddenActivitiesLoading(false);
+        }
+      }
+    };
+
+    void fetchHiddenActivities();
+
+    return () => abortController.abort();
   }, []);
 
   const formatDateRange = () => {
@@ -273,230 +500,40 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
     setEndDate(end);
   };
 
+  const handleDateClear = () => {
+    setStartDate(null);
+    setEndDate(null);
+  };
+
   const handlePeopleConfirm = (count: number) => {
     setPeopleCount(count);
   };
 
-  const lightweightActivities = [
-    {
-      imageUrl: 'https://images.unsplash.com/photo-1565803974275-dccd2f933cbb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
-      title: '광안리 해변 환경정화',
-      location: '부산 수영구 광안리해수욕장',
-      recruitmentStartDate: '2026.06.01',
-      recruitmentEndDate: '2026.06.08',
-      date: '2026.06.10',
-      time: '09:00 - 11:00',
-      distance: '도보 10분',
-      isRecruiting: true,
-      description: '광안리 바다를 가까이 느끼며 가볍게 참여할 수 있는 활동이에요. 아침 산책을 겸한 해변 정화 활동으로, 광안리 백사장과 주변 산책로를 따라 걸으며 환경 보호에 참여할 수 있습니다.',
-      materials: '장갑, 집게 제공',
-      capacity: '20명',
-      currentParticipants: '15명',
-      recommendation: '여행 일정 안에서 가볍게 참여하기 좋아요.',
-      duration: '2시간',
-      difficulty: '쉬움',
-      indoorOutdoor: '실외',
-    },
-    {
-      imageUrl: 'https://images.unsplash.com/photo-1775116259654-404b3376c02e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
-      title: '수영 공원 산책로 정비',
-      location: '부산 수영구 수영 근린공원',
-      recruitmentStartDate: '2026.06.03',
-      recruitmentEndDate: '2026.06.10',
-      date: '2026.06.12',
-      time: '14:00 - 16:00',
-      distance: '차량 15분',
-      isRecruiting: true,
-      description: '공원 산책로를 따라 걸으며 간단한 정비 활동을 합니다. 벤치 청소, 꽃길 관리 등 가벼운 활동으로 구성되어 있습니다.',
-      materials: '편한 복장',
-      capacity: '15명',
-      currentParticipants: '8명',
-      recommendation: '오후 시간을 활용해 여유롭게 참여할 수 있어요.',
-      duration: '2시간',
-      difficulty: '쉬움',
-      indoorOutdoor: '실외',
-    },
-    {
-      imageUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
-      title: '안목해변 아침 플로깅',
-      location: '강원 강릉시 안목해변',
-      recruitmentStartDate: '2026.06.05',
-      recruitmentEndDate: '2026.06.12',
-      date: '2026.06.14',
-      time: '08:00 - 10:00',
-      distance: '도보 8분',
-      isRecruiting: true,
-      description: '안목해변과 커피거리 주변을 천천히 걸으며 작은 쓰레기를 줍는 아침 활동입니다. 여행의 시작을 조용히 정리하는 기분이 남아요.',
-      materials: '생분해 봉투, 집게 제공',
-      capacity: '18명',
-      currentParticipants: '9명',
-      recommendation: '짧은 일정에도 부담 없이 넣기 좋아요.',
-      duration: '2시간',
-      difficulty: '쉬움',
-      indoorOutdoor: '실외',
-    },
-    {
-      imageUrl: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
-      title: '비자림 숲길 표지 정리',
-      location: '제주 제주시 구좌읍 비자림',
-      recruitmentStartDate: '2026.06.08',
-      recruitmentEndDate: '2026.06.16',
-      date: '2026.06.18',
-      time: '09:30 - 12:00',
-      distance: '차량 35분',
-      isRecruiting: true,
-      description: '비자림 산책로의 낙엽과 작은 가지를 정리하고 안내 표지를 닦는 활동입니다. 숲의 고요함을 오래 바라보는 일정이에요.',
-      materials: '장갑, 편한 신발',
-      capacity: '12명',
-      currentParticipants: '6명',
-      recommendation: '숲을 천천히 걷는 여행자에게 잘 맞아요.',
-      duration: '2시간 30분',
-      difficulty: '보통',
-      indoorOutdoor: '실외',
-    },
-  ];
-
-  const recentActivities = [
-    {
-      imageUrl: 'https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
-      title: '통영 강구안 골목 안내',
-      location: '경남 통영시 강구안',
-      recruitmentStartDate: '2026.06.18',
-      recruitmentEndDate: '2026.06.24',
-      date: '2026.06.27',
-      time: '10:00 - 13:00',
-      distance: '도보 7분',
-      isRecruiting: true,
-      description: '항구 주변 골목을 찾는 여행자에게 길을 안내하고 작은 행사 동선을 돕는 활동입니다.',
-      materials: '안내 리플릿 제공',
-      capacity: '12명',
-      currentParticipants: '5명',
-      recommendation: '통영 산책 일정과 자연스럽게 이어가기 좋아요.',
-      duration: '3시간',
-      difficulty: '쉬움',
-      indoorOutdoor: '실외',
-    },
-    {
-      imageUrl: 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
-      title: '여수 돌산 해안 쓰담 걷기',
-      location: '전남 여수시 돌산읍',
-      recruitmentStartDate: '2026.07.01',
-      recruitmentEndDate: '2026.07.07',
-      date: '2026.07.09',
-      time: '16:00 - 18:00',
-      distance: '차량 20분',
-      isRecruiting: true,
-      description: '돌산 해안 산책길을 따라 걸으며 해변과 방파제 주변을 정리합니다.',
-      materials: '장갑, 집게, 물 제공',
-      capacity: '16명',
-      currentParticipants: '11명',
-      recommendation: '활동 후 해질녘 전망대 코스로 이어가기 좋습니다.',
-      duration: '2시간',
-      difficulty: '쉬움',
-      indoorOutdoor: '실외',
-    },
-    {
-      imageUrl: 'https://images.unsplash.com/photo-1528181304800-259b08848526?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
-      title: '애월 마을 플리마켓 정리',
-      location: '제주 제주시 애월읍',
-      recruitmentStartDate: '2026.07.03',
-      recruitmentEndDate: '2026.07.10',
-      date: '2026.07.12',
-      time: '13:00 - 16:00',
-      distance: '도보 12분',
-      isRecruiting: true,
-      description: '작은 마을 플리마켓에서 부스 정리와 방문객 안내를 돕는 활동입니다.',
-      materials: '활동 명찰 제공',
-      capacity: '10명',
-      currentParticipants: '4명',
-      recommendation: '애월 카페 거리와 함께 둘러보기 좋은 일정이에요.',
-      duration: '3시간',
-      difficulty: '쉬움',
-      indoorOutdoor: '실외',
-    },
-  ];
-
-  const hiddenPlaceActivities = [
-    {
-      imageUrl: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
-      title: '성산 작은 숲길 표지 닦기',
-      location: '제주 서귀포시 성산읍',
-      recruitmentStartDate: '2026.06.20',
-      recruitmentEndDate: '2026.06.26',
-      date: '2026.06.29',
-      time: '09:30 - 11:30',
-      distance: '차량 18분',
-      isRecruiting: true,
-      description: '조용한 숲길 입구의 안내 표지를 닦고 산책로 주변을 정리합니다.',
-      materials: '장갑, 손수건',
-      capacity: '8명',
-      currentParticipants: '3명',
-      recommendation: '사람이 많지 않은 길을 천천히 걷는 여행자에게 잘 맞아요.',
-      duration: '2시간',
-      difficulty: '쉬움',
-      indoorOutdoor: '실외',
-    },
-    {
-      imageUrl: 'https://images.unsplash.com/photo-1468581264429-2548ef9eb732?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
-      title: '해운대 뒷골목 화분 돌보기',
-      location: '부산 해운대구 우동',
-      recruitmentStartDate: '2026.06.22',
-      recruitmentEndDate: '2026.06.28',
-      date: '2026.06.30',
-      time: '15:00 - 17:00',
-      distance: '도보 15분',
-      isRecruiting: true,
-      description: '바닷가에서 조금 떨어진 골목의 작은 화분과 벤치 주변을 정리합니다.',
-      materials: '장갑, 물조리개 제공',
-      capacity: '9명',
-      currentParticipants: '2명',
-      recommendation: '붐비는 해변 너머의 동네 분위기를 발견하기 좋아요.',
-      duration: '2시간',
-      difficulty: '쉬움',
-      indoorOutdoor: '실외',
-    },
-    {
-      imageUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
-      title: '안목 작은 방파제 정리',
-      location: '강원 강릉시 견소동',
-      recruitmentStartDate: '2026.06.25',
-      recruitmentEndDate: '2026.07.01',
-      date: '2026.07.03',
-      time: '08:30 - 10:30',
-      distance: '도보 9분',
-      isRecruiting: true,
-      description: '커피거리 끝자락의 작은 방파제 주변을 천천히 걸으며 정리합니다.',
-      materials: '집게, 생분해 봉투 제공',
-      capacity: '7명',
-      currentParticipants: '2명',
-      recommendation: '아침 바다를 조용히 바라보는 일정과 잘 어울려요.',
-      duration: '2시간',
-      difficulty: '쉬움',
-      indoorOutdoor: '실외',
-    },
-  ];
+  const lightweightSectionActivities: ActivitySaveRecord[] = isLightweightActivitiesLoading
+    ? []
+    : apiLightweightActivities;
 
   const activitySections = [
     {
       title: '가벼운 활동',
       description: '여행 중 산책하듯 참여하기 좋아요',
-      activities: lightweightActivities.slice(0, 3),
+      activities: lightweightSectionActivities,
     },
     {
-      title: '최근 올라온 활동',
-      description: '새롭게 열린 일정을 모았어요',
+      title: '모집중인 활동',
+      description: '지금 신청 가능한 1365 활동이에요',
       activities: recentActivities.slice(0, 3),
     },
     {
       title: '숨은 활동',
       description: '아직 많이 알려지지 않은 활동이에요',
-      activities: hiddenPlaceActivities.slice(0, 3),
+      activities: hiddenActivities.slice(0, 3),
     },
   ];
   const allHomeActivities = [
-    ...lightweightActivities,
+    ...lightweightSectionActivities,
     ...recentActivities,
-    ...hiddenPlaceActivities,
+    ...hiddenActivities,
   ];
 
   return (
@@ -556,6 +593,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
             onPeopleClick={() => setIsPeopleCountOpen(true)}
             onSearch={handleSearch}
             onDestinationChange={setDestination}
+            onDateClear={handleDateClear}
           />
         </section>
 
@@ -565,7 +603,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
             type="button"
             onClick={() => setIsAIRecommendationFlowOpen(true)}
             aria-label="AI 일정 추천받기"
-            className="block w-full cursor-pointer overflow-hidden rounded-3xl border-0 bg-white p-0 shadow-[0_10px_26px_rgba(36,31,78,0.14),0_2px_8px_rgba(36,31,78,0.08)] ring-1 ring-black/[0.035] transition duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a8d5ba] active:scale-[0.985] active:opacity-95"
+            className="relative block w-full cursor-pointer overflow-hidden rounded-3xl border-0 bg-white p-0 shadow-[0_10px_26px_rgba(36,31,78,0.14),0_2px_8px_rgba(36,31,78,0.08)] ring-1 ring-black/[0.035] transition duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a8d5ba] active:scale-[0.985] active:opacity-95"
           >
             <img
               src="/ai_recommend_card_03.png"
@@ -574,6 +612,14 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
               draggable={false}
               className="block h-auto w-full select-none object-contain"
             />
+            <span className="pointer-events-none absolute inset-y-0 left-0 flex w-[60%] flex-col justify-center pl-5 text-left">
+              <span className="text-[21px] font-bold leading-none text-white">
+                AI 활동 추천
+              </span>
+              <span className="mt-1.5 text-[12.5px] font-medium leading-snug text-white/75 whitespace-nowrap">
+                내 일정에 맞는 활동을 추천해드려요
+              </span>
+            </span>
           </button>
         </section>
 
@@ -603,8 +649,35 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
                 <p className="text-[12px] text-[#aaa]">{section.description}</p>
               </div>
               <div className="space-y-2.5">
+                {!isRecruitingSection(section.title) && !isHiddenSection(section.title) && section.activities.length === 0 && (
+                  <div className="rounded-2xl border border-black/[0.04] bg-white px-4 py-5 text-center shadow-[0_2px_12px_rgba(39,45,40,0.035)]">
+                    <p className="text-[13px] font-medium text-[#8f8f8f]">
+                      {isLightweightActivitiesLoading
+                        ? '가벼운 활동을 찾고 있어요'
+                        : '지금 참여 가능한 가벼운 활동이 없어요'}
+                    </p>
+                  </div>
+                )}
+                {isRecruitingSection(section.title) && section.activities.length === 0 && (
+                  <div className="rounded-2xl border border-black/[0.04] bg-white px-4 py-5 text-center shadow-[0_2px_12px_rgba(39,45,40,0.035)]">
+                    <p className="text-[13px] font-medium text-[#8f8f8f]">
+                      {isRecentActivitiesLoading
+                        ? '모집중인 활동을 찾고 있어요'
+                        : '현재 신청 가능한 활동을 찾고 있어요'}
+                    </p>
+                  </div>
+                )}
+                {isHiddenSection(section.title) && section.activities.length === 0 && (
+                  <div className="rounded-[1.75rem] border border-black/[0.04] bg-white px-4 py-5 text-center shadow-[0_8px_24px_rgba(40,45,42,0.06)]">
+                    <p className="text-[13px] font-medium text-[#8f8f8f]">
+                      {isHiddenActivitiesLoading
+                        ? '숨은 활동을 찾고 있어요'
+                        : '아직 조건에 맞는 숨은 활동이 없어요'}
+                    </p>
+                  </div>
+                )}
                 {section.activities.map((activity, activityIndex) => (
-                  section.title === '최근 올라온 활동' ? (
+                  isRecruitingSection(section.title) ? (
                     <RecentTimelineActivityCard
                       key={`${section.title}-${activity.title}`}
                       activity={activity}
@@ -614,7 +687,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
                       onBookmarkClick={() => onToggleSavedActivity(activity)}
                       onClick={() => { setSelectedActivity(activity); setIsDetailOpen(true); }}
                     />
-                  ) : section.title === '숨은 활동' ? (
+                  ) : isHiddenSection(section.title) ? (
                     <HiddenPlaceActivityCard
                       key={`${section.title}-${activity.title}`}
                       activity={activity}
@@ -625,6 +698,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
                   ) : (
                     <CompactActivityCard
                       key={`${section.title}-${activity.title}`}
+                      variant="home"
                       imageUrl={activity.imageUrl}
                       title={activity.title}
                       location={activity.location}

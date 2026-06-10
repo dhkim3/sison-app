@@ -19,7 +19,7 @@ import {
   type StoryComment,
   type StoryInteractionProps,
 } from './storyInteractionState';
-import { initialSearchState, type SearchState } from './searchState';
+import { initialSearchState, type SearchFormState, type SearchState } from './searchState';
 
 type Screen = 'home' | 'search' | 'ai-recommendation' | 'story' | 'saved' | 'profile';
 type SearchEntrySource = 'tab' | 'home-search';
@@ -131,11 +131,12 @@ export default function App() {
     }
   }, [aiRecommendationActivity, aiReturnScreen]);
 
-  const handleHomeSearchSubmit = (values: Omit<SearchState, 'hasSearched'>) => {
-    setSearchState({
+  const handleHomeSearchSubmit = (values: SearchFormState) => {
+    setSearchState((currentSearchState) => ({
+      ...currentSearchState,
       ...values,
       hasSearched: true,
-    });
+    }));
     setSearchEntrySource('home-search');
     setCurrentScreen('search');
   };
@@ -276,15 +277,15 @@ export default function App() {
 
   return (
     <div className="screen-transition">
-      {currentScreen === 'home' && (
+      <div style={{ display: currentScreen === 'home' ? '' : 'none' }}>
         <Home
           onNavigate={handleNavigate}
           onSearchSubmit={handleHomeSearchSubmit}
           isActivitySaved={isActivitySaved}
           onToggleSavedActivity={handleToggleSavedActivity}
         />
-      )}
-      {currentScreen === 'search' && (
+      </div>
+      <div style={{ display: currentScreen === 'search' ? '' : 'none' }}>
         <SearchTab
           onNavigate={handleNavigate}
           searchState={searchState}
@@ -294,7 +295,7 @@ export default function App() {
           isActivitySaved={isActivitySaved}
           onToggleSavedActivity={handleToggleSavedActivity}
         />
-      )}
+      </div>
       {aiRecommendationState !== 'closed' && (
         <AIRecommendation
           activity={aiRecommendationActivity}

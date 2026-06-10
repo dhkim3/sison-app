@@ -24,9 +24,13 @@ export interface ActivitySaveRecord {
   volunteerTime?: string;
   volunteerField?: string;
   volunteerTarget?: string;
+  volunteerType?: string;
   recruitingOrganization?: string;
   registrationOrganization?: string;
   volunteerPlace?: string;
+  latitude?: number;
+  longitude?: number;
+  applyUrl?: string;
   sourceUrl?: string;
   progrmRegistNo?: string;
 }
@@ -60,6 +64,7 @@ export const initialSavedActivities: ActivitySaveRecord[] = [
     materials: '장갑, 집게 제공',
     capacity: '20명',
     currentParticipants: '15명',
+    volunteerTarget: '성인 여행객',
     recommendation: '여행 일정 안에서 가볍게 참여하기 좋아요.',
     duration: '2시간',
     difficulty: '쉬움',
@@ -81,6 +86,7 @@ export const initialSavedActivities: ActivitySaveRecord[] = [
     materials: '편한 복장',
     capacity: '15명',
     currentParticipants: '8명',
+    volunteerTarget: '성인 공원 이용객',
     recommendation: '오후 시간을 활용해 여유롭게 참여할 수 있어요.',
     duration: '2시간',
     difficulty: '쉬움',
@@ -102,6 +108,7 @@ export const initialSavedActivities: ActivitySaveRecord[] = [
     materials: '장갑, 집게 제공',
     capacity: '30명',
     currentParticipants: '22명',
+    volunteerTarget: '성인 여행객',
     recommendation: '인기 관광지에서 진행되는 활동이라 여행 코스에 자연스럽게 포함할 수 있어요.',
     duration: '2시간',
     difficulty: '쉬움',
@@ -123,6 +130,7 @@ export const initialSavedActivities: ActivitySaveRecord[] = [
     materials: '생분해 봉투, 집게 제공',
     capacity: '18명',
     currentParticipants: '18명',
+    volunteerTarget: '성인 여행객',
     recommendation: '커피거리 산책 전 조용히 참여하기 좋은 활동이에요.',
     duration: '2시간',
     difficulty: '쉬움',
@@ -144,6 +152,7 @@ export const initialSavedActivities: ActivitySaveRecord[] = [
     materials: '장갑, 편한 신발',
     capacity: '12명',
     currentParticipants: '12명',
+    volunteerTarget: '성인 숲길 이용객',
     recommendation: '숲을 천천히 걷는 여행자에게 잘 맞아요.',
     duration: '2시간 30분',
     difficulty: '보통',
@@ -165,6 +174,7 @@ export const initialSavedActivities: ActivitySaveRecord[] = [
     materials: '활동 명찰, 안내문 제공',
     capacity: '14명',
     currentParticipants: '7명',
+    volunteerTarget: '성인 행사 방문객',
     recommendation: '전주 골목 여행과 자연스럽게 이어지는 일정이에요.',
     duration: '3시간',
     difficulty: '쉬움',

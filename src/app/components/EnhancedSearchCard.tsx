@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Search, Calendar, Users, MapPin, ChevronRight } from 'lucide-react';
+import { Search, Calendar, Users, MapPin, ChevronRight, X } from 'lucide-react';
 import { filterLocationSuggestions, locationDiscoverySections } from '../locationSuggestions';
 
 interface EnhancedSearchCardProps {
@@ -10,6 +10,7 @@ interface EnhancedSearchCardProps {
   onPeopleClick: () => void;
   onSearch: () => void;
   onDestinationChange: (value: string) => void;
+  onDateClear?: () => void;
 }
 
 export function EnhancedSearchCard({
@@ -20,6 +21,7 @@ export function EnhancedSearchCard({
   onPeopleClick,
   onSearch,
   onDestinationChange,
+  onDateClear,
 }: EnhancedSearchCardProps) {
   const [isDiscoveryOpen, setIsDiscoveryOpen] = useState(false);
   const [discoveryHeight, setDiscoveryHeight] = useState(0);
@@ -208,21 +210,41 @@ export function EnhancedSearchCard({
           className="relative z-0 grid grid-cols-2 gap-3"
         >
           {/* Date Selector */}
-          <button
-            type="button"
+          <div
+            role="button"
+            tabIndex={0}
             onMouseDown={(event) => {
               if (isDiscoveryOpen) {
                 event.preventDefault();
               }
             }}
             onClick={() => transitionToSelection(onDateClick)}
-            className="flex items-center gap-3 p-3 rounded-2xl bg-[#f8f8f5] hover:bg-[#e8f5ed] transition-colors text-left"
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                transitionToSelection(onDateClick);
+              }
+            }}
+            className="flex h-12 cursor-pointer items-center gap-3 rounded-2xl bg-[#f8f8f5] px-3 text-left transition-colors hover:bg-[#e8f5ed]"
           >
             <Calendar className="w-4 h-4 text-[#5a5a5a] flex-shrink-0" strokeWidth={2} />
-            <span className={`text-sm ${dateRange ? 'text-[#2a2a2a]' : 'text-[#5a5a5a]'} truncate`}>
+            <span className={`min-w-0 flex-1 truncate text-sm ${dateRange ? 'text-[#2a2a2a]' : 'text-[#5a5a5a]'}`}>
               {dateRange || '여행 일정'}
             </span>
-          </button>
+            {dateRange && onDateClear && (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onDateClear();
+                }}
+                aria-label="여행 일정 초기화"
+                className="-mr-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/80 text-[#aaa] transition-colors hover:bg-white hover:text-[#777] active:scale-95"
+              >
+                <X className="h-3.5 w-3.5" strokeWidth={2} />
+              </button>
+            )}
+          </div>
 
           {/* People Selector */}
           <button
@@ -233,7 +255,7 @@ export function EnhancedSearchCard({
               }
             }}
             onClick={() => transitionToSelection(onPeopleClick)}
-            className="flex items-center gap-3 p-3 rounded-2xl bg-[#f8f8f5] hover:bg-[#e8f5ed] transition-colors text-left"
+            className="flex h-12 items-center gap-3 rounded-2xl bg-[#f8f8f5] px-3 text-left transition-colors hover:bg-[#e8f5ed]"
           >
             <Users className="w-4 h-4 text-[#5a5a5a] flex-shrink-0" strokeWidth={2} />
             <span className={`text-sm ${peopleCount > 0 ? 'text-[#2a2a2a]' : 'text-[#5a5a5a]'}`}>

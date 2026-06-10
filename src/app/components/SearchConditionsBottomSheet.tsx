@@ -61,6 +61,12 @@ export function SearchConditionsBottomSheet({
     setDraftDateRange(formatFullDateRange(nextStartDate, nextEndDate));
   };
 
+  const handleDateClear = () => {
+    setDraftStartDate(null);
+    setDraftEndDate(null);
+    setDraftDateRange('');
+  };
+
   const handleApply = () => {
     onApply({
       destination: draftDestination.trim(),
@@ -93,7 +99,7 @@ export function SearchConditionsBottomSheet({
         <div className="bottom-sheet-scrollable min-h-0 flex-1 overflow-y-auto px-6 pt-5 pb-safe space-y-4" data-bottom-sheet-scrollable="true">
           <div>
             <p className="mb-2 text-[12px] font-medium text-[#999]">여행지</p>
-            <div className="flex items-center gap-3 rounded-2xl bg-[#f8f8f5] px-4 py-3.5 border border-black/5">
+            <div className="flex h-[52px] items-center gap-3 rounded-2xl bg-[#f8f8f5] px-4 border border-black/5">
               <MapPin className="w-4 h-4 text-[#c9897e]" strokeWidth={2} />
               <input
                 type="text"
@@ -105,22 +111,44 @@ export function SearchConditionsBottomSheet({
             </div>
           </div>
 
-          <button
-            type="button"
+          <div
+            role="button"
+            tabIndex={0}
             onClick={() => setIsCalendarOpen(true)}
-            className="w-full rounded-2xl bg-[#f8f8f5] border border-black/5 px-4 py-3.5 text-left hover:bg-[#f0f0eb] transition-colors"
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                setIsCalendarOpen(true);
+              }
+            }}
+            className="flex h-[72px] w-full cursor-pointer flex-col justify-center rounded-2xl bg-[#f8f8f5] border border-black/5 px-4 text-left hover:bg-[#f0f0eb] transition-colors"
           >
             <span className="mb-1.5 block text-[12px] font-medium text-[#999]">여행 일정</span>
             <span className="flex items-center gap-2.5 text-[15px] text-[#2a2a2a]">
               <Calendar className="w-4 h-4 text-[#a8d5ba]" strokeWidth={2} />
-              {draftDateRange || '일정을 선택해 주세요'}
+              <span className="min-w-0 flex-1 break-words">
+                {draftDateRange || '일정을 선택해 주세요'}
+              </span>
+              {draftDateRange && (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleDateClear();
+                  }}
+                  aria-label="여행 일정 초기화"
+                  className="-mr-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/80 text-[#aaa] transition-colors hover:bg-white hover:text-[#777] active:scale-95"
+                >
+                  <X className="h-3.5 w-3.5" strokeWidth={2} />
+                </button>
+              )}
             </span>
-          </button>
+          </div>
 
           <button
             type="button"
             onClick={() => setIsPeopleOpen(true)}
-            className="w-full rounded-2xl bg-[#f8f8f5] border border-black/5 px-4 py-3.5 text-left hover:bg-[#f0f0eb] transition-colors"
+            className="flex h-[72px] w-full flex-col justify-center rounded-2xl bg-[#f8f8f5] border border-black/5 px-4 text-left hover:bg-[#f0f0eb] transition-colors"
           >
             <span className="mb-1.5 block text-[12px] font-medium text-[#999]">인원</span>
             <span className="flex items-center gap-2.5 text-[15px] text-[#2a2a2a]">

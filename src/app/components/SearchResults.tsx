@@ -35,6 +35,9 @@ const categoryLabelMap: Record<string, string> = {
   '산책형 활동': '환경·생태계보호',
 };
 
+const isAdultActivity = (activity: ActivitySaveRecord) =>
+  activity.volunteerTarget?.includes('성인') ?? false;
+
 interface SearchResultsProps {
   onNavigate: (screen: string, options?: { activity?: ActivitySaveRecord; returnScreen?: 'home' | 'search' | 'saved' }) => void;
   isActivitySaved?: (activity: ActivitySaveLookup) => boolean;
@@ -71,6 +74,7 @@ export function SearchResults({
       materials: '장갑, 집게 제공',
       capacity: '20명',
       currentParticipants: '15명',
+      volunteerTarget: '성인 여행객',
       recommendation: '광안리 바다를 가까이 느끼며 가볍게 참여할 수 있는 활동이에요. 여행 중 부담 없이 새로운 경험을 만들기 좋아요.',
       duration: '2시간',
       difficulty: '쉬움',
@@ -89,6 +93,7 @@ export function SearchResults({
       materials: '편한 복장',
       capacity: '15명',
       currentParticipants: '8명',
+      volunteerTarget: '성인 공원 이용객',
       recommendation: '공원 산책을 즐기면서 자연스럽게 봉사할 수 있는 활동입니다. 여유로운 오후 시간을 의미있게 보낼 수 있어요.',
       duration: '2시간',
       difficulty: '쉬움',
@@ -107,6 +112,7 @@ export function SearchResults({
       materials: '장갑, 집게 제공',
       capacity: '30명',
       currentParticipants: '22명',
+      volunteerTarget: '성인 여행객',
       recommendation: '인기 관광지에서 진행되는 활동이라 여행 코스에 자연스럽게 포함할 수 있어요.',
       duration: '2시간',
       difficulty: '쉬움',
@@ -125,6 +131,7 @@ export function SearchResults({
       materials: '편한 복장',
       capacity: '10명',
       currentParticipants: '10명',
+      volunteerTarget: '성인 행사 방문객',
       recommendation: '부산의 문화 활동을 가까이서 경험할 수 있는 특별한 기회입니다.',
       duration: '3시간',
       difficulty: '보통',
@@ -139,7 +146,7 @@ export function SearchResults({
 
   const displayedActivities = activities.filter((activity) => {
     const normalizedCategory = categoryLabelMap[activity.category] || activity.category;
-    return selectedFilters.length === 0 || selectedFilters.includes(normalizedCategory);
+    return isAdultActivity(activity) && (selectedFilters.length === 0 || selectedFilters.includes(normalizedCategory));
   });
 
   return (

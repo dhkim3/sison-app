@@ -2,6 +2,18 @@ import { useEffect, useState } from 'react';
 import { X, Bookmark, Share2, MapPin, Clock, Sparkles } from 'lucide-react';
 import { useBottomSheetScrollLock } from './useBottomSheetScrollLock';
 
+const volunteerTargetFallback = '1365 상세 페이지에서 확인해주세요.';
+
+const needsVolunteerTargetFetch = (value?: string) => {
+  const trimmedValue = value?.trim();
+  return !trimmedValue || trimmedValue === volunteerTargetFallback;
+};
+
+interface VolunteerDetailResponse {
+  ok: boolean;
+  volunteerTarget?: string | null;
+}
+
 interface EnhancedDetailBottomSheetProps {
   isOpen: boolean;
   onClose: () => void;
@@ -32,10 +44,14 @@ interface EnhancedDetailBottomSheetProps {
     volunteerTime?: string;
     volunteerField?: string;
     volunteerTarget?: string;
+    volunteerType?: string;
     recruitingOrganization?: string;
     registrationOrganization?: string;
     volunteerPlace?: string;
+    latitude?: number;
+    longitude?: number;
     category?: string;
+    applyUrl?: string;
     sourceUrl?: string;
     progrmRegistNo?: string;
   };
@@ -51,6 +67,7 @@ export function EnhancedDetailBottomSheet({
   activity,
 }: EnhancedDetailBottomSheetProps) {
   const [shareMessage, setShareMessage] = useState('');
+  const [detailVolunteerTarget, setDetailVolunteerTarget] = useState<string | null>(null);
   useBottomSheetScrollLock(isOpen);
   const formatShortDate = (value?: string) => {
     if (!value) return '';
@@ -97,18 +114,28 @@ export function EnhancedDetailBottomSheet({
   const volunteerPeriod = formatVolunteerPeriod(activity.volunteerPeriod, activity.date);
   const recruitmentPeriod =
     formatShortPeriod(activity.recruitmentStartDate, activity.recruitmentEndDate, activity.recruitmentPeriod);
-  const volunteerTime = activity.volunteerTime || activity.time;
-  const volunteerField = activity.volunteerField || activity.category || '지역사회 봉사';
-  const volunteerTarget = activity.volunteerTarget || '지역 주민 및 여행지 환경';
+  const volunteerTime = activity.volunteerTime || activity.time || '확인 필요';
+  const capacity = activity.capacity || '확인 필요';
+  const volunteerTarget = detailVolunteerTarget || activity.volunteerTarget || volunteerTargetFallback;
+  const volunteerField = activity.volunteerField || activity.category || '확인 필요';
   const recruitingOrganization = activity.recruitingOrganization || '지역 자원봉사센터';
   const volunteerPlace = activity.volunteerPlace || activity.location;
   const recruitmentStatus = activity.isRecruiting ? '모집중' : '지난 활동';
+  const externalApplyUrl = activity.applyUrl || activity.sourceUrl;
+
+  const currentParticipantsRaw = activity.currentParticipants;
+  const currentParticipantsNum = currentParticipantsRaw
+    ? Number.parseInt(currentParticipantsRaw.replace(/[^0-9]/g, ''), 10)
+    : NaN;
+  const hasCurrentParticipants = Number.isFinite(currentParticipantsNum) && currentParticipantsNum > 0;
 
   const basicInfoRows = [
     ['신청기간', recruitmentPeriod],
     ['활동일', volunteerPeriod],
     ['활동시간', volunteerTime],
-    ['봉사대상', volunteerTarget],
+    ['모집인원', capacity],
+    ...(hasCurrentParticipants ? [['신청인원', currentParticipantsRaw]] : []),
+    ...(volunteerTarget !== volunteerTargetFallback ? [['봉사대상', volunteerTarget]] : []),
     ['봉사분야', volunteerField],
   ];
 
@@ -123,48 +150,84 @@ export function EnhancedDetailBottomSheet({
     return () => window.clearTimeout(timer);
   }, [shareMessage]);
 
-  const copyShareUrl = async (url: string) => {
-    await navigator.clipboard.writeText(url);
-  };
+  useEffect(() => {
+    setDetailVolunteerTarget(null);
+  }, [activity.progrmRegistNo]);
 
-  const handleShare = async () => {
-    const shareUrl = window.location.href;
-    const shareData = {
-      title: activity.title,
-      text: `${activity.title} - ${activity.location}`,
-      url: shareUrl,
+  useEffect(() => {
+    if (!isOpen || !activity.progrmRegistNo || !needsVolunteerTargetFetch(activity.volunteerTarget)) return;
+
+    const abortController = new AbortController();
+    const params = new URLSearchParams({
+      progrmRegistNo: activity.progrmRegistNo,
+    });
+
+    const fetchVolunteerTarget = async () => {
+      try {
+        const response = await fetch(`/api/volunteer/detail?${params.toString()}`, {
+          signal: abortController.signal,
+        });
+        const payload = await response.json() as VolunteerDetailResponse;
+
+        if (!response.ok || !payload.ok || !payload.volunteerTarget) return;
+
+        setDetailVolunteerTarget(payload.volunteerTarget);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        console.error('1365 volunteer target detail fetch failed:', error);
+      }
     };
 
-    try {
-      if (navigator.share) {
-        await navigator.share(shareData);
-        return;
-      }
+    void fetchVolunteerTarget();
 
-      await copyShareUrl(shareUrl);
-      setShareMessage('링크를 복사했어요.');
-    } catch (error) {
-      if ((error as DOMException).name === 'AbortError') return;
+    return () => abortController.abort();
+  }, [activity.progrmRegistNo, activity.volunteerTarget, isOpen]);
 
+  const handleShare = async () => {
+    const shareUrl = activity.applyUrl || activity.sourceUrl || window.location.href;
+
+    if (navigator.share) {
       try {
-        await copyShareUrl(shareUrl);
-        setShareMessage('링크를 복사했어요.');
+        await navigator.share({
+          title: activity.title,
+          text: `${activity.title}\n${activity.location}`,
+          url: shareUrl,
+        });
       } catch {
-        setShareMessage('링크 복사에 실패했어요.');
-        window.alert('링크 복사에 실패했어요.');
+        // 사용자가 공유창을 닫거나 취소한 경우 무시
       }
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareMessage('링크를 복사했어요.');
+    } catch {
+      setShareMessage('링크 복사에 실패했어요.');
+      window.alert('링크 복사에 실패했어요.');
     }
   };
 
+  const kakaoMapQuery = volunteerPlace || activity.recruitingOrganization || activity.title;
+  const hasMapQuery = Boolean(kakaoMapQuery);
+
   const handleKakaoMapOpen = () => {
-    const kakaoMapUrl = `https://map.kakao.com/link/search/${encodeURIComponent(volunteerPlace)}`;
+    if (!hasMapQuery) return;
+
+    let kakaoMapUrl: string;
+    if (activity.latitude != null && activity.longitude != null) {
+      kakaoMapUrl = `https://map.kakao.com/link/map/${encodeURIComponent(volunteerPlace || activity.title)},${activity.latitude},${activity.longitude}`;
+    } else {
+      kakaoMapUrl = `https://map.kakao.com/link/search/${encodeURIComponent(kakaoMapQuery)}`;
+    }
+
     window.open(kakaoMapUrl, '_blank', 'noopener,noreferrer');
   };
 
   const handleSourceOpen = () => {
-    if (!activity.sourceUrl) return;
+    if (!externalApplyUrl) return;
 
-    window.open(activity.sourceUrl, '_blank', 'noopener,noreferrer');
+    window.open(externalApplyUrl, '_blank', 'noopener,noreferrer');
   };
 
   if (!isOpen) return null;
@@ -258,9 +321,14 @@ export function EnhancedDetailBottomSheet({
               <button
                 type="button"
                 onClick={handleKakaoMapOpen}
-                className="flex-shrink-0 rounded-full bg-[#f8f8f5] px-3 py-1.5 text-[12px] font-medium text-[#5a5a5a] transition-colors hover:bg-[#e8f5ed] hover:text-[#2a2a2a]"
+                disabled={!hasMapQuery}
+                className={`flex-shrink-0 rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors ${
+                  hasMapQuery
+                    ? 'bg-[#f8f8f5] text-[#5a5a5a] hover:bg-[#e8f5ed] hover:text-[#2a2a2a]'
+                    : 'cursor-not-allowed bg-[#f5f5f2] text-[#bbb]'
+                }`}
               >
-                카카오맵
+                {hasMapQuery ? '카카오맵' : '지도 확인 필요'}
               </button>
             </div>
 
@@ -277,12 +345,9 @@ export function EnhancedDetailBottomSheet({
                   }`}
                 />
               </div>
-              <div className="flex-1">
+              <div className="flex-1 flex items-center">
                 <p className={`${activity.isRecruiting ? 'font-medium text-[#5f9f74]' : 'text-[#999]'}`}>
                   {recruitmentStatus}
-                </p>
-                <p className="text-sm text-[#999] mt-1">
-                  모집인원 {activity.capacity} · 신청인원 {activity.currentParticipants}
                 </p>
               </div>
             </div>
@@ -300,7 +365,7 @@ export function EnhancedDetailBottomSheet({
                     className="grid grid-cols-[82px_minmax(0,1fr)] gap-3 border-b border-black/[0.04] py-3 last:border-b-0"
                   >
                     <span className="text-[12.5px] text-[#999]">{label}</span>
-                    <span className="text-[13px] leading-relaxed text-[#2a2a2a]">{value}</span>
+                    <span className="min-w-0 break-words text-[13px] leading-relaxed text-[#2a2a2a]">{value}</span>
                   </div>
                 ))}
               </div>
@@ -341,10 +406,10 @@ export function EnhancedDetailBottomSheet({
               <button
                 type="button"
                 onClick={handleSourceOpen}
-                disabled={!activity.sourceUrl}
+                disabled={!externalApplyUrl}
                 className="w-full bg-[#2a2a2a] text-white py-4 rounded-2xl transition-all hover:bg-[#1a1a1a] disabled:cursor-not-allowed disabled:bg-[#d7d3cc]"
               >
-                1365에서 신청하기
+                {externalApplyUrl ? '1365에서 신청하기' : '1365 링크 확인 필요'}
               </button>
 
               {/* Secondary CTA */}
@@ -352,7 +417,7 @@ export function EnhancedDetailBottomSheet({
                 type="button"
                 onClick={() => {
                   onClose();
-                  onAIRecommendation?.(activity);
+                  onAIRecommendation?.({ ...activity, volunteerTarget });
                 }}
                 className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/55 bg-[linear-gradient(135deg,#6fb4ff,#7b7cff_52%,#b763ec)] py-4 text-white shadow-[0_14px_30px_rgba(112,126,255,0.22)] transition-all active:scale-[0.99]"
               >
