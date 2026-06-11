@@ -1,5 +1,5 @@
 import { Calendar, MapPin, Bookmark, Clock } from 'lucide-react';
-import { formatActivityDate, getRecruitmentDday, isPastActivity as getIsPastActivity } from '../activityFormatters';
+import { getActivityDisplayDate, getRecruitmentDday, isPastActivity as getIsPastActivity } from '../activityFormatters';
 
 interface CompactActivityCardProps {
   imageUrl: string;
@@ -8,6 +8,10 @@ interface CompactActivityCardProps {
   region?: string;
   time?: string;
   date?: string;
+  activityDate?: string;
+  activityStartDate?: string;
+  activityEndDate?: string;
+  volunteerPeriod?: string;
   recruitmentStartDate?: string;
   recruitmentEndDate?: string;
   badge?: string;
@@ -27,6 +31,10 @@ export function CompactActivityCard({
   region,
   time,
   date,
+  activityDate,
+  activityStartDate,
+  activityEndDate,
+  volunteerPeriod,
   recruitmentEndDate,
   showBookmark = false,
   isSaved = false,
@@ -34,20 +42,19 @@ export function CompactActivityCard({
   onClick,
   variant = 'default',
 }: CompactActivityCardProps) {
-  const dateTime = [formatActivityDate(date), time].filter(Boolean).join(' · ');
-  const isPast = getIsPastActivity({ date, time, recruitmentEndDate });
-  const recruitmentMetadata = getRecruitmentDday({ date, time, recruitmentEndDate });
+  const activityDateInput = { date, activityDate, activityStartDate, activityEndDate, volunteerPeriod, time, recruitmentEndDate };
+  const dateTime = [getActivityDisplayDate(activityDateInput, { compact: true }), time].filter(Boolean).join(' · ');
+  const isPast = getIsPastActivity(activityDateInput);
+  const recruitmentMetadata = getRecruitmentDday(activityDateInput);
   const isAIRecommendation = variant === 'aiRecommendation';
-  const isHome = variant === 'home';
   const isSearchResult = variant === 'searchResult';
-  const cardHeight = isSearchResult ? '126px' : isAIRecommendation ? '122px' : '118px';
+  // AI 추천 카드는 별도 영역 안에서 고정 높이를 유지하고, 일반 카드는 콘텐츠 높이에 맞춘다.
+  const cardMinHeight = isAIRecommendation ? '122px' : '126px';
   const imageWidth = isSearchResult ? '37%' : '38%';
-  const contentClassName = isSearchResult
-    ? 'flex-1 px-3.5 py-2.5 flex flex-col justify-center text-left min-w-0'
-    : isHome
-      ? 'flex-1 px-3.5 py-2.5 flex flex-col justify-center text-left min-w-0'
-      : 'flex-1 px-3.5 py-3 flex flex-col justify-center text-left min-w-0';
-  const metadataClassName = isSearchResult || isHome ? 'mt-2 space-y-1' : 'mt-2.5 space-y-1.5';
+  const contentClassName = isAIRecommendation
+    ? 'flex-1 px-3.5 py-3 flex flex-col justify-center text-left min-w-0'
+    : 'flex-1 px-3.5 py-3 flex flex-col justify-center text-left min-w-0';
+  const metadataClassName = isAIRecommendation ? 'mt-2.5 space-y-1.5' : 'mt-2 space-y-1';
 
   return (
     <div
@@ -66,11 +73,11 @@ export function CompactActivityCard({
           ? 'rounded-[1.35rem] border border-[#e1e6f7] shadow-[0_12px_26px_rgba(80,96,145,0.08)] hover:shadow-[0_14px_30px_rgba(80,96,145,0.11)] hover:border-[#d8def3]'
           : 'rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.04)] border border-black/5 hover:shadow-[0_2px_6px_rgba(0,0,0,0.08)] hover:border-transparent'
       }`}
-      style={isHome ? { minHeight: cardHeight } : { height: cardHeight }}
+      style={isAIRecommendation ? { height: cardMinHeight } : undefined}
     >
-      <div className={`flex ${isHome ? 'min-h-[118px]' : 'h-full'}`}>
+      <div className={`flex items-stretch ${isAIRecommendation ? 'h-full' : ''}`}>
         {/* Image - Left Side */}
-        <div className="relative flex-shrink-0 bg-[#f5f5f5]" style={{ width: imageWidth }}>
+        <div className="relative min-h-[112px] flex-shrink-0 self-stretch bg-[#f5f5f5]" style={{ width: imageWidth }}>
           <img
             src={imageUrl}
             alt={title}

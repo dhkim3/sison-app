@@ -336,6 +336,10 @@ export function SavedArchive({
                         location={activity.location}
                         recruitmentStartDate={activity.recruitmentStartDate}
                         recruitmentEndDate={activity.recruitmentEndDate}
+                        activityDate={activity.activityDate}
+                        activityStartDate={activity.activityStartDate}
+                        activityEndDate={activity.activityEndDate}
+                        volunteerPeriod={activity.volunteerPeriod}
                         date={activity.date}
                         time={activity.time}
                         isPastActivity={isPastActivity(activity)}

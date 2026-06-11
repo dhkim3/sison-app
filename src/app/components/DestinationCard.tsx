@@ -1,11 +1,11 @@
 interface DestinationCardProps {
   imageUrl: string;
   name: string;
-  activityCount: number;
+  activityCountLabel: string;
   onClick?: () => void;
 }
 
-export function DestinationCard({ imageUrl, name, activityCount, onClick }: DestinationCardProps) {
+export function DestinationCard({ imageUrl, name, activityCountLabel, onClick }: DestinationCardProps) {
   return (
     <button
       onClick={onClick}
@@ -20,7 +20,7 @@ export function DestinationCard({ imageUrl, name, activityCount, onClick }: Dest
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
           <h4 className="text-white mb-1">{name}</h4>
-          <p className="text-xs text-white/80">{activityCount}개 활동</p>
+          <p className="text-xs text-white/80">{activityCountLabel}</p>
         </div>
       </div>
     </button>

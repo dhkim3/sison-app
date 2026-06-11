@@ -20,12 +20,6 @@ declare const process: {
   env: Record<string, string | undefined>;
 };
 
-console.log('DATA_GO_KR_SERVICE_KEY exists:', !!process.env.DATA_GO_KR_SERVICE_KEY);
-console.log(
-  'DATA_GO_KR related env keys:',
-  Object.keys(process.env).filter((key) => key.includes('DATA_GO_KR') || key.includes('GO_KR')),
-);
-
 const VOLUNTEER_DETAIL_URL =
   'http://openapi.1365.go.kr/openapi/service/rest/VolunteerPartcptnService/getVltrPartcptnItem';
 
@@ -177,49 +171,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const item = parseVolunteerDetailItem(xmlText);
     const capacity = normalizeCapacity(pickRecruitCapacity(item));
     const currentParticipants = normalizeCapacity(pickCurrentParticipants(item));
-
-    console.log('1365 detail volunteer candidates:', {
-      progrmRegistNo: item.progrmRegistNo || progrmRegistNo,
-      recruitmentEndCandidates: {
-        noticeEndde: item.noticeEndde,
-        noticeEndDate: item.noticeEndDate,
-        rcritEndde: item.rcritEndde,
-        rcritEndDate: item.rcritEndDate,
-        reqstEndde: item.reqstEndde,
-        reqstEndDate: item.reqstEndDate,
-        progrmEndde: item.progrmEndde,
-        srvcEndDate: item.srvcEndDate,
-      },
-      capacityCandidates: {
-        rcritNmpr: item.rcritNmpr,
-        recrtNmpr: item.recrtNmpr,
-        reqstNmpr: item.reqstNmpr,
-        progrmRcritNmpr: item.progrmRcritNmpr,
-        rcritNmprCo: item.rcritNmprCo,
-        nanmmbyNmpr: item.nanmmbyNmpr,
-        wanted: item.wanted,
-        capacity: item.capacity,
-      },
-      normalizedCapacity: capacity,
-      currentParticipantCandidates: {
-        applcntNmpr: item.applcntNmpr,
-        partcptnNmpr: item.partcptnNmpr,
-        reqstNmpr: item.reqstNmpr,
-        requestCount: item.requestCount,
-        appTotal: item.appTotal,
-        currentParticipants: item.currentParticipants,
-      },
-      normalizedCurrentParticipants: currentParticipants,
-      target: item.target,
-      srvcTarget: item.srvcTarget,
-      volunteerTarget: item.volunteerTarget,
-      trgetNm: item.trgetNm,
-      mnnstNm: item.mnnstNm,
-      adultPosblAt: item.adultPosblAt,
-      yngbgsPosblAt: item.yngbgsPosblAt,
-      familyPosblAt: item.familyPosblAt,
-      grpPosblAt: item.grpPosblAt,
-    });
 
     res.status(200).json({
       ok: true,

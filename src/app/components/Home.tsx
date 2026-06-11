@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Bell, Bookmark, Calendar, Clock, MapPin } from 'lucide-react';
 import { formatActivityDate, getActivityStatus, getRecruitmentDday } from '../activityFormatters';
 import { normalizeCapacity } from '../activityCapacity';
+import { logActivityImageMappings, withResolvedActivityImage } from '../utils/activityImage';
 import { EnhancedSearchCard } from './EnhancedSearchCard';
 import { CalendarBottomSheet } from './CalendarBottomSheet';
 import { PeopleCountModal } from './PeopleCountModal';
@@ -12,13 +13,14 @@ import { PageShell } from './PageShell';
 import { NotificationSheet } from './NotificationSheet';
 import { HomeAIRecommendationFlow } from './HomeAIRecommendationFlow';
 import type { ActivitySaveLookup, ActivitySaveRecord } from '../activitySaveState';
-import type { SearchFormState } from '../searchState';
+import type { RecentSearchItem, SearchFormState } from '../searchState';
 
 interface HomeProps {
   onNavigate: (screen: string, options?: { activity?: ActivitySaveRecord; returnScreen?: 'home' | 'search' | 'saved' }) => void;
   onSearchSubmit: (values: SearchFormState) => void;
   isActivitySaved: (activity: ActivitySaveLookup) => boolean;
   onToggleSavedActivity: (activity: ActivitySaveRecord) => void;
+  recentSearches: RecentSearchItem[];
 }
 
 type RecentActivity = ActivitySaveRecord & {
@@ -87,7 +89,7 @@ const getActivitySectionState = (
 const getRecruitingLabel = (activity: VolunteerApiActivity) =>
   activity.category || '기타';
 
-const isWeeklySection = (sectionTitle: string) => sectionTitle === '이번 주 활동';
+const isWeeklySection = (sectionTitle: string) => sectionTitle === '이달의 활동';
 const isFestivalSection = (sectionTitle: string) => sectionTitle === '축제·행사 활동';
 
 function ActivityState({
@@ -109,45 +111,49 @@ function ActivityState({
   );
 }
 
-const mapVolunteerApiActivityToRecentActivity = (activity: VolunteerApiActivity): RecentActivity => ({
-  id: activity.id || activity.progrmRegistNo,
-  imageUrl: activity.imageUrl,
-  title: activity.title || '제목 확인 필요',
-  location: activity.location || activity.region || '장소 확인 필요',
-  recruitmentStartDate: activity.recruitmentStartDate,
-  recruitmentEndDate: activity.recruitmentEndDate,
-  date: activity.activityStartDate,
-  time: activity.time || '시간 확인 필요',
-  status: activity.status,
-  isRecruiting: ['recruiting', 'todayDeadline'].includes(getActivityStatus({
-    date: activity.activityStartDate,
-    time: activity.time,
+const mapVolunteerApiActivityToRecentActivity = (activity: VolunteerApiActivity): RecentActivity =>
+  withResolvedActivityImage({
+    id: activity.id || activity.progrmRegistNo,
+    imageUrl: activity.imageUrl,
+    title: activity.title || '제목 확인 필요',
+    location: activity.location || activity.region || '장소 확인 필요',
+    recruitmentStartDate: activity.recruitmentStartDate,
     recruitmentEndDate: activity.recruitmentEndDate,
-  })),
-  description: activity.organization
-    ? `${activity.organization}에서 모집하는 1365 봉사활동입니다.`
-    : '1365에서 제공한 봉사활동입니다.',
-  materials: '1365 상세 페이지에서 확인해주세요.',
-  capacity: normalizeCapacity(activity.capacity),
-  currentParticipants: normalizeCapacity(activity.currentParticipants),
-  volunteerTarget: activity.volunteerTarget || undefined,
-  volunteerType: activity.volunteerType || undefined,
-  recommendation: '현재 모집중인 1365 활동 중 여행 흐름에 맞는지 살펴보세요.',
-  category: activity.category,
-  volunteerPeriod:
-    activity.activityStartDate && activity.activityEndDate
-      ? `${activity.activityStartDate} - ${activity.activityEndDate}`
-      : activity.activityStartDate,
-  volunteerTime: activity.time || '시간 확인 필요',
-  volunteerField: activity.category || '봉사분야 확인 필요',
-  recruitingOrganization: activity.organization || '모집기관 확인 필요',
-  volunteerPlace: activity.location || activity.region || '장소 확인 필요',
-  applyUrl: activity.applyUrl || activity.sourceUrl,
-  sourceUrl: activity.sourceUrl,
-  progrmRegistNo: activity.progrmRegistNo,
-  recentLabel: getRecruitingLabel(activity),
-  recentSortDate: activity.recentSortDate,
-});
+    activityStartDate: activity.activityStartDate,
+    activityEndDate: activity.activityEndDate,
+    activityDate: activity.activityStartDate === activity.activityEndDate ? activity.activityStartDate : undefined,
+    date: activity.activityStartDate,
+    time: activity.time || '시간 확인 필요',
+    status: activity.status,
+    isRecruiting: ['recruiting', 'todayDeadline'].includes(getActivityStatus({
+      date: activity.activityStartDate,
+      time: activity.time,
+      recruitmentEndDate: activity.recruitmentEndDate,
+    })),
+    description: activity.organization
+      ? `${activity.organization}에서 모집하는 1365 봉사활동입니다.`
+      : '1365에서 제공한 봉사활동입니다.',
+    materials: '1365 상세 페이지에서 확인해주세요.',
+    capacity: normalizeCapacity(activity.capacity),
+    currentParticipants: normalizeCapacity(activity.currentParticipants),
+    volunteerTarget: activity.volunteerTarget || undefined,
+    volunteerType: activity.volunteerType || undefined,
+    recommendation: '현재 모집중인 1365 활동 중 여행 흐름에 맞는지 살펴보세요.',
+    category: activity.category,
+    volunteerPeriod:
+      activity.activityStartDate && activity.activityEndDate
+        ? `${activity.activityStartDate} - ${activity.activityEndDate}`
+        : activity.activityStartDate,
+    volunteerTime: activity.time || '시간 확인 필요',
+    volunteerField: activity.category || '봉사분야 확인 필요',
+    recruitingOrganization: activity.organization || '모집기관 확인 필요',
+    volunteerPlace: activity.location || activity.region || '장소 확인 필요',
+    applyUrl: activity.applyUrl || activity.sourceUrl,
+    sourceUrl: activity.sourceUrl,
+    progrmRegistNo: activity.progrmRegistNo,
+    recentLabel: getRecruitingLabel(activity),
+    recentSortDate: activity.recentSortDate,
+  });
 
 const heroImages = [
   {
@@ -216,21 +222,21 @@ function HiddenPlaceActivityCard({
         />
       </button>
 
-      <div className="absolute inset-y-0 left-0 flex w-full flex-col justify-center pl-4 pr-[56px] py-4 text-white">
-        <h4 className="line-clamp-2 text-[15px] font-medium leading-[1.3] text-white drop-shadow-sm">
+      <div className="absolute inset-y-0 left-0 flex w-full flex-col justify-center px-4 py-4 text-white">
+        <h4 className="line-clamp-2 pr-[52px] text-[15px] font-medium leading-[1.3] text-white drop-shadow-sm">
           {activity.title}
         </h4>
         <div className="mt-2 space-y-1.5">
           {dateTime && (
-            <div className="flex min-w-0 items-center gap-1.5 text-[11.5px] font-normal leading-none text-white/78">
-              <Calendar className="h-3.5 w-3.5 flex-shrink-0 text-white/74" strokeWidth={2} />
-              <span className="line-clamp-1">{dateTime}</span>
+            <div className="flex w-full min-w-0 items-center gap-1.5 text-[11.5px] font-normal leading-none text-white/78">
+              <Calendar className="h-3.5 w-3.5 shrink-0 text-white/74" strokeWidth={2} />
+              <span className="min-w-0 flex-1 truncate">{dateTime}</span>
             </div>
           )}
           {activity.location && (
-            <div className="flex items-center gap-1.5 text-[11.5px] font-normal leading-none text-white/78">
-              <MapPin className="h-3.5 w-3.5 flex-shrink-0 text-white/72" strokeWidth={2} />
-              <span className="line-clamp-1">{activity.location}</span>
+            <div className="flex w-full min-w-0 items-center gap-1.5 text-[11.5px] font-normal leading-none text-white/78">
+              <MapPin className="h-3.5 w-3.5 shrink-0 text-white/72" strokeWidth={2} />
+              <span className="min-w-0 flex-1 truncate">{activity.location}</span>
             </div>
           )}
           {recruitmentMetadata && (
@@ -348,7 +354,7 @@ function RecentTimelineActivityCard({
   );
 }
 
-export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSavedActivity }: HomeProps) {
+export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSavedActivity, recentSearches }: HomeProps) {
   const [destination, setDestination] = useState('');
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
@@ -412,6 +418,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
           ? payload.items.map(mapVolunteerApiActivityToRecentActivity).slice(0, 3)
           : [];
 
+        logActivityImageMappings('home-lightweight', nextActivities);
         setApiLightweightActivities(nextActivities);
         setHasLightweightActivitiesError(false);
       } catch (error) {
@@ -436,7 +443,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
       keyword: '',
       page: '1',
       size: '30',
-      sort: 'weekly',
+      sort: 'monthly',
     });
 
     const fetchRecentActivities = async () => {
@@ -450,19 +457,20 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
         const payload = await response.json() as VolunteerApiResponse;
 
         if (!response.ok || !payload.ok) {
-          throw new Error(payload.error || '이번 주 활동을 불러오지 못했어요.');
+          throw new Error(payload.error || '이달의 활동을 불러오지 못했어요.');
         }
 
         const nextActivities = Array.isArray(payload.items)
           ? payload.items.map(mapVolunteerApiActivityToRecentActivity).slice(0, 3)
           : [];
 
+        logActivityImageMappings('home-monthly', nextActivities);
         setRecentActivities(nextActivities);
         setHasRecentActivitiesError(false);
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') return;
 
-        console.error('Home weekly volunteer activities failed:', error);
+        console.error('Home monthly volunteer activities failed:', error);
         setRecentActivities([]);
         setHasRecentActivitiesError(true);
       } finally {
@@ -504,6 +512,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
           ? payload.items.map(mapVolunteerApiActivityToRecentActivity).slice(0, 3)
           : [];
 
+        logActivityImageMappings('home-festival', nextActivities);
         setHiddenActivities(nextActivities);
         setHasHiddenActivitiesError(false);
       } catch (error) {
@@ -576,15 +585,15 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
       ),
     },
     {
-      title: '이번 주 활동',
-      description: '이번 주에 참여할 수 있는 활동이에요',
+      title: '이달의 활동',
+      description: '이번 달에 참여할 수 있는 활동이에요',
       activities: weeklySectionActivities,
       state: getActivitySectionState(
         isRecentActivitiesLoading,
         hasRecentActivitiesError,
         weeklySectionActivities,
       ),
-      emptyTitle: '이번 주에 참여할 수 있는 활동이 없어요',
+      emptyTitle: '이달에 참여할 수 있는 활동이 없어요',
     },
     {
       title: '축제·행사 활동',
@@ -662,6 +671,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
             onSearch={handleSearch}
             onDestinationChange={setDestination}
             onDateClear={handleDateClear}
+            recentSearches={recentSearches}
           />
         </section>
 
@@ -680,6 +690,77 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
               draggable={false}
               className="block h-auto w-full select-none object-contain"
             />
+
+            {/* Orb glow overlay — float animation */}
+            <span
+              aria-hidden="true"
+              className="sison-ai-orb pointer-events-none absolute"
+              style={{
+                animation: 'sison-ai-orb-float 5s ease-in-out infinite',
+                right: '5%',
+                top: '8%',
+                width: '40%',
+                height: '84%',
+                borderRadius: '50%',
+                background:
+                  'radial-gradient(circle at 44% 40%, rgba(190,170,255,0.11) 0%, rgba(120,95,225,0.06) 50%, transparent 72%)',
+              }}
+            />
+
+            {/* Star sparkles — 4개, 왼쪽 텍스트 영역 근처 분산 */}
+            <span
+              aria-hidden="true"
+              className="sison-ai-star pointer-events-none absolute"
+              style={{
+                animation: 'sison-ai-star-twinkle 2.8s ease-in-out infinite',
+                animationDelay: '0s',
+                opacity: 0.45,
+                top: '16%', left: '54%',
+                width: '4px', height: '4px',
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.90)',
+              }}
+            />
+            <span
+              aria-hidden="true"
+              className="sison-ai-star pointer-events-none absolute"
+              style={{
+                animation: 'sison-ai-star-twinkle 3.2s ease-in-out infinite',
+                animationDelay: '0.85s',
+                opacity: 0.45,
+                top: '68%', left: '11%',
+                width: '3px', height: '3px',
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.82)',
+              }}
+            />
+            <span
+              aria-hidden="true"
+              className="sison-ai-star pointer-events-none absolute"
+              style={{
+                animation: 'sison-ai-star-twinkle 2.4s ease-in-out infinite',
+                animationDelay: '1.5s',
+                opacity: 0.45,
+                top: '38%', left: '46%',
+                width: '3.5px', height: '3.5px',
+                borderRadius: '50%',
+                background: 'rgba(220,210,255,0.92)',
+              }}
+            />
+            <span
+              aria-hidden="true"
+              className="sison-ai-star pointer-events-none absolute"
+              style={{
+                animation: 'sison-ai-star-twinkle 3.8s ease-in-out infinite',
+                animationDelay: '0.4s',
+                opacity: 0.45,
+                top: '80%', left: '32%',
+                width: '2.5px', height: '2.5px',
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.72)',
+              }}
+            />
+
             <span className="pointer-events-none absolute inset-y-0 left-0 flex w-[60%] flex-col justify-center pl-5 text-left">
               <span className="text-[21px] font-bold leading-none text-white">
                 AI 활동 추천
@@ -746,6 +827,10 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
                       location={activity.location}
                       recruitmentStartDate={activity.recruitmentStartDate}
                       recruitmentEndDate={activity.recruitmentEndDate}
+                      activityDate={activity.activityDate}
+                      activityStartDate={activity.activityStartDate}
+                      activityEndDate={activity.activityEndDate}
+                      volunteerPeriod={activity.volunteerPeriod}
                       date={activity.date}
                       time={activity.time}
                       showBookmark

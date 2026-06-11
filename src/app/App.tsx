@@ -10,7 +10,6 @@ import { EnhancedDetailBottomSheet } from './components/EnhancedDetailBottomShee
 import { clearStaleScrollLock } from './components/useBottomSheetScrollLock';
 import {
   getActivitySaveKey,
-  initialSavedActivities,
   type ActivitySaveLookup,
   type ActivitySaveRecord,
 } from './activitySaveState';
@@ -26,6 +25,7 @@ import {
   type SearchFormState,
   type SearchState,
 } from './searchState';
+import { resolveSearchLocation } from './travelPlaceAliases';
 
 type Screen = 'home' | 'search' | 'ai-recommendation' | 'story' | 'saved' | 'profile';
 type SearchEntrySource = 'tab' | 'home-search';
@@ -33,12 +33,8 @@ type AIRecommendationState = 'closed' | 'open' | 'closing';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
-  const [savedActivityIds, setSavedActivityIds] = useState<string[]>(() =>
-    initialSavedActivities.map(getActivitySaveKey)
-  );
-  const [savedActivityRecords, setSavedActivityRecords] = useState<Record<string, ActivitySaveRecord>>(() =>
-    Object.fromEntries(initialSavedActivities.map((activity) => [getActivitySaveKey(activity), activity]))
-  );
+  const [savedActivityIds, setSavedActivityIds] = useState<string[]>([]);
+  const [savedActivityRecords, setSavedActivityRecords] = useState<Record<string, ActivitySaveRecord>>({});
   const [likedStoryIds, setLikedStoryIds] = useState<number[]>([]);
   const [storyComments, setStoryComments] = useState<Record<number, StoryComment[]>>(initialStoryComments);
   const [searchState, setSearchState] = useState<SearchState>(initialSearchState);
@@ -138,11 +134,17 @@ export default function App() {
   }, [aiRecommendationActivity, aiReturnScreen]);
 
   const handleHomeSearchSubmit = (values: SearchFormState) => {
+    const resolved = resolveSearchLocation(values.destination);
     setSearchState((currentSearchState) => ({
       ...currentSearchState,
       ...values,
       hasSearched: true,
-      recentSearches: addRecentSearch(currentSearchState.recentSearches ?? [], values),
+      recentSearches: addRecentSearch(currentSearchState.recentSearches ?? [], {
+        ...values,
+        resolvedSidoCd: resolved?.sidoCd ?? null,
+        resolvedGugunCd: resolved?.gugunCd ?? null,
+        resolvedKeywords: resolved?.keywords ?? null,
+      }),
     }));
     setSearchEntrySource('home-search');
     setCurrentScreen('search');
@@ -291,6 +293,7 @@ export default function App() {
           onSearchSubmit={handleHomeSearchSubmit}
           isActivitySaved={isActivitySaved}
           onToggleSavedActivity={handleToggleSavedActivity}
+          recentSearches={searchState.recentSearches}
         />
       </div>
       <div style={{ display: currentScreen === 'search' ? '' : 'none' }}>

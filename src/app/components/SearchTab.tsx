@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { resolveSearchLocation, type ResolvedSearchLocation } from '../travelPlaceAliases';
 import { ArrowLeft } from 'lucide-react';
 import { DefaultSearchState } from './DefaultSearchState';
 import { CalendarBottomSheet } from './CalendarBottomSheet';
@@ -14,6 +15,7 @@ import { PageShell } from './PageShell';
 import type { ActivitySaveLookup, ActivitySaveRecord } from '../activitySaveState';
 import { getActivityStatus, isPastActivity } from '../activityFormatters';
 import { normalizeCapacity } from '../activityCapacity';
+import { logActivityImageMappings, withResolvedActivityImage } from '../utils/activityImage';
 import {
   addRecentSearch,
   createSearchKey,
@@ -47,6 +49,32 @@ const categoryLabelMap: Record<string, string> = {
   '지역 행사': '문화·체육·예술·관광',
   '교육·문화': '교육',
   '산책형 활동': '환경·생태계보호',
+};
+
+const normalizeActivityCategory = (value?: string | null) => {
+  const category = value?.trim() || '';
+  if (!category) return '';
+  if (categoryLabelMap[category]) return categoryLabelMap[category];
+
+  if (category.includes('생활')) return '생활편의';
+  if (category.includes('주거')) return '주거환경';
+  if (category.includes('상담') || category.includes('멘토링')) return '상담·멘토링';
+  if (category.includes('교육') && category.includes('기본')) return '자원봉사 기본교육';
+  if (category.includes('교육')) return '교육';
+  if (category.includes('보건') || category.includes('의료')) return '보건·의료';
+  if (category.includes('농어촌') || category.includes('농촌') || category.includes('어촌')) return '농어촌 봉사';
+  if (category.includes('문화') || category.includes('체육') || category.includes('예술') || category.includes('관광')) {
+    return '문화·체육·예술·관광';
+  }
+  if (category.includes('환경') || category.includes('생태')) return '환경·생태계보호';
+  if (category.includes('사무')) return '사무행정';
+  if (category.includes('지역안전') || category.includes('지역 안전') || category.includes('보호')) return '지역안전·보호';
+  if (category.includes('인권') || category.includes('공익')) return '인권·공익';
+  if (category.includes('재난') || category.includes('재해')) return '재난·재해';
+  if (category.includes('국제') || category.includes('해외')) return '국제협력·해외봉사';
+  if (category.includes('기타')) return '기타';
+
+  return category;
 };
 
 interface SearchTabProps {
@@ -90,6 +118,15 @@ interface VolunteerSearchResponse {
   error?: string;
 }
 
+type DestinationCountState = 'loading' | 'ready' | 'error';
+
+interface DestinationActivityCount {
+  status: DestinationCountState;
+  count: number | null;
+}
+
+const recommendedDestinationNames = ['제주', '강릉', '부산', '여수'];
+
 export function SearchTab({
   onNavigate,
   searchState,
@@ -112,9 +149,13 @@ export function SearchTab({
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [appliedCategoryFilters, setAppliedCategoryFilters] = useState<string[]>([]);
+  const [destinationActivityCounts, setDestinationActivityCounts] = useState<Record<string, DestinationActivityCount>>({});
   const searchApiState = searchState.api;
   const searchApiStateRef = useRef(searchApiState);
+  const resolvedLocationRef = useRef<ResolvedSearchLocation | null>(
+    resolveSearchLocation(searchState.destination)
+  );
 
   useEffect(() => {
     searchApiStateRef.current = searchApiState;
@@ -146,43 +187,65 @@ export function SearchTab({
 
   const mapApiActivityToCardActivity = (activity: VolunteerActivity): ActivitySaveRecord => {
     const activityStatus = getActivityStatus({
-      date: activity.activityStartDate,
+      activityStartDate: activity.activityStartDate,
+      activityEndDate: activity.activityEndDate,
       time: activity.time,
       recruitmentEndDate: activity.recruitmentEndDate,
     });
 
-    return {
-    id: activity.id || activity.progrmRegistNo,
-    imageUrl: activity.imageUrl,
-    title: activity.title || '제목 확인 필요',
-    location: activity.location || activity.region || '장소 확인 필요',
-    recruitmentStartDate: activity.recruitmentStartDate,
-    recruitmentEndDate: activity.recruitmentEndDate,
-    date: activity.activityStartDate,
-    time: activity.time || '시간 확인 필요',
-    status: activity.status,
-    isRecruiting: activityStatus !== 'past' && activityStatus !== 'closed',
-    description: activity.organization
-      ? `${activity.organization}에서 모집하는 1365 봉사활동입니다.`
-      : '1365에서 제공한 봉사활동입니다.',
-    materials: '1365 상세 페이지에서 확인해주세요.',
-    capacity: normalizeCapacity(activity.capacity),
-    currentParticipants: normalizeCapacity(activity.currentParticipants),
-    recommendation: '여행 일정과 가까운 시간에 참여할 수 있는 활동인지 살펴보세요.',
-    category: activity.category,
-    volunteerPeriod:
-      activity.activityStartDate && activity.activityEndDate
-        ? `${activity.activityStartDate} - ${activity.activityEndDate}`
-        : activity.activityStartDate,
-    volunteerTime: activity.time || '시간 확인 필요',
-    volunteerField: activity.category || '봉사분야 확인 필요',
-    volunteerTarget: activity.volunteerTarget || '1365 상세 페이지에서 확인해주세요.',
-    recruitingOrganization: activity.organization || '모집기관 확인 필요',
-    volunteerPlace: activity.location || activity.region || '장소 확인 필요',
-    applyUrl: activity.applyUrl || activity.sourceUrl,
-    sourceUrl: activity.sourceUrl,
-    progrmRegistNo: activity.progrmRegistNo,
-    };
+    return withResolvedActivityImage({
+      id: activity.id || activity.progrmRegistNo,
+      imageUrl: activity.imageUrl,
+      title: activity.title || '제목 확인 필요',
+      location: activity.location || activity.region || '장소 확인 필요',
+      recruitmentStartDate: activity.recruitmentStartDate,
+      recruitmentEndDate: activity.recruitmentEndDate,
+      activityStartDate: activity.activityStartDate,
+      activityEndDate: activity.activityEndDate,
+      activityDate: activity.activityStartDate === activity.activityEndDate ? activity.activityStartDate : undefined,
+      date: activity.activityStartDate,
+      time: activity.time || '시간 확인 필요',
+      status: activity.status,
+      isRecruiting: activityStatus !== 'past' && activityStatus !== 'closed',
+      description: activity.organization
+        ? `${activity.organization}에서 모집하는 1365 봉사활동입니다.`
+        : '1365에서 제공한 봉사활동입니다.',
+      materials: '1365 상세 페이지에서 확인해주세요.',
+      capacity: normalizeCapacity(activity.capacity),
+      currentParticipants: normalizeCapacity(activity.currentParticipants),
+      recommendation: '여행 일정과 가까운 시간에 참여할 수 있는 활동인지 살펴보세요.',
+      category: activity.category,
+      volunteerPeriod:
+        activity.activityStartDate && activity.activityEndDate
+          ? `${activity.activityStartDate} - ${activity.activityEndDate}`
+          : activity.activityStartDate,
+      volunteerTime: activity.time || '시간 확인 필요',
+      volunteerField: activity.category || '봉사분야 확인 필요',
+      volunteerTarget: activity.volunteerTarget || '1365 상세 페이지에서 확인해주세요.',
+      recruitingOrganization: activity.organization || '모집기관 확인 필요',
+      volunteerPlace: activity.location || activity.region || '장소 확인 필요',
+      applyUrl: activity.applyUrl || activity.sourceUrl,
+      sourceUrl: activity.sourceUrl,
+      progrmRegistNo: activity.progrmRegistNo,
+    });
+  };
+
+  const isSearchVisibleActivity = (activity: ActivitySaveRecord) => {
+    const rawStatus = String(activity.status || '').trim();
+    if (/모집완료|모집마감|종료|신청불가|지난 활동/.test(rawStatus)) return false;
+
+    const activityStatus = getActivityStatus({
+      date: activity.date,
+      activityDate: activity.activityDate,
+      activityStartDate: activity.activityStartDate,
+      activityEndDate: activity.activityEndDate,
+      time: activity.time,
+      recruitmentEndDate: activity.recruitmentEndDate,
+      volunteerPeriod: activity.volunteerPeriod,
+      volunteerTime: activity.volunteerTime,
+    });
+
+    return activityStatus !== 'past' && activityStatus !== 'closed';
   };
 
   const buildSearchCondition = (
@@ -212,9 +275,23 @@ export function SearchTab({
     endDate: Date | null;
     dateRangeLabel: string;
     peopleCount: number;
+    resolvedSidoCd?: string | null;
+    resolvedGugunCd?: string | null;
+    resolvedKeywords?: string[] | null;
   }) => {
     const nextDestination = values.destination;
     const nextPeopleCount = values.peopleCount;
+
+    // 저장된 resolved 정보 사용 (최근 검색 클릭) 또는 새로 resolve
+    const resolved = (values.resolvedSidoCd !== undefined)
+      ? (values.resolvedSidoCd
+          ? {
+              sidoCd: values.resolvedSidoCd,
+              gugunCd: values.resolvedGugunCd ?? null,
+              keywords: values.resolvedKeywords ?? [],
+            } as ResolvedSearchLocation
+          : null)
+      : resolveSearchLocation(nextDestination);
 
     setDestination(nextDestination);
     setStartDate(values.startDate);
@@ -237,20 +314,135 @@ export function SearchTab({
         startDate: values.startDate,
         endDate: values.endDate,
         peopleCount: nextPeopleCount,
+        resolvedSidoCd: resolved?.sidoCd ?? null,
+        resolvedGugunCd: resolved?.gugunCd ?? null,
+        resolvedKeywords: resolved?.keywords ?? null,
       }),
       api: currentState.api,
     }));
 
-    void fetchVolunteerActivities(nextDestination, values.startDate, values.endDate, nextPeopleCount);
+    void fetchVolunteerActivities(nextDestination, values.startDate, values.endDate, nextPeopleCount, resolved);
   };
 
   const SEARCH_PAGE_SIZE = 15;
+  const INITIAL_SEARCH_MAX_PAGE = 5;
+
+  const getActivityUniqueKey = (activity: ActivitySaveRecord) =>
+    activity.progrmRegistNo || activity.id || `${activity.title}-${activity.activityStartDate || activity.date}-${activity.location}`;
+
+  const mergeUniqueActivities = (baseActivities: ActivitySaveRecord[], nextActivities: ActivitySaveRecord[]) => {
+    const seenKeys = new Set(baseActivities.map(getActivityUniqueKey));
+    const mergedActivities = [...baseActivities];
+
+    nextActivities.forEach((activity) => {
+      const key = getActivityUniqueKey(activity);
+      if (!key || seenKeys.has(key)) return;
+
+      seenKeys.add(key);
+      mergedActivities.push(activity);
+    });
+
+    return mergedActivities;
+  };
+
+  const buildVolunteerSearchParams = (
+    keyword: string,
+    nextStartDate: Date | null,
+    nextEndDate: Date | null,
+    resolved: ResolvedSearchLocation | null,
+  ) => {
+    const params = new URLSearchParams({
+      keyword: keyword.trim(),
+      page: '1',
+      size: String(SEARCH_PAGE_SIZE),
+    });
+    const apiStartDate = formatApiDate(nextStartDate);
+    const apiEndDate = formatApiDate(nextEndDate);
+
+    if (apiStartDate) params.set('startDate', apiStartDate);
+    if (apiEndDate) params.set('endDate', apiEndDate);
+    if (resolved?.sidoCd) params.set('sidoCd', resolved.sidoCd);
+    if (resolved?.gugunCd) params.set('gugunCd', resolved.gugunCd);
+    if (resolved?.keywords && resolved.keywords.length > 0) {
+      params.set('fallbackKeyword', resolved.keywords[resolved.keywords.length - 1]);
+    }
+
+    return params;
+  };
+
+  const fetchVisibleSearchPage = async (params: URLSearchParams, page: number, logLabel: string) => {
+    params.set('page', String(page));
+    const pageRequestUrl = `/api/volunteer/search?${params.toString()}`;
+    const response = await fetch(pageRequestUrl);
+    const responseText = await response.text();
+    let payload: VolunteerSearchResponse | null = null;
+
+    try {
+      payload = JSON.parse(responseText) as VolunteerSearchResponse;
+    } catch {
+      console.error(`${logLabel} returned non-JSON response:`, {
+        requestUrl: pageRequestUrl,
+        status: response.status,
+        responseText: responseText.slice(0, 1000),
+      });
+      throw new Error('검색 API가 JSON이 아닌 응답을 반환했어요.');
+    }
+
+    if (!response.ok || !payload.ok) {
+      console.error(`${logLabel} failed:`, {
+        requestUrl: pageRequestUrl,
+        status: response.status,
+        responseText: responseText.slice(0, 1000),
+        errorMessage: payload.error,
+      });
+      throw new Error(payload.error || '1365 검색 요청에 실패했어요.');
+    }
+
+    return {
+      payload,
+      activities: Array.isArray(payload.items)
+        ? payload.items.map(mapApiActivityToCardActivity).filter(isSearchVisibleActivity)
+        : [],
+    };
+  };
+
+  const fetchVisibleSearchResults = async (
+    keyword: string,
+    nextStartDate: Date | null,
+    nextEndDate: Date | null,
+    resolved: ResolvedSearchLocation | null,
+    logLabel: string,
+  ) => {
+    const params = buildVolunteerSearchParams(keyword, nextStartDate, nextEndDate, resolved);
+    const firstPage = await fetchVisibleSearchPage(params, 1, logLabel);
+    let activities = firstPage.activities;
+    let totalCount = firstPage.payload.totalCount ?? activities.length;
+    let lastFetchedPage = 1;
+
+    while (
+      activities.length < SEARCH_PAGE_SIZE &&
+      lastFetchedPage < INITIAL_SEARCH_MAX_PAGE &&
+      lastFetchedPage * SEARCH_PAGE_SIZE < totalCount
+    ) {
+      lastFetchedPage += 1;
+      const nextPage = await fetchVisibleSearchPage(params, lastFetchedPage, logLabel);
+      activities = mergeUniqueActivities(activities, nextPage.activities);
+      totalCount = Math.max(totalCount, nextPage.payload.totalCount ?? totalCount);
+    }
+
+    return {
+      activities,
+      totalCount,
+      lastFetchedPage,
+    };
+  };
 
   const fetchVolunteerActivities = async (
     keyword: string,
     nextStartDate: Date | null,
     nextEndDate: Date | null,
     nextPeopleCount: number,
+    preResolvedLocation?: ResolvedSearchLocation | null,
   ) => {
     const searchCondition = buildSearchCondition(keyword, nextStartDate, nextEndDate, nextPeopleCount);
     const searchKey = createSearchKey(searchCondition);
@@ -263,16 +455,11 @@ export function SearchTab({
       return;
     }
 
-    const params = new URLSearchParams({
-      keyword: keyword.trim(),
-      page: '1',
-      size: String(SEARCH_PAGE_SIZE),
-    });
-    const apiStartDate = formatApiDate(nextStartDate);
-    const apiEndDate = formatApiDate(nextEndDate);
-
-    if (apiStartDate) params.set('startDate', apiStartDate);
-    if (apiEndDate) params.set('endDate', apiEndDate);
+    // resolved 위치 정보 결정 (전달받은 값 우선, 없으면 keyword로 resolve)
+    const resolved = preResolvedLocation !== undefined
+      ? preResolvedLocation
+      : resolveSearchLocation(keyword);
+    resolvedLocationRef.current = resolved;
 
     searchApiStateRef.current = {
       ...currentApiState,
@@ -296,38 +483,22 @@ export function SearchTab({
       },
     }));
 
-    const requestUrl = `/api/volunteer/search?${params.toString()}`;
+    const requestUrl = `/api/volunteer/search?${buildVolunteerSearchParams(keyword, nextStartDate, nextEndDate, resolved).toString()}`;
 
     try {
-      const response = await fetch(requestUrl);
-      const responseText = await response.text();
-      let payload: VolunteerSearchResponse | null = null;
+      const {
+        activities: nextActivities,
+        totalCount,
+        lastFetchedPage,
+      } = await fetchVisibleSearchResults(
+        keyword,
+        nextStartDate,
+        nextEndDate,
+        resolved,
+        'Volunteer search API',
+      );
 
-      try {
-        payload = JSON.parse(responseText) as VolunteerSearchResponse;
-      } catch {
-        console.error('Volunteer search returned non-JSON response:', {
-          requestUrl,
-          status: response.status,
-          responseText: responseText.slice(0, 1000),
-        });
-        throw new Error('검색 API가 JSON이 아닌 응답을 반환했어요.');
-      }
-
-      if (!response.ok || !payload.ok) {
-        console.error('Volunteer search API failed:', {
-          requestUrl,
-          status: response.status,
-          responseText: responseText.slice(0, 1000),
-          errorMessage: payload.error,
-        });
-        throw new Error(payload.error || '1365 검색 요청에 실패했어요.');
-      }
-
-      const nextActivities = Array.isArray(payload.items)
-        ? payload.items.map(mapApiActivityToCardActivity)
-        : [];
-
+      logActivityImageMappings('search-results', nextActivities);
       if (searchApiStateRef.current.pendingSearchKey !== searchKey) return;
 
       const nextApiState = {
@@ -337,8 +508,8 @@ export function SearchTab({
         failedSearchKey: null,
         lastSuccessfulSearchCondition: searchCondition,
         results: nextActivities,
-        totalCount: payload.totalCount ?? nextActivities.length,
-        currentPage: 1,
+        totalCount,
+        currentPage: lastFetchedPage,
         hasSearched: true,
         isLoading: false,
         error: null,
@@ -371,11 +542,25 @@ export function SearchTab({
     }
   };
 
+  const fetchRecommendedDestinationCount = async (destinationName: string) => {
+    const resolved = resolveSearchLocation(destinationName);
+    const { activities } = await fetchVisibleSearchResults(
+      destinationName,
+      null,
+      null,
+      resolved,
+      'Recommended destination count',
+    );
+
+    return activities.length;
+  };
+
   const loadMoreActivities = async () => {
     const currentApiState = searchApiStateRef.current;
     if (currentApiState.isLoadingMore || currentApiState.isLoading) return;
 
     const nextPage = currentApiState.currentPage + 1;
+    const resolved = resolvedLocationRef.current;
     const params = new URLSearchParams({
       keyword: destination.trim(),
       page: String(nextPage),
@@ -386,6 +571,13 @@ export function SearchTab({
 
     if (apiStartDate) params.set('startDate', apiStartDate);
     if (apiEndDate) params.set('endDate', apiEndDate);
+
+    // 초기 검색과 동일한 지역코드 사용
+    if (resolved?.sidoCd) params.set('sidoCd', resolved.sidoCd);
+    if (resolved?.gugunCd) params.set('gugunCd', resolved.gugunCd);
+    if (resolved?.keywords && resolved.keywords.length > 0) {
+      params.set('fallbackKeyword', resolved.keywords[resolved.keywords.length - 1]);
+    }
 
     searchApiStateRef.current = { ...currentApiState, isLoadingMore: true };
     onSearchStateChange((currentState) => ({
@@ -411,22 +603,23 @@ export function SearchTab({
       }
 
       const moreActivities = Array.isArray(payload.items)
-        ? payload.items.map(mapApiActivityToCardActivity)
+        ? payload.items.map(mapApiActivityToCardActivity).filter(isSearchVisibleActivity)
         : [];
 
       onSearchStateChange((currentState) => ({
         ...currentState,
         api: {
           ...currentState.api,
-          results: [...currentState.api.results, ...moreActivities],
+          results: mergeUniqueActivities(currentState.api.results, moreActivities),
           totalCount: payload!.totalCount ?? currentState.api.totalCount,
           currentPage: nextPage,
           isLoadingMore: false,
         },
       }));
+      const mergedResults = mergeUniqueActivities(searchApiStateRef.current.results, moreActivities);
       searchApiStateRef.current = {
         ...searchApiStateRef.current,
-        results: [...searchApiStateRef.current.results, ...moreActivities],
+        results: mergedResults,
         totalCount: payload.totalCount ?? searchApiStateRef.current.totalCount,
         currentPage: nextPage,
         isLoadingMore: false,
@@ -445,6 +638,45 @@ export function SearchTab({
   };
 
   useEffect(() => {
+    let isCancelled = false;
+    const missingDestinations = recommendedDestinationNames.filter(
+      (name) => !destinationActivityCounts[name],
+    );
+
+    if (missingDestinations.length === 0) return;
+
+    setDestinationActivityCounts((currentCounts) => {
+      const nextCounts = { ...currentCounts };
+      missingDestinations.forEach((name) => {
+        nextCounts[name] = { status: 'loading', count: null };
+      });
+      return nextCounts;
+    });
+
+    missingDestinations.forEach((name) => {
+      void fetchRecommendedDestinationCount(name)
+        .then((count) => {
+          if (isCancelled) return;
+          setDestinationActivityCounts((currentCounts) => ({
+            ...currentCounts,
+            [name]: { status: 'ready', count },
+          }));
+        })
+        .catch(() => {
+          if (isCancelled) return;
+          setDestinationActivityCounts((currentCounts) => ({
+            ...currentCounts,
+            [name]: { status: 'error', count: null },
+          }));
+        });
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     setHasSearched(searchState.hasSearched);
     setDestination(searchState.destination);
     setStartDate(searchState.startDate);
@@ -454,7 +686,7 @@ export function SearchTab({
     setSummaryPeople(searchState.peopleCount > 0 ? `${searchState.peopleCount}명` : '');
 
     if (!searchState.hasSearched) {
-      setSelectedFilters([]);
+      setAppliedCategoryFilters([]);
       setIsFilterOpen(false);
       setIsSearchEditOpen(false);
       setIsDetailOpen(false);
@@ -467,6 +699,7 @@ export function SearchTab({
       searchState.startDate,
       searchState.endDate,
       searchState.peopleCount,
+      // preResolvedLocation 미전달 → fetch 내부에서 resolve
     );
   }, [
     searchState.dateRangeLabel,
@@ -576,31 +809,62 @@ export function SearchTab({
   const currentSearchKey = createSearchKey(buildSearchCondition(destination, startDate, endDate, peopleCount));
   const hasCachedResultsForCurrentSearch =
     searchApiState.hasSearched && searchApiState.lastSearchKey === currentSearchKey;
-  const activities = hasCachedResultsForCurrentSearch ? searchApiState.results : [];
+  const rawResults = hasCachedResultsForCurrentSearch ? searchApiState.results : [];
   const isLoadingResults =
     searchApiState.isLoading && searchApiState.pendingSearchKey === currentSearchKey;
   const searchError =
     !isLoadingResults && searchApiState.failedSearchKey === currentSearchKey
       ? searchApiState.error || ''
       : '';
-  const displayedActivities = activities.filter((activity) => {
+  const filteredResults = rawResults.filter((activity) => {
     const searchableText = `${activity.title} ${activity.location}`.toLowerCase();
-    const matchesDestination = normalizedDestination ? searchableText.includes(normalizedDestination) : true;
+    // alias 지역코드 검색 시 백엔드가 이미 지역 필터링 → 클라이언트 destination 필터 생략
+    const resolvedKeywords = resolvedLocationRef.current?.keywords ?? [];
+    const matchesDestination = resolvedLocationRef.current !== null
+      ? true
+      : normalizedDestination
+        ? searchableText.includes(normalizedDestination) ||
+          resolvedKeywords.some((k) => searchableText.includes(k.toLowerCase()))
+        : true;
     const capacity = Number.parseInt(activity.capacity, 10) || 0;
     const matchesPeople = peopleCount > 0 && capacity > 0 ? capacity >= peopleCount : true;
-    const activityCategory = activity.category || '';
-    const normalizedCategory = categoryLabelMap[activityCategory] || activityCategory;
-    const matchesCategory = selectedFilters.length === 0 || selectedFilters.includes(normalizedCategory);
+    const normalizedCategory = normalizeActivityCategory(activity.category || activity.volunteerField);
+    const matchesCategory =
+      appliedCategoryFilters.length === 0 || appliedCategoryFilters.includes(normalizedCategory);
 
     return matchesDestination && matchesPeople && matchesCategory;
   });
+  const visibleResults = filteredResults;
+  const hasAppliedCategoryFilters = appliedCategoryFilters.length > 0;
+  const resultCount = filteredResults.length;
+  const shouldShowResultCount = isLoadingResults || (!searchError && filteredResults.length > 0);
+  const hasMoreVisibleResults = filteredResults.length > visibleResults.length;
 
   const hasMoreResults = hasCachedResultsForCurrentSearch &&
-    searchApiState.totalCount > searchApiState.results.length;
+    filteredResults.length > 0 &&
+    (hasAppliedCategoryFilters
+      ? hasMoreVisibleResults
+      : searchApiState.totalCount > rawResults.length);
 
   const currentSummaryDateRange = summaryDateRange || formatDateRangeFull();
   const currentPeopleCount = summaryPeople ? Number.parseInt(summaryPeople, 10) || peopleCount : peopleCount;
   const shouldShowBackButton = hasSearched || entrySource === 'home-search';
+  const destinationActivityLabels = recommendedDestinationNames.reduce<Record<string, string>>((labels, name) => {
+    const countState = destinationActivityCounts[name];
+
+    if (!countState || countState.status === 'loading') {
+      labels[name] = '활동 확인 중';
+      return labels;
+    }
+
+    if (countState.status === 'error' || countState.count === null) {
+      labels[name] = '활동 확인 필요';
+      return labels;
+    }
+
+    labels[name] = countState.count === 0 ? '활동 없음' : `${countState.count}개 활동`;
+    return labels;
+  }, {});
 
   return (
     <>
@@ -654,6 +918,7 @@ export function SearchTab({
               onDateConfirm={handleDateConfirm}
               onDateClear={handleDateClear}
               onPeopleConfirm={handlePeopleConfirm}
+              destinationActivityLabels={destinationActivityLabels}
             />
           </div>
         )}
@@ -664,19 +929,19 @@ export function SearchTab({
             {/* Filters */}
             <div className="px-5 py-3">
               <div className="flex items-center">
-                <FilterChips selectedFilters={selectedFilters} onOpen={() => setIsFilterOpen(true)} />
+                <FilterChips selectedFilters={appliedCategoryFilters} onOpen={() => setIsFilterOpen(true)} />
               </div>
             </div>
 
             {/* Results Count */}
-            {!searchError && (
+            {shouldShowResultCount && (
               <div className="px-5 py-3">
                 <p className="text-[13px] text-[#999]">
                   {isLoadingResults ? (
                     '1365에서 활동을 찾고 있어요'
                   ) : (
                     <>
-                      총 <span className="text-[#2a2a2a] font-semibold">{searchApiState.totalCount}개</span>의 활동을 찾았어요
+                      총 <span className="text-[#2a2a2a] font-semibold">{resultCount}개</span>의 활동을 찾았어요
                     </>
                   )}
                 </p>
@@ -697,7 +962,7 @@ export function SearchTab({
                   <p className="mt-1.5 text-[13px] text-[#999]">검색어나 일정을 조금 바꿔 다시 시도해보세요</p>
                 </div>
               )}
-              {!isLoadingResults && !searchError && displayedActivities.map((activity) => (
+              {!isLoadingResults && !searchError && visibleResults.map((activity) => (
                 <CompactActivityCard
                   key={activity.id || `${activity.title}-${activity.date}`}
                   variant="searchResult"
@@ -706,6 +971,10 @@ export function SearchTab({
                   location={activity.location}
                   recruitmentStartDate={activity.recruitmentStartDate}
                   recruitmentEndDate={activity.recruitmentEndDate}
+                  activityDate={activity.activityDate}
+                  activityStartDate={activity.activityStartDate}
+                  activityEndDate={activity.activityEndDate}
+                  volunteerPeriod={activity.volunteerPeriod}
                   date={activity.date}
                   time={activity.time}
                   isPastActivity={isPastActivity(activity)}
@@ -715,7 +984,7 @@ export function SearchTab({
                   onClick={() => handleActivityClick(activity)}
                 />
               ))}
-              {!isLoadingResults && !searchError && displayedActivities.length === 0 && (
+              {!isLoadingResults && !searchError && filteredResults.length === 0 && (
                 <div className="rounded-3xl bg-white border border-black/5 px-5 py-8 text-center shadow-sm">
                   <p className="text-[15px] font-medium text-[#2a2a2a]">조건에 맞는 활동이 아직 없어요</p>
                   <p className="mt-1.5 text-[13px] text-[#999]">여행지나 일정을 조금 넓혀 다시 찾아보세요</p>
@@ -772,9 +1041,9 @@ export function SearchTab({
       <FilterBottomSheet
         isOpen={isFilterOpen}
         options={activityCategoryFilters}
-        selectedFilters={selectedFilters}
+        selectedFilters={appliedCategoryFilters}
         onClose={() => setIsFilterOpen(false)}
-        onApply={setSelectedFilters}
+        onApply={setAppliedCategoryFilters}
       />
 
       {/* Bottom Tab Bar */}

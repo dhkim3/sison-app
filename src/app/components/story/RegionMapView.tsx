@@ -18,25 +18,21 @@ interface RegionMapViewProps {
 }
 
 const regions = [
-  { name: '서울',  count: 24, top: '28.5%', left: '44%' },
-  { name: '경기',  count: 18, top: '34%', left: '43%' },
-  { name: '강원',  count: 12, top: '27%', left: '61.5%' },
-  { name: '충남',  count: 10, top: '49%', left: '39.5%', label: '충청' },
-  { name: '경북',  count:  9, top: '51%', left: '61%' },
-  { name: '전남',  count:  8, top: '72%', left: '40%' },
-  { name: '경남',  count: 15, top: '67%', left: '55.5%' },
-  { name: '부산',  count: 18, top: '69%', left: '65.5%' },
-  { name: '제주',  count: 11, top: '85%', left: '31%' },
-  /*
-  { name: '울산',  count:  4, top: '67%', left: '66%' },
-  울릉도/독도 마커는 만들지 않습니다.
-  */
+  { name: '서울',  count: 24, top: '16%',  left: '43%' },
+  { name: '경기',  count: 18, top: '24%',  left: '38%' },
+  { name: '강원',  count: 12, top: '26%',  left: '68%' },
+  { name: '충남',  count: 10, top: '36%',  left: '40%', label: '충청' },
+  { name: '경북',  count:  9, top: '43%',  left: '65%' },
+  { name: '전남',  count:  8, top: '66%',  left: '26%' },
+  { name: '경남',  count: 15, top: '57%',  left: '51%' },
+  { name: '부산',  count: 18, top: '60%',  left: '66%' },
+  { name: '제주',  count: 11, top: '86%',  left: '27%' },
 ];
 
 const mapImagePlacement = {
-  size: '117%',
-  top: '51.5%',
-  opacity: 0.6,
+  size: '128%',
+  top: '42%',
+  opacity: 0.9,
 };
 
 const mockStories: StoryItem[] = [
@@ -241,7 +237,7 @@ export function RegionMapView({
               <div
                 className="relative w-full overflow-hidden rounded-3xl"
                 style={{
-                  height: 'clamp(340px, 92vw, 374px)',
+                  height: 'clamp(300px, 80vw, 322px)',
                   background:
                     'radial-gradient(circle at 50% 40%, rgba(255,255,255,0.88) 0%, rgba(255,255,255,0.34) 38%, transparent 68%), linear-gradient(145deg, #fbf7ee 0%, #edf7f0 54%, #f8f4e9 100%)',
                   boxShadow:
@@ -301,36 +297,38 @@ export function RegionMapView({
                       key={region.name}
                       aria-label={`${region.label ?? region.name} 지역 스토리 보기`}
                       onClick={() => onSelectRegion(isSelected ? null : region.name)}
-                      className="absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5 transition-all duration-200"
+                      className="absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2 transition-all duration-200"
                       style={{
                         top: region.top,
                         left: region.left,
-                        opacity: isOtherSelected ? 0.42 : 1,
+                        opacity: isOtherSelected ? 0.38 : 1,
                       }}
                     >
                       <span
                         className="flex h-[18px] w-[18px] items-center justify-center rounded-full"
                         style={{
-                          backgroundColor: 'rgba(255,255,255,0.92)',
+                          backgroundColor: 'rgba(255,255,255,0.94)',
                           boxShadow: isSelected
-                            ? '0 0 0 4px rgba(142,205,168,0.24), 0 5px 14px rgba(92,146,113,0.24)'
-                            : '0 3px 10px rgba(106,128,111,0.16)',
+                            ? '0 0 0 2px rgba(255,255,255,0.9), 0 0 0 5px rgba(142,205,168,0.38), 0 5px 14px rgba(92,146,113,0.28)'
+                            : '0 0 0 1.5px rgba(255,255,255,0.85), 0 4px 12px rgba(80,110,90,0.28)',
                         }}
                       >
                         <span
                           className="block h-[8px] w-[8px] rounded-full"
                           style={{
-                            backgroundColor: isSelected ? '#66a982' : '#93cdae',
+                            backgroundColor: isSelected ? '#5fa07a' : '#88c4a2',
                             boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.5)',
                           }}
                         />
                       </span>
                       <span
-                        className="rounded-full px-1.5 py-0.5 text-[9px] font-medium leading-none"
+                        className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold leading-none"
                         style={{
-                          color: isSelected ? '#4f8d68' : '#7e8f82',
-                          backgroundColor: isSelected ? 'rgba(255,255,255,0.78)' : 'rgba(255,255,255,0.42)',
-                          boxShadow: isSelected ? '0 2px 8px rgba(92,146,113,0.10)' : 'none',
+                          color: isSelected ? '#3d7a58' : '#546459',
+                          backgroundColor: isSelected ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.78)',
+                          boxShadow: isSelected
+                            ? '0 2px 8px rgba(92,146,113,0.14)'
+                            : '0 1px 4px rgba(60,80,65,0.10)',
                         }}
                       >
                         {region.label ?? region.name}

@@ -43,6 +43,7 @@ export function FilterBottomSheet({
 
   const handleReset = () => {
     setDraftFilters([]);
+    onApply([]);
   };
 
   return (

@@ -13,12 +13,6 @@ declare const process: {
   env: Record<string, string | undefined>;
 };
 
-console.log('DATA_GO_KR_SERVICE_KEY exists:', !!process.env.DATA_GO_KR_SERVICE_KEY);
-console.log(
-  'DATA_GO_KR related env keys:',
-  Object.keys(process.env).filter((key) => key.includes('DATA_GO_KR') || key.includes('GO_KR')),
-);
-
 type VercelResponse = {
   status: (statusCode: number) => VercelResponse;
   json: (body: unknown) => void;
@@ -329,7 +323,7 @@ const shortenHomeLocation = (value: string) => {
     /(분원|센터|광장|공원|해변|해수욕장|시장|마켓|회관|체육관|박물관|미술관|문화관|축제장|행사장|일원)$/.test(part)
   );
 
-  return preferred || (withoutParentheses.length > 18 ? `${withoutParentheses.slice(0, 18)}...` : withoutParentheses);
+  return preferred || withoutParentheses;
 };
 
 const avoidConsecutiveImages = (items: VolunteerActivity[]) =>
@@ -347,6 +341,8 @@ const buildVolunteerSearchUrl = (params: {
   keyword: string;
   startDate: string;
   endDate: string;
+  sidoCd?: string;
+  gugunCd?: string;
 }) => {
   const query = new URLSearchParams({
     pageNo: String(params.pageNo),
@@ -357,6 +353,8 @@ const buildVolunteerSearchUrl = (params: {
 
   if (params.startDate.length === 8) query.set('progrmBgnde', params.startDate);
   if (params.endDate.length === 8) query.set('progrmEndde', params.endDate);
+  if (params.sidoCd) query.set('sidoCd', params.sidoCd);
+  if (params.gugunCd) query.set('gugunCd', params.gugunCd);
 
   const serviceKey = params.serviceKey.includes('%') ? params.serviceKey : encodeURIComponent(params.serviceKey);
   return `${VOLUNTEER_SEARCH_URL}?serviceKey=${serviceKey}&${query.toString()}`;
@@ -860,6 +858,32 @@ const weeklyRelaxationProfiles: WeeklyRelaxationProfile[] = [
   { maxDaysUntilActivity: 30, requireShortDuration: false, allowLongActivityPeriod: true, allowLongRunningTitle: true },
 ];
 
+const isPeriodActivity = (item: ParsedVolunteerItem) => {
+  const activityStartDate = getActivityStartDate(item);
+  const activityEndDate = getLightweightActivityEndDate(item);
+
+  return Boolean(activityStartDate && activityEndDate && toApiDate(activityStartDate) !== toApiDate(activityEndDate));
+};
+
+const getWeeklyCandidateDate = (item: ParsedVolunteerItem) => {
+  const activityStartDate = getActivityStartDate(item);
+  const activityEndDate = getLightweightActivityEndDate(item);
+
+  if (isPeriodActivity(item)) {
+    if (isApiDateTodayOrLater(activityStartDate) && isApiDateTodayOrLater(activityEndDate)) {
+      return activityStartDate;
+    }
+
+    if (isApiDateTodayOrEarlier(activityStartDate) && isApiDateTodayOrLater(activityEndDate)) {
+      return getTodayApiDate();
+    }
+
+    return activityEndDate;
+  }
+
+  return activityStartDate || activityEndDate;
+};
+
 const getWeeklyActivityScore = (
   item: ParsedVolunteerItem,
   index: number,
@@ -870,9 +894,10 @@ const getWeeklyActivityScore = (
   const searchableText = `${categoryAndTitle} ${item.actPlace} ${item.nanmmbyNm}`;
   const activityStartDate = getActivityStartDate(item);
   const activityEndDate = getLightweightActivityEndDate(item);
+  const candidateDate = getWeeklyCandidateDate(item);
   const recruitmentEndDate = getRecruitmentEndDate(item);
   const activitySpanDays = getApiDateSpanDays(activityStartDate, activityEndDate);
-  const daysUntilActivity = getDaysAfterToday(activityStartDate);
+  const daysUntilActivity = getDaysAfterToday(candidateDate);
   const durationMinutes = getActivityDurationMinutes(item);
 
   if (!isRecruitingItem(item)) return null;
@@ -904,38 +929,12 @@ const getWeeklyActivityScore = (
     index,
     score,
     bucket: profile.maxDaysUntilActivity,
-    activityDate: toSortableDate(activityStartDate),
+    activityDate: toSortableDate(candidateDate),
     durationMinutes: durationMinutes ?? Infinity,
   };
 };
 
 const filterWeeklyActivities = (items: ParsedVolunteerItem[]) => {
-  const validRecruitmentEnd = items.filter((item) => isApiDateTodayOrLater(getRecruitmentEndDate(item)));
-  const futureActivities = validRecruitmentEnd.filter((item) => {
-    const activityStartDate = getActivityStartDate(item);
-    const activityEndDate = getLightweightActivityEndDate(item);
-
-    return (
-      isRecruitingItem(item) &&
-      !isActivityEnded(item) &&
-      isApiDateTodayOrLater(activityStartDate) &&
-      isApiDateTodayOrLater(activityEndDate || activityStartDate) &&
-      !weeklyForceExcludePattern.test(`${item.srvcClCode} ${item.progrmSj} ${item.actPlace} ${item.nanmmbyNm}`)
-    );
-  });
-  const candidatesByProfile = weeklyRelaxationProfiles.map((profile) =>
-    items
-      .map((item, index) => getWeeklyActivityScore(item, index, profile))
-      .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== null)
-  );
-
-  console.log('[ThisWeekActivities] raw:', items.length);
-  console.log('[ThisWeekActivities] futureOnly:', futureActivities.length);
-  console.log('[ThisWeekActivities] validRecruitmentEnd:', validRecruitmentEnd.length);
-  console.log('[ThisWeekActivities] 7days:', candidatesByProfile[0]?.length ?? 0);
-  console.log('[ThisWeekActivities] 14days:', candidatesByProfile[1]?.length ?? 0);
-  console.log('[ThisWeekActivities] 30days:', candidatesByProfile[2]?.length ?? 0);
-
   for (const profile of weeklyRelaxationProfiles) {
     const candidates = items
       .map((item, index) => getWeeklyActivityScore(item, index, profile))
@@ -949,14 +948,112 @@ const filterWeeklyActivities = (items: ParsedVolunteerItem[]) => {
       });
 
     if (candidates.length >= 3 || profile === weeklyRelaxationProfiles[weeklyRelaxationProfiles.length - 1]) {
-      const finalItems = candidates.slice(0, 3).map(({ item }) => item);
-      console.log('[ThisWeekActivities] final:', finalItems.length);
-      return finalItems;
+      return candidates.slice(0, 3).map(({ item }) => item);
     }
   }
 
-  console.log('[ThisWeekActivities] final:', 0);
   return [];
+};
+
+const getMonthlyActivityScore = (item: ParsedVolunteerItem, index: number) => {
+  const title = item.progrmSj;
+  const categoryAndTitle = `${item.srvcClCode} ${title}`;
+  const searchableText = `${categoryAndTitle} ${item.actPlace} ${item.nanmmbyNm}`;
+  const activityStartDate = getActivityStartDate(item);
+  const activityEndDate = getLightweightActivityEndDate(item);
+  const recruitmentEndDate = getRecruitmentEndDate(item);
+  const durationMinutes = getActivityDurationMinutes(item);
+  const today = getTodayApiDate();
+
+  if (!isRecruitingItem(item)) return null;
+  if (isActivityEnded(item)) return null;
+  if (!recruitmentEndDate || !isApiDateTodayOrLater(recruitmentEndDate)) return null;
+  if (!activityStartDate) return null;
+  // 1회성 활동만: startDate와 endDate가 다르면 제외
+  if (activityEndDate && toApiDate(activityStartDate) !== toApiDate(activityEndDate)) return null;
+  // 오늘 이후여야 함
+  if (!isApiDateTodayOrLater(activityStartDate)) return null;
+  // 이번 달 안에 있어야 함
+  if (toApiDate(activityStartDate).slice(0, 6) !== today.slice(0, 6)) return null;
+  // 강제 제외 패턴 (프로그램|동아리 포함)
+  if (weeklyForceExcludePattern.test(searchableText)) return null;
+  if (weeklyLongRunningTitlePattern.test(title)) return null;
+
+  let score = 0;
+  if (isYesFlag(item.adultPosblAt)) score += 20;
+  if (weeklyPreferredCategoryKeywords.some((kw) => categoryAndTitle.includes(kw))) score += 35;
+  const priorityCount = weeklyPriorityTitleKeywords.filter((kw) => searchableText.includes(kw)).length;
+  score += Math.min(priorityCount * 12, 48);
+  if (durationMinutes !== null && durationMinutes <= 240) score += 20;
+  if (durationMinutes !== null && durationMinutes <= 120) score += 8;
+  if (weeklySecondaryPenaltyPattern.test(searchableText)) score -= 20;
+  // 오늘 마감 활동은 후순위
+  if (toSortableDate(recruitmentEndDate) === Number(today)) score -= 10;
+
+  return {
+    item,
+    index,
+    score,
+    activityDate: toSortableDate(activityStartDate),
+    durationMinutes: durationMinutes ?? Infinity,
+  };
+};
+
+const filterMonthlyActivities = (items: ParsedVolunteerItem[]) => {
+  const candidates = items
+    .map((item, index) => getMonthlyActivityScore(item, index))
+    .filter((c): c is NonNullable<typeof c> => c !== null)
+    .sort((a, b) => {
+      if (a.activityDate !== b.activityDate) return a.activityDate - b.activityDate;
+      if (b.score !== a.score) return b.score - a.score;
+      if (a.durationMinutes !== b.durationMinutes) return a.durationMinutes - b.durationMinutes;
+      return a.index - b.index;
+    });
+
+  return candidates.slice(0, 3).map(({ item }) => item);
+};
+
+const fetchWeeklySupplementItems = async (params: {
+  serviceKey: string;
+  startDate: string;
+  endDate: string;
+  pageSize: number;
+}) => {
+  const supplementalItems: ParsedVolunteerItem[] = [];
+
+  for (const pageNo of [2, 3]) {
+    const supplementUrl = buildVolunteerSearchUrl({
+      serviceKey: params.serviceKey,
+      pageNo,
+      numOfRows: params.pageSize,
+      keyword: '',
+      startDate: params.startDate,
+      endDate: params.endDate,
+    });
+
+    try {
+      const response = await fetch(supplementUrl);
+      const xmlText = await response.text();
+
+      if (!response.ok) {
+        console.error('1365 weekly supplement request failed:', {
+          pageNo,
+          status: response.status,
+          responseText: stripScriptTags(xmlText).slice(0, 500),
+        });
+        continue;
+      }
+
+      supplementalItems.push(...parseVolunteerItems(xmlText));
+    } catch (error) {
+      console.error('1365 weekly supplement request errored:', {
+        pageNo,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return supplementalItems;
 };
 
 const festivalPriorityKeywords = [
@@ -1153,23 +1250,10 @@ const filterFestivalActivities = (items: ParsedVolunteerItem[]) => {
 
     if (candidates.length >= 3 || profile === festivalRelaxationProfiles[festivalRelaxationProfiles.length - 1]) {
       const finalCandidates = pickFestivalFinalCandidates(candidates);
-      console.log('[FestivalActivities] raw:', items.length);
-      console.log('[FestivalActivities] candidates:', candidates.length);
-      console.log('[FestivalActivities] final:', finalCandidates.map(({ item, score }) => ({
-        title: item.progrmSj,
-        category: item.srvcClCode,
-        location: shortenHomeLocation(item.actPlace),
-        recruitmentEndDate: formatDate(getRecruitmentEndDate(item)),
-        ddayLabel: getRecruitmentDdayLabelFromApiDate(getRecruitmentEndDate(item)),
-        score,
-      })));
       return finalCandidates.map(({ item }) => item);
     }
   }
 
-  console.log('[FestivalActivities] raw:', items.length);
-  console.log('[FestivalActivities] candidates:', 0);
-  console.log('[FestivalActivities] final:', []);
   return [];
 };
 
@@ -1353,57 +1437,7 @@ const fetchVolunteerDetailItem = async (serviceKey: string, progrmRegistNo: stri
       return null;
     }
 
-    const detailItem = parseVolunteerItems(xmlText)[0] ?? null;
-    if (detailItem) {
-      console.log('1365 detail item', {
-        progrmRegistNo: detailItem.progrmRegistNo || progrmRegistNo,
-        title: detailItem.progrmSj,
-        recruitmentEndCandidates: {
-          noticeEndde: detailItem.noticeEndde,
-          noticeEndDate: detailItem.noticeEndDate,
-          rcritEndde: detailItem.rcritEndde,
-          rcritEndDate: detailItem.rcritEndDate,
-          reqstEndde: detailItem.reqstEndde,
-          reqstEndDate: detailItem.reqstEndDate,
-          progrmEndde: detailItem.progrmEndde,
-          srvcEndDate: detailItem.srvcEndDate,
-        },
-      });
-      console.log('1365 volunteer detail count candidates:', {
-        progrmRegistNo: detailItem.progrmRegistNo,
-        capacityCandidates: {
-          rcritNmpr: detailItem.rcritNmpr,
-          recrtNmpr: detailItem.recrtNmpr,
-          reqstNmpr: detailItem.reqstNmpr,
-          progrmRcritNmpr: detailItem.progrmRcritNmpr,
-          rcritNmprCo: detailItem.rcritNmprCo,
-          nanmmbyNmpr: detailItem.nanmmbyNmpr,
-          wanted: detailItem.wanted,
-          capacity: detailItem.capacity,
-        },
-        currentParticipantCandidates: {
-          applcntNmpr: detailItem.applcntNmpr,
-          partcptnNmpr: detailItem.partcptnNmpr,
-          reqstNmpr: detailItem.reqstNmpr,
-          requestCount: detailItem.requestCount,
-          appTotal: detailItem.appTotal,
-          currentParticipants: detailItem.currentParticipants,
-        },
-        volunteerTargetCandidates: {
-          target: detailItem.target,
-          srvcTarget: detailItem.srvcTarget,
-          volunteerTarget: detailItem.volunteerTarget,
-          trgetNm: detailItem.trgetNm,
-          mnnstNm: detailItem.mnnstNm,
-          adultPosblAt: detailItem.adultPosblAt,
-          yngbgsPosblAt: detailItem.yngbgsPosblAt,
-          familyPosblAt: detailItem.familyPosblAt,
-          grpPosblAt: detailItem.grpPosblAt,
-        },
-      });
-    }
-
-    return detailItem;
+    return parseVolunteerItems(xmlText)[0] ?? null;
   } catch (error) {
     console.error('1365 detail request errored:', {
       progrmRegistNo,
@@ -1477,19 +1511,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const endDate = toApiDate(getSingleQueryValue(req.query.endDate));
   const sort = getSingleQueryValue(req.query.sort).trim();
 
+  // 여행지명 기반 검색: sort 없는 일반 검색에서만 지역코드 사용
+  const sidoCd = !sort ? getSingleQueryValue(req.query.sidoCd).trim() : '';
+  const gugunCd = !sort ? getSingleQueryValue(req.query.gugunCd).trim() : '';
+  const fallbackKeyword = !sort ? getSingleQueryValue(req.query.fallbackKeyword).trim() : '';
+  const useRegionCodes = Boolean(sidoCd);
+
   const upstreamUrl = buildVolunteerSearchUrl({
     serviceKey,
     pageNo,
     numOfRows,
-    keyword,
+    keyword: useRegionCodes ? '' : keyword,
     startDate,
     endDate,
+    sidoCd: useRegionCodes ? sidoCd : undefined,
+    gugunCd: useRegionCodes && gugunCd ? gugunCd : undefined,
   });
 
   try {
     const response = await fetch(upstreamUrl);
     const xmlText = await response.text();
-    console.log('1365 volunteer raw response preview:', stripScriptTags(xmlText).slice(0, 1000));
 
     if (!response.ok) {
       console.error('1365 upstream request failed:', {
@@ -1503,22 +1544,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const resultCode = getTagValue(xmlText, 'resultCode');
     const resultMsg = getTagValue(xmlText, 'resultMsg');
-    const totalCount = Number.parseInt(getTagValue(xmlText, 'totalCount'), 10) || 0;
-    const rawItems = parseVolunteerItems(xmlText);
-    console.log('1365 raw item', rawItems.slice(0, 5).map((item) => ({
-      progrmRegistNo: item.progrmRegistNo,
-      title: item.progrmSj,
-      recruitmentEndCandidates: {
-        noticeEndde: item.noticeEndde,
-        noticeEndDate: item.noticeEndDate,
-        rcritEndde: item.rcritEndde,
-        rcritEndDate: item.rcritEndDate,
-        reqstEndde: item.reqstEndde,
-        reqstEndDate: item.reqstEndDate,
-        progrmEndde: item.progrmEndde,
-        srvcEndDate: item.srvcEndDate,
-      },
-    })));
+    let totalCount = Number.parseInt(getTagValue(xmlText, 'totalCount'), 10) || 0;
+    let rawItems = parseVolunteerItems(xmlText);
 
     if (resultCode && resultCode !== '00') {
       console.error('1365 upstream returned error result:', {
@@ -1526,63 +1553,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         status: response.status,
         responseText: stripScriptTags(xmlText).slice(0, 1000),
       });
-      sendFailure(res, 502, resultMsg || '1365 검색 결과를 불러오지 못했어요.');
-      return;
+      if (!useRegionCodes) {
+        sendFailure(res, 502, resultMsg || '1365 검색 결과를 불러오지 못했어요.');
+        return;
+      }
+      // 지역코드 검색 API 오류 → keyword fallback으로 계속 진행
+      rawItems = [];
     }
 
-    if (sort === 'recent' || sort === 'recruiting' || sort === 'hidden' || sort === 'lightweight' || sort === 'weekly' || sort === 'festival') {
-      console.log('1365 home volunteer filter candidates:', rawItems.slice(0, 10).map((item) => ({
-        progrmRegistNo: item.progrmRegistNo,
-        title: item.progrmSj,
-        recruitmentStartCandidates: {
-          noticeBgnde: item.noticeBgnde,
-          srvcStartDate: item.srvcStartDate,
-        },
-        recruitmentEndCandidates: {
-          noticeEndde: item.noticeEndde,
-          noticeEndDate: item.noticeEndDate,
-          rcritEndde: item.rcritEndde,
-          rcritEndDate: item.rcritEndDate,
-          reqstEndde: item.reqstEndde,
-          reqstEndDate: item.reqstEndDate,
-          progrmEndde: item.progrmEndde,
-          srvcEndDate: item.srvcEndDate,
-        },
-        activityStartCandidates: {
-          progrmBgnde: item.progrmBgnde,
-          actBeginDate: item.actBeginDate,
-          srvcStartDate: item.srvcStartDate,
-        },
-        activityEndCandidates: {
-          progrmEndde: item.progrmEndde,
-          actEndDate: item.actEndDate,
-          srvcEndDate: item.srvcEndDate,
-        },
-        statusCandidates: {
-          status: item.status,
-          progrmSttusSe: item.progrmSttusSe,
-          rcritAt: item.rcritAt,
-        },
-        capacityCandidates: {
-          rcritNmpr: item.rcritNmpr,
-          recrtNmpr: item.recrtNmpr,
-          reqstNmpr: item.reqstNmpr,
-          progrmRcritNmpr: item.progrmRcritNmpr,
-          rcritNmprCo: item.rcritNmprCo,
-          nanmmbyNmpr: item.nanmmbyNmpr,
-          wanted: item.wanted,
-          capacity: item.capacity,
-        },
-        currentParticipantCandidates: {
-          applcntNmpr: item.applcntNmpr,
-          partcptnNmpr: item.partcptnNmpr,
-          reqstNmpr: item.reqstNmpr,
-          requestCount: item.requestCount,
-          appTotal: item.appTotal,
-          currentParticipants: item.currentParticipants,
-        },
-        hiddenCandidateScore: getHiddenActivityCandidateScore(item),
-      })));
+    // 시도 단독 검색이 너무 좁게 해석되거나 비었을 때 keyword fallback으로 보강
+    if (useRegionCodes && (rawItems.length === 0 || (!gugunCd && rawItems.length < numOfRows))) {
+      const tryKeywordFallback = async (kw: string): Promise<boolean> => {
+        if (!kw) return false;
+        try {
+          const kwUrl = buildVolunteerSearchUrl({ serviceKey, pageNo, numOfRows, keyword: kw, startDate, endDate });
+          const kwRes = await fetch(kwUrl);
+          if (!kwRes.ok) return false;
+          const kwXml = await kwRes.text();
+          const kwCode = getTagValue(kwXml, 'resultCode');
+          if (kwCode && kwCode !== '00') return false;
+          const kwItems = parseVolunteerItems(kwXml);
+          rawItems = mergeVolunteerItems([...rawItems, ...kwItems]);
+          totalCount = Math.max(
+            totalCount,
+            Number.parseInt(getTagValue(kwXml, 'totalCount'), 10) || kwItems.length,
+          );
+          return kwItems.length > 0;
+        } catch {
+          return false;
+        }
+      };
+
+      // 2차: 원래 입력값 keyword 검색
+      const kwResolved = await tryKeywordFallback(keyword);
+      // 3차: alias sigungu keyword 검색
+      if (!kwResolved && fallbackKeyword && fallbackKeyword !== keyword) {
+        await tryKeywordFallback(fallbackKeyword);
+      }
     }
 
     if (sort === 'lightweight') {
@@ -1612,63 +1619,63 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (sort === 'weekly') {
-      console.log('[ThisWeekActivities] raw item', rawItems.slice(0, 10).map((item) => ({
-        title: item.progrmSj,
-        activityDate: getActivityStartDate(item),
-        activityEndDate: getLightweightActivityEndDate(item),
-        recruitmentEndCandidates: {
-          noticeEndde: item.noticeEndde,
-          noticeEndDate: item.noticeEndDate,
-          rcritEndde: item.rcritEndde,
-          rcritEndDate: item.rcritEndDate,
-          reqstEndde: item.reqstEndde,
-          reqstEndDate: item.reqstEndDate,
-          progrmEndde: item.progrmEndde,
-          srvcEndDate: item.srvcEndDate,
-        },
-      })));
+      const buildWeeklySourceItems = async (items: ParsedVolunteerItem[]) => {
+        const weeklyDetailItems = await Promise.all(
+          items.map((item) => fetchVolunteerDetailItem(serviceKey, item.progrmRegistNo))
+        );
 
-      const weeklyDetailItems = await Promise.all(
-        rawItems.map((item) => fetchVolunteerDetailItem(serviceKey, item.progrmRegistNo))
-      );
-      const weeklySourceItems = rawItems.map((item, index) => {
-        const detailItem = weeklyDetailItems[index];
+        return items.map((item, index) => {
+          const detailItem = weeklyDetailItems[index];
 
-        if (detailItem) {
-          console.log('[ThisWeekActivities] detail item', {
-            title: detailItem.progrmSj || item.progrmSj,
-            activityDate: getActivityStartDate(detailItem),
-            activityEndDate: getLightweightActivityEndDate(detailItem),
-            recruitmentEndCandidates: {
-              noticeEndde: detailItem.noticeEndde,
-              noticeEndDate: detailItem.noticeEndDate,
-              rcritEndde: detailItem.rcritEndde,
-              rcritEndDate: detailItem.rcritEndDate,
-              reqstEndde: detailItem.reqstEndde,
-              reqstEndDate: detailItem.reqstEndDate,
-              progrmEndde: detailItem.progrmEndde,
-              srvcEndDate: detailItem.srvcEndDate,
-            },
-          });
+          return mergeVolunteerDetailItem(item, detailItem);
+        });
+      };
+
+      let weeklySourceItems = await buildWeeklySourceItems(rawItems);
+      let weeklyFilteredItems = filterWeeklyActivities(weeklySourceItems);
+
+      if (weeklyFilteredItems.length < 3) {
+        const supplementalItems = await fetchWeeklySupplementItems({
+          serviceKey,
+          startDate,
+          endDate,
+          pageSize: numOfRows,
+        });
+
+        if (supplementalItems.length > 0) {
+          const mergedWeeklyItems = mergeVolunteerItems([...rawItems, ...supplementalItems]);
+          weeklySourceItems = await buildWeeklySourceItems(mergedWeeklyItems);
+          weeklyFilteredItems = filterWeeklyActivities(weeklySourceItems);
         }
+      }
 
-        return mergeVolunteerDetailItem(item, detailItem);
-      });
-      const weeklyItems = filterWeeklyActivities(weeklySourceItems)
+      const weeklyItems = weeklyFilteredItems
         .map(mapVolunteerActivity)
         .filter((activity) => activity.status !== '지난 활동');
 
-      console.log('[ThisWeekActivities] final:', weeklyItems.map((activity) => ({
-          title: activity.title,
-          activityDate: activity.activityStartDate,
-          activityEndDate: activity.activityEndDate,
-          recruitmentEndDate: activity.recruitmentEndDate,
-          status: activity.status,
-          ddayLabel: getRecruitmentDdayLabelFromApiDate(activity.recruitmentEndDate),
-        })));
-
       sendSuccess(res, {
         items: weeklyItems,
+        totalCount,
+        page: pageNo,
+        size: numOfRows,
+      });
+      return;
+    }
+
+    if (sort === 'monthly') {
+      const monthlyDetailItems = await Promise.all(
+        rawItems.map((item) => fetchVolunteerDetailItem(serviceKey, item.progrmRegistNo))
+      );
+      const monthlySourceItems = rawItems.map((item, index) =>
+        mergeVolunteerDetailItem(item, monthlyDetailItems[index])
+      );
+      const monthlyFilteredItems = filterMonthlyActivities(monthlySourceItems);
+      const monthlyItems = monthlyFilteredItems
+        .map(mapVolunteerActivity)
+        .filter((activity) => activity.status !== '지난 활동');
+
+      sendSuccess(res, {
+        items: monthlyItems,
         totalCount,
         page: pageNo,
         size: numOfRows,
@@ -1697,14 +1704,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .map((item, index) => mergeVolunteerDetailItem(item, festivalDetailItems[index]))
         .filter((item) => isApiDateTodayOrLater(getRecruitmentEndDate(item)))
       );
-      console.log('[FestivalActivities] final:', finalFestivalItems.map((item) => ({
-        title: item.progrmSj,
-        category: item.srvcClCode,
-        location: shortenHomeLocation(item.actPlace),
-        recruitmentEndDate: formatDate(getRecruitmentEndDate(item)),
-        ddayLabel: getRecruitmentDdayLabelFromApiDate(getRecruitmentEndDate(item)),
-        score: getFestivalActivityScore(item, 0, festivalRelaxationProfiles[festivalRelaxationProfiles.length - 1])?.score ?? 0,
-      })));
 
       const mappedFestivalItems = avoidConsecutiveImages(
         finalFestivalItems.map((item) => mapVolunteerActivity(item, { compactLocation: true, keywordImage: true }))
@@ -1745,28 +1744,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       : sort === 'recruiting'
         ? filterVolunteerItemsByRecruiting(rawItems)
         : rawItems;
-    console.log('1365 volunteer count candidates:', parsedItems.slice(0, 5).map((item) => ({
-      progrmRegistNo: item.progrmRegistNo,
-      title: item.progrmSj,
-      capacityCandidates: {
-        rcritNmpr: item.rcritNmpr,
-        recrtNmpr: item.recrtNmpr,
-        reqstNmpr: item.reqstNmpr,
-        progrmRcritNmpr: item.progrmRcritNmpr,
-        rcritNmprCo: item.rcritNmprCo,
-        nanmmbyNmpr: item.nanmmbyNmpr,
-        wanted: item.wanted,
-        capacity: item.capacity,
-      },
-      currentParticipantCandidates: {
-        applcntNmpr: item.applcntNmpr,
-        partcptnNmpr: item.partcptnNmpr,
-        reqstNmpr: item.reqstNmpr,
-        requestCount: item.requestCount,
-        appTotal: item.appTotal,
-        currentParticipants: item.currentParticipants,
-      },
-    })));
 
     const detailItems = await Promise.all(
       parsedItems.map((item) => fetchVolunteerDetailItem(serviceKey, item.progrmRegistNo))

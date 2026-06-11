@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Search, Calendar, Users, MapPin, ChevronRight, X } from 'lucide-react';
 import { filterLocationSuggestions, locationDiscoverySections } from '../locationSuggestions';
+import { formatRecentSearchShort, type RecentSearchItem } from '../searchState';
 
 interface EnhancedSearchCardProps {
   destination: string;
@@ -11,6 +12,7 @@ interface EnhancedSearchCardProps {
   onSearch: () => void;
   onDestinationChange: (value: string) => void;
   onDateClear?: () => void;
+  recentSearches?: RecentSearchItem[];
 }
 
 export function EnhancedSearchCard({
@@ -22,6 +24,7 @@ export function EnhancedSearchCard({
   onSearch,
   onDestinationChange,
   onDateClear,
+  recentSearches = [],
 }: EnhancedSearchCardProps) {
   const [isDiscoveryOpen, setIsDiscoveryOpen] = useState(false);
   const [discoveryHeight, setDiscoveryHeight] = useState(0);
@@ -30,10 +33,7 @@ export function EnhancedSearchCard({
   const discoveryCloseTimerRef = useRef<number | null>(null);
   const normalizedDestination = destination.trim().toLowerCase();
   const autocompleteItems = filterLocationSuggestions(destination);
-  const discoverySections = locationDiscoverySections.map((section) => ({
-    ...section,
-    icon: section.title === '최근 검색' ? Search : MapPin,
-  }));
+  const topRecentSearches = recentSearches.slice(0, 3);
 
   useLayoutEffect(() => {
     const content = discoveryContentRef.current;
@@ -167,35 +167,54 @@ export function EnhancedSearchCard({
                 </section>
               ) : (
                 <div className="space-y-4">
-                  {discoverySections.map((section) => {
-                    const Icon = section.icon;
-
-                    return (
-                      <section key={section.title}>
-                        <div className="mb-2 flex items-center gap-1.5">
-                          <Icon className="w-3.5 h-3.5 text-[#bbb]" strokeWidth={2} />
-                          <h4 className="text-[12px] font-semibold text-[#5a5a5a] leading-none">
-                            {section.title}
-                          </h4>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {section.items.map((item) => (
-                            <button
-                              key={item}
-                              type="button"
-                              onPointerDown={(event) => {
-                                event.preventDefault();
-                                handleDiscoverySelect(item);
-                              }}
-                              className="px-3 py-2 rounded-full bg-[#f8f8f5] text-[12px] text-[#5a5a5a] hover:bg-[#e8f5ed] hover:text-[#2a2a2a] transition-colors"
-                            >
-                              {item}
-                            </button>
-                          ))}
-                        </div>
-                      </section>
-                    );
-                  })}
+                  {topRecentSearches.length > 0 && (
+                    <section>
+                      <div className="mb-2 flex items-center gap-1.5">
+                        <Search className="w-3.5 h-3.5 text-[#bbb]" strokeWidth={2} />
+                        <h4 className="text-[12px] font-semibold text-[#5a5a5a] leading-none">최근 검색</h4>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {topRecentSearches.map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onPointerDown={(event) => {
+                              event.preventDefault();
+                              handleDiscoverySelect(formatRecentSearchShort(item));
+                            }}
+                            className="px-3 py-2 rounded-full bg-[#f8f8f5] text-[12px] text-[#5a5a5a] hover:bg-[#e8f5ed] hover:text-[#2a2a2a] transition-colors"
+                          >
+                            {formatRecentSearchShort(item)}
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                  {locationDiscoverySections.map((section) => (
+                    <section key={section.title}>
+                      <div className="mb-2 flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-[#bbb]" strokeWidth={2} />
+                        <h4 className="text-[12px] font-semibold text-[#5a5a5a] leading-none">
+                          {section.title}
+                        </h4>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {section.items.map((item) => (
+                          <button
+                            key={item}
+                            type="button"
+                            onPointerDown={(event) => {
+                              event.preventDefault();
+                              handleDiscoverySelect(item);
+                            }}
+                            className="px-3 py-2 rounded-full bg-[#f8f8f5] text-[12px] text-[#5a5a5a] hover:bg-[#e8f5ed] hover:text-[#2a2a2a] transition-colors"
+                          >
+                            {item}
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                  ))}
                 </div>
               )}
               <div className="pt-4 pb-4">

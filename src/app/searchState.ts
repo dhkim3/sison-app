@@ -15,6 +15,9 @@ export type SearchFormState = Pick<
   'destination' | 'startDate' | 'endDate' | 'peopleCount'
 > & {
   dateRangeLabel: string;
+  resolvedSidoCd?: string | null;
+  resolvedGugunCd?: string | null;
+  resolvedKeywords?: string[] | null;
 };
 
 export interface RecentSearchItem {
@@ -24,6 +27,9 @@ export interface RecentSearchItem {
   endDate?: string | null;
   peopleCount?: number | null;
   createdAt: number;
+  resolvedSidoCd?: string | null;
+  resolvedGugunCd?: string | null;
+  resolvedKeywords?: string[] | null;
 }
 
 export interface SearchApiState {
@@ -107,8 +113,14 @@ const createRecentSearchId = (
   ].join('|');
 };
 
+type RecentSearchCondition = Pick<SearchCondition, 'destination' | 'startDate' | 'endDate' | 'peopleCount'> & {
+  resolvedSidoCd?: string | null;
+  resolvedGugunCd?: string | null;
+  resolvedKeywords?: string[] | null;
+};
+
 const createRecentSearchItem = (
-  condition: Pick<SearchCondition, 'destination' | 'startDate' | 'endDate' | 'peopleCount'>,
+  condition: RecentSearchCondition,
   createdAt: number,
 ): RecentSearchItem | null => {
   const destination = condition.destination.trim();
@@ -125,12 +137,15 @@ const createRecentSearchItem = (
     endDate,
     peopleCount,
     createdAt,
+    resolvedSidoCd: condition.resolvedSidoCd ?? null,
+    resolvedGugunCd: condition.resolvedGugunCd ?? null,
+    resolvedKeywords: condition.resolvedKeywords ?? null,
   };
 };
 
 export const addRecentSearch = (
   recentSearches: RecentSearchItem[],
-  condition: Pick<SearchCondition, 'destination' | 'startDate' | 'endDate' | 'peopleCount'>,
+  condition: RecentSearchCondition,
 ) => {
   const nextItem = createRecentSearchItem(condition, Date.now());
   if (!nextItem) return recentSearches;
@@ -151,6 +166,9 @@ export const selectRecentSearch = (item: RecentSearchItem): SearchFormState => {
     endDate,
     dateRangeLabel: startDate && endDate ? formatSearchDateRangeFull(startDate, endDate) : '',
     peopleCount: item.peopleCount || 0,
+    resolvedSidoCd: item.resolvedSidoCd ?? null,
+    resolvedGugunCd: item.resolvedGugunCd ?? null,
+    resolvedKeywords: item.resolvedKeywords ?? null,
   };
 };
 
@@ -167,33 +185,6 @@ export const formatRecentSearchFull = (item: RecentSearchItem) => {
   return [item.destination, dateLabel, peopleLabel].filter(Boolean).join(' · ');
 };
 
-export const initialRecentSearches: RecentSearchItem[] = [
-  {
-    id: createRecentSearchId('광안리', '2026-07-20', '2026-07-22', 2),
-    destination: '광안리',
-    startDate: '2026-07-20',
-    endDate: '2026-07-22',
-    peopleCount: 2,
-    createdAt: 3,
-  },
-  {
-    id: createRecentSearchId('제주', '2026-06-10', '2026-06-12', 1),
-    destination: '제주',
-    startDate: '2026-06-10',
-    endDate: '2026-06-12',
-    peopleCount: 1,
-    createdAt: 2,
-  },
-  {
-    id: createRecentSearchId('안목해변', null, null, null),
-    destination: '안목해변',
-    startDate: null,
-    endDate: null,
-    peopleCount: null,
-    createdAt: 1,
-  },
-];
-
 export const initialSearchState: SearchState = {
   destination: '',
   startDate: null,
@@ -201,7 +192,7 @@ export const initialSearchState: SearchState = {
   dateRangeLabel: '',
   peopleCount: 0,
   hasSearched: false,
-  recentSearches: initialRecentSearches,
+  recentSearches: [],
   api: initialSearchApiState,
 };
 

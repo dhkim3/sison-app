@@ -362,6 +362,26 @@ body.bottom-sheet-scroll-locked {
 
 }
 
+/* AI 추천 버튼 — orb float & star twinkle */
+@keyframes sison-ai-orb-float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-4px); }
+}
+
+@keyframes sison-ai-star-twinkle {
+  0%, 100% { opacity: 0.45; transform: scale(0.96); }
+  50%       { opacity: 1;    transform: scale(1.04); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sison-ai-orb,
+  .sison-ai-star {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
 /* Screen transition animations */
 @keyframes fade-in {
   from {

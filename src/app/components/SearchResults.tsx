@@ -9,7 +9,8 @@ import { EnhancedDetailBottomSheet } from './EnhancedDetailBottomSheet';
 import { BottomTabBar } from './BottomTabBar';
 import { PageShell } from './PageShell';
 import type { ActivitySaveLookup, ActivitySaveRecord } from '../activitySaveState';
-import { initialRecentSearches } from '../searchState';
+import type { RecentSearchItem } from '../searchState';
+import { withResolvedActivityImage } from '../utils/activityImage';
 
 const activityCategoryFilters = [
   '생활편의',
@@ -55,7 +56,7 @@ export function SearchResults({
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
 
-  const historyItems = initialRecentSearches;
+  const historyItems: RecentSearchItem[] = [];
 
   const activities = [
     {
@@ -134,7 +135,7 @@ export function SearchResults({
       difficulty: '보통',
       indoorOutdoor: '실내',
     },
-  ];
+  ].map(withResolvedActivityImage);
 
   const handleActivityClick = (activity: any) => {
     setSelectedActivity(activity);

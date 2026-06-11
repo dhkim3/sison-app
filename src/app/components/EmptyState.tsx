@@ -21,7 +21,7 @@ export function EmptyState({ type }: EmptyStateProps) {
       case 'saved':
         return {
           title: '저장한 활동이 없어요',
-          subtitle: '마음에 드는 활동을 저장해보세요',
+          subtitle: '마음에 드는 활동을 저장해두면 여기에서 다시 볼 수 있어요',
         };
       case 'stories':
         return {

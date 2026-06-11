@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { X, Bookmark, Share2, MapPin, Clock, Sparkles } from 'lucide-react';
 import { useBottomSheetScrollLock } from './useBottomSheetScrollLock';
-import { getActivityStatus, getActivityStatusLabel } from '../activityFormatters';
+import { getActivityDisplayDate, getActivityPeriod, getActivityStatus, getActivityStatusLabel } from '../activityFormatters';
 import { hasKnownCapacity, normalizeCapacity } from '../activityCapacity';
 
 const volunteerTargetFallback = '1365 상세 페이지에서 확인해주세요.';
@@ -30,6 +30,9 @@ interface EnhancedDetailBottomSheetProps {
     title: string;
     location: string;
     date?: string;
+    activityDate?: string;
+    activityStartDate?: string;
+    activityEndDate?: string;
     time: string;
     description: string;
     materials: string;
@@ -84,18 +87,6 @@ export function EnhancedDetailBottomSheet({
     return `${match[2].padStart(2, '0')}.${match[3].padStart(2, '0')}`;
   };
 
-  const formatDateWithWeekday = (value?: string) => {
-    if (!value) return '';
-
-    const match = value.match(/^(\d{4})[.-](\d{1,2})[.-](\d{1,2})$/);
-    if (!match) return value;
-
-    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-    const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
-
-    return `${match[1]}.${match[2].padStart(2, '0')}.${match[3].padStart(2, '0')} (${weekdays[date.getDay()]})`;
-  };
-
   const formatShortPeriod = (start?: string, end?: string, fallback?: string) => {
     if (start && end) return `${formatShortDate(start)} - ${formatShortDate(end)}`;
     if (fallback) return fallback.replace(/(\d{4})[.-](\d{1,2})[.-](\d{1,2})/g, (_, _year, month, day) => (
@@ -105,19 +96,16 @@ export function EnhancedDetailBottomSheet({
     return '신청기간 확인 필요';
   };
 
-  const formatVolunteerPeriod = (period?: string, date?: string) => {
-    if (date) return formatDateWithWeekday(date);
-    if (period) {
-      const singleDateMatch = period.match(/^(\d{4})[.-](\d{1,2})[.-](\d{1,2})$/);
-      if (singleDateMatch) return formatDateWithWeekday(period);
-
-      return period;
-    }
-
-    return '활동일 확인 필요';
+  const activityDateInput = {
+    date: activity.date,
+    activityDate: activity.activityDate,
+    activityStartDate: activity.activityStartDate,
+    activityEndDate: activity.activityEndDate,
+    volunteerPeriod: activity.volunteerPeriod,
   };
-
-  const volunteerPeriod = formatVolunteerPeriod(activity.volunteerPeriod, activity.date);
+  const activityPeriod = getActivityPeriod(activityDateInput);
+  const volunteerPeriod = getActivityDisplayDate(activityDateInput) || '활동일 확인 필요';
+  const volunteerPeriodLabel = activityPeriod.isPeriodActivity ? '활동기간' : '활동일';
   const recruitmentPeriod =
     formatShortPeriod(activity.recruitmentStartDate, activity.recruitmentEndDate, activity.recruitmentPeriod);
   const volunteerTime = activity.volunteerTime || activity.time || '확인 필요';
@@ -128,6 +116,9 @@ export function EnhancedDetailBottomSheet({
   const volunteerPlace = activity.volunteerPlace || activity.location;
   const activityStatus = getActivityStatus({
     date: activity.date,
+    activityDate: activity.activityDate,
+    activityStartDate: activity.activityStartDate,
+    activityEndDate: activity.activityEndDate,
     time: volunteerTime,
     recruitmentEndDate: activity.recruitmentEndDate,
     volunteerPeriod: activity.volunteerPeriod,
@@ -135,12 +126,18 @@ export function EnhancedDetailBottomSheet({
   });
   const recruitmentStatus = getActivityStatusLabel({
     date: activity.date,
+    activityDate: activity.activityDate,
+    activityStartDate: activity.activityStartDate,
+    activityEndDate: activity.activityEndDate,
     time: volunteerTime,
     recruitmentEndDate: activity.recruitmentEndDate,
     volunteerPeriod: activity.volunteerPeriod,
     volunteerTime,
   });
-  const isActiveRecruitmentStatus = activityStatus === 'recruiting' || activityStatus === 'todayDeadline';
+  const isActiveRecruitmentStatus =
+    activityStatus === 'recruiting' ||
+    activityStatus === 'todayDeadline' ||
+    activityStatus === 'periodActive';
   const externalApplyUrl = activity.applyUrl || activity.sourceUrl;
 
   const currentParticipantsRaw = normalizeCapacity(detailCurrentParticipants ?? activity.currentParticipants);
@@ -151,7 +148,7 @@ export function EnhancedDetailBottomSheet({
 
   const basicInfoRows = [
     ['신청기간', recruitmentPeriod],
-    ['활동일', volunteerPeriod],
+    [volunteerPeriodLabel, volunteerPeriod],
     ['활동시간', volunteerTime],
     ['모집인원', capacity],
     ...(hasCurrentParticipants ? [['신청인원', currentParticipantsRaw]] : []),

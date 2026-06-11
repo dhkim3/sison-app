@@ -17,6 +17,7 @@ interface DefaultSearchStateProps {
   onDateConfirm?: (start: Date, end: Date) => void;
   onDateClear?: () => void;
   onPeopleConfirm?: (count: number) => void;
+  destinationActivityLabels?: Record<string, string>;
 }
 
 export function DefaultSearchState({
@@ -30,6 +31,7 @@ export function DefaultSearchState({
   onDestinationChange,
   onRecentSearchSelect,
   onDateClear,
+  destinationActivityLabels = {},
 }: DefaultSearchStateProps) {
   const [isDiscoveryOpen, setIsDiscoveryOpen] = useState(false);
   const destinationInputRef = useRef<HTMLInputElement>(null);
@@ -38,22 +40,18 @@ export function DefaultSearchState({
     {
       imageUrl: 'https://images.unsplash.com/photo-1612977512598-3b8d6a498bbb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=600',
       name: '제주',
-      activityCount: 24,
     },
     {
       imageUrl: 'https://images.unsplash.com/photo-1621478763597-11fb71047890?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=600',
       name: '강릉',
-      activityCount: 18,
     },
     {
       imageUrl: 'https://images.unsplash.com/photo-1565803974275-dccd2f933cbb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=600',
       name: '부산',
-      activityCount: 32,
     },
     {
       imageUrl: 'https://images.unsplash.com/photo-1659083899422-b0c7230ef99e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=600',
       name: '여수',
-      activityCount: 15,
     },
   ];
 
@@ -248,18 +246,20 @@ export function DefaultSearchState({
           onClick={handleSearchSubmit}
           className="w-full py-4 bg-[#2a2a2a] text-white rounded-2xl text-sm font-medium hover:bg-[#1a1a1a] transition-colors"
         >
-          봉사활동 찾아보기
+          활동 찾기
         </button>
       </div>
 
       {/* Recent Searches */}
-      <section>
-        <h3 className="mb-3">최근 검색</h3>
-        <SearchHistory
-          items={recentSearches}
-          onItemClick={onRecentSearchSelect}
-        />
-      </section>
+      {recentSearches.length > 0 && (
+        <section>
+          <h3 className="mb-3">최근 검색</h3>
+          <SearchHistory
+            items={recentSearches}
+            onItemClick={onRecentSearchSelect}
+          />
+        </section>
+      )}
 
       {/* Recommended Regions */}
       <section>
@@ -296,6 +296,7 @@ export function DefaultSearchState({
             <DestinationCard
               key={index}
               {...dest}
+              activityCountLabel={destinationActivityLabels[dest.name] ?? '활동 확인 중'}
               onClick={() => onSearch(dest.name, '', 0)}
             />
           ))}
