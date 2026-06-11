@@ -1,5 +1,5 @@
 import { Calendar, MapPin, Bookmark, Clock } from 'lucide-react';
-import { formatActivityDate, getRecruitmentDeadlineLabel } from '../activityFormatters';
+import { formatActivityDate, getRecruitmentDday, isPastActivity as getIsPastActivity } from '../activityFormatters';
 
 interface CompactActivityCardProps {
   imageUrl: string;
@@ -28,7 +28,6 @@ export function CompactActivityCard({
   time,
   date,
   recruitmentEndDate,
-  isPastActivity = false,
   showBookmark = false,
   isSaved = false,
   onBookmarkClick,
@@ -36,9 +35,8 @@ export function CompactActivityCard({
   variant = 'default',
 }: CompactActivityCardProps) {
   const dateTime = [formatActivityDate(date), time].filter(Boolean).join(' · ');
-  const recruitmentMetadata = isPastActivity
-    ? '지난 활동'
-    : getRecruitmentDeadlineLabel(recruitmentEndDate);
+  const isPast = getIsPastActivity({ date, time, recruitmentEndDate });
+  const recruitmentMetadata = getRecruitmentDday({ date, time, recruitmentEndDate });
   const isAIRecommendation = variant === 'aiRecommendation';
   const isHome = variant === 'home';
   const isSearchResult = variant === 'searchResult';
@@ -78,7 +76,7 @@ export function CompactActivityCard({
             alt={title}
             className="absolute inset-0 w-full h-full object-cover"
           />
-          {isPastActivity && (
+          {isPast && (
             <div
               className="pointer-events-none absolute inset-0 bg-black/50"
               aria-hidden="true"

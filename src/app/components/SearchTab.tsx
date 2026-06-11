@@ -12,7 +12,17 @@ import { EnhancedDetailBottomSheet } from './EnhancedDetailBottomSheet';
 import { BottomTabBar } from './BottomTabBar';
 import { PageShell } from './PageShell';
 import type { ActivitySaveLookup, ActivitySaveRecord } from '../activitySaveState';
-import { createSearchKey, type SearchCondition, type SearchState } from '../searchState';
+import { getActivityStatus, isPastActivity } from '../activityFormatters';
+import { normalizeCapacity } from '../activityCapacity';
+import {
+  addRecentSearch,
+  createSearchKey,
+  formatSearchDateRangeFull,
+  selectRecentSearch,
+  type RecentSearchItem,
+  type SearchCondition,
+  type SearchState,
+} from '../searchState';
 
 const activityCategoryFilters = [
   '생활편의',
@@ -116,7 +126,7 @@ export function SearchTab({
   };
 
   const formatDateRangeFullForDates = (start: Date, end: Date) => {
-    return `2026.${String(start.getMonth() + 1).padStart(2, '0')}.${String(start.getDate()).padStart(2, '0')} - 2026.${String(end.getMonth() + 1).padStart(2, '0')}.${String(end.getDate()).padStart(2, '0')}`;
+    return formatSearchDateRangeFull(start, end);
   };
 
   const formatDateRangeFull = () => {
@@ -134,21 +144,14 @@ export function SearchTab({
     ].join('');
   };
 
-  const formatCapacityLabel = (value: string | number | null) => {
-    if (value === null || value === undefined) return '확인 필요';
-    if (typeof value === 'number') return `${value.toLocaleString('ko-KR')}명`;
+  const mapApiActivityToCardActivity = (activity: VolunteerActivity): ActivitySaveRecord => {
+    const activityStatus = getActivityStatus({
+      date: activity.activityStartDate,
+      time: activity.time,
+      recruitmentEndDate: activity.recruitmentEndDate,
+    });
 
-    const trimmedValue = value.trim();
-    if (!trimmedValue) return '확인 필요';
-    if (/[명人]$/.test(trimmedValue)) return trimmedValue;
-
-    const normalizedNumber = Number(trimmedValue.replace(/,/g, ''));
-    return Number.isFinite(normalizedNumber)
-      ? `${normalizedNumber.toLocaleString('ko-KR')}명`
-      : trimmedValue;
-  };
-
-  const mapApiActivityToCardActivity = (activity: VolunteerActivity): ActivitySaveRecord => ({
+    return {
     id: activity.id || activity.progrmRegistNo,
     imageUrl: activity.imageUrl,
     title: activity.title || '제목 확인 필요',
@@ -158,13 +161,13 @@ export function SearchTab({
     date: activity.activityStartDate,
     time: activity.time || '시간 확인 필요',
     status: activity.status,
-    isRecruiting: activity.status === '모집중',
+    isRecruiting: activityStatus !== 'past' && activityStatus !== 'closed',
     description: activity.organization
       ? `${activity.organization}에서 모집하는 1365 봉사활동입니다.`
       : '1365에서 제공한 봉사활동입니다.',
     materials: '1365 상세 페이지에서 확인해주세요.',
-    capacity: formatCapacityLabel(activity.capacity),
-    currentParticipants: formatCapacityLabel(activity.currentParticipants),
+    capacity: normalizeCapacity(activity.capacity),
+    currentParticipants: normalizeCapacity(activity.currentParticipants),
     recommendation: '여행 일정과 가까운 시간에 참여할 수 있는 활동인지 살펴보세요.',
     category: activity.category,
     volunteerPeriod:
@@ -179,7 +182,8 @@ export function SearchTab({
     applyUrl: activity.applyUrl || activity.sourceUrl,
     sourceUrl: activity.sourceUrl,
     progrmRegistNo: activity.progrmRegistNo,
-  });
+    };
+  };
 
   const buildSearchCondition = (
     nextDestination: string,
@@ -194,12 +198,50 @@ export function SearchTab({
     page: 1,
   });
 
-  const updateSearchShellState = (nextState: Omit<SearchState, 'api'>) => {
+  const updateSearchShellState = (nextState: Partial<Omit<SearchState, 'api' | 'recentSearches'>>) => {
     onSearchStateChange((currentState) => ({
       ...currentState,
       ...nextState,
       api: currentState.api,
     }));
+  };
+
+  const runSearch = (values: {
+    destination: string;
+    startDate: Date | null;
+    endDate: Date | null;
+    dateRangeLabel: string;
+    peopleCount: number;
+  }) => {
+    const nextDestination = values.destination;
+    const nextPeopleCount = values.peopleCount;
+
+    setDestination(nextDestination);
+    setStartDate(values.startDate);
+    setEndDate(values.endDate);
+    setSummaryDateRange(values.dateRangeLabel);
+    setPeopleCount(nextPeopleCount);
+    setSummaryPeople(nextPeopleCount > 0 ? `${nextPeopleCount}명` : '');
+    setHasSearched(true);
+
+    onSearchStateChange((currentState) => ({
+      ...currentState,
+      destination: nextDestination,
+      startDate: values.startDate,
+      endDate: values.endDate,
+      dateRangeLabel: values.dateRangeLabel,
+      peopleCount: nextPeopleCount,
+      hasSearched: true,
+      recentSearches: addRecentSearch(currentState.recentSearches ?? [], {
+        destination: nextDestination,
+        startDate: values.startDate,
+        endDate: values.endDate,
+        peopleCount: nextPeopleCount,
+      }),
+      api: currentState.api,
+    }));
+
+    void fetchVolunteerActivities(nextDestination, values.startDate, values.endDate, nextPeopleCount);
   };
 
   const SEARCH_PAGE_SIZE = 15;
@@ -403,7 +445,22 @@ export function SearchTab({
   };
 
   useEffect(() => {
-    if (!searchState.hasSearched) return;
+    setHasSearched(searchState.hasSearched);
+    setDestination(searchState.destination);
+    setStartDate(searchState.startDate);
+    setEndDate(searchState.endDate);
+    setPeopleCount(searchState.peopleCount);
+    setSummaryDateRange(searchState.dateRangeLabel);
+    setSummaryPeople(searchState.peopleCount > 0 ? `${searchState.peopleCount}명` : '');
+
+    if (!searchState.hasSearched) {
+      setSelectedFilters([]);
+      setIsFilterOpen(false);
+      setIsSearchEditOpen(false);
+      setIsDetailOpen(false);
+      setSelectedActivity(null);
+      return;
+    }
 
     void fetchVolunteerActivities(
       searchState.destination,
@@ -411,23 +468,27 @@ export function SearchTab({
       searchState.endDate,
       searchState.peopleCount,
     );
-  }, []);
+  }, [
+    searchState.dateRangeLabel,
+    searchState.destination,
+    searchState.endDate,
+    searchState.hasSearched,
+    searchState.peopleCount,
+    searchState.startDate,
+  ]);
 
   const handleSearch = (dest: string, dates: string, people: number) => {
-    setDestination(dest);
-    setSummaryDateRange(dates);
-    setPeopleCount(people);
-    setSummaryPeople(people > 0 ? `${people}명` : '');
-    setHasSearched(true);
-    updateSearchShellState({
+    runSearch({
       destination: dest,
       startDate,
       endDate,
-      dateRangeLabel: dates,
+      dateRangeLabel: dates || formatDateRangeFull(),
       peopleCount: people,
-      hasSearched: true,
     });
-    void fetchVolunteerActivities(dest, startDate, endDate, people);
+  };
+
+  const handleRecentSearchSelect = (item: RecentSearchItem) => {
+    runSearch(selectRecentSearch(item));
   };
 
   const handleBackToExploration = () => {
@@ -496,23 +557,14 @@ export function SearchTab({
     startDate: Date | null;
     endDate: Date | null;
   }) => {
-    setDestination(values.destination);
-    setSummaryDateRange(values.dateRange);
-    setPeopleCount(values.peopleCount);
-    setSummaryPeople(values.peopleCount > 0 ? `${values.peopleCount}명` : '');
-    setStartDate(values.startDate);
-    setEndDate(values.endDate);
     setIsSearchEditOpen(false);
-    setHasSearched(true);
-    updateSearchShellState({
+    runSearch({
       destination: values.destination,
       startDate: values.startDate,
       endDate: values.endDate,
       dateRangeLabel: values.dateRange,
       peopleCount: values.peopleCount,
-      hasSearched: true,
     });
-    void fetchVolunteerActivities(values.destination, values.startDate, values.endDate, values.peopleCount);
   };
 
   const handleActivityClick = (activity: any) => {
@@ -596,7 +648,9 @@ export function SearchTab({
               destination={destination}
               dateRange={formatDateRange()}
               peopleCount={peopleCount}
+              recentSearches={searchState.recentSearches}
               onDestinationChange={setDestination}
+              onRecentSearchSelect={handleRecentSearchSelect}
               onDateConfirm={handleDateConfirm}
               onDateClear={handleDateClear}
               onPeopleConfirm={handlePeopleConfirm}
@@ -654,7 +708,7 @@ export function SearchTab({
                   recruitmentEndDate={activity.recruitmentEndDate}
                   date={activity.date}
                   time={activity.time}
-                  isPastActivity={!activity.isRecruiting}
+                  isPastActivity={isPastActivity(activity)}
                   showBookmark={true}
                   isSaved={isActivitySaved(activity)}
                   onBookmarkClick={() => onToggleSavedActivity(activity)}

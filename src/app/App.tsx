@@ -19,7 +19,13 @@ import {
   type StoryComment,
   type StoryInteractionProps,
 } from './storyInteractionState';
-import { initialSearchState, type SearchFormState, type SearchState } from './searchState';
+import {
+  addRecentSearch,
+  initialSearchState,
+  resetSearchViewState,
+  type SearchFormState,
+  type SearchState,
+} from './searchState';
 
 type Screen = 'home' | 'search' | 'ai-recommendation' | 'story' | 'saved' | 'profile';
 type SearchEntrySource = 'tab' | 'home-search';
@@ -136,12 +142,14 @@ export default function App() {
       ...currentSearchState,
       ...values,
       hasSearched: true,
+      recentSearches: addRecentSearch(currentSearchState.recentSearches ?? [], values),
     }));
     setSearchEntrySource('home-search');
     setCurrentScreen('search');
   };
 
   const handleHomeSearchBack = () => {
+    setSearchState((currentSearchState) => resetSearchViewState(currentSearchState));
     setSearchEntrySource('tab');
     setCurrentScreen('home');
   };

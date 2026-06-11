@@ -1,5 +1,6 @@
 import { X, MapPin, Clock, Users, Package, Sparkles } from 'lucide-react';
 import { useBottomSheetScrollLock } from './useBottomSheetScrollLock';
+import { normalizeCapacity } from '../activityCapacity';
 
 interface DetailBottomSheetProps {
   isOpen: boolean;
@@ -20,6 +21,8 @@ interface DetailBottomSheetProps {
 
 export function DetailBottomSheet({ isOpen, onClose, onAIRecommendation, activity }: DetailBottomSheetProps) {
   useBottomSheetScrollLock(isOpen);
+  const capacity = normalizeCapacity(activity.capacity);
+  const currentParticipants = normalizeCapacity(activity.currentParticipants);
 
   if (!isOpen) return null;
 
@@ -71,7 +74,7 @@ export function DetailBottomSheet({ isOpen, onClose, onAIRecommendation, activit
                 <div className="flex items-start gap-3">
                   <Users className="w-5 h-5 text-[#5a5a5a] mt-0.5" strokeWidth={2} />
                   <span className="text-[#5a5a5a]">
-                    {activity.capacity} · 현재 {activity.currentParticipants} 참여
+                    {capacity} · 현재 {currentParticipants} 참여
                   </span>
                 </div>
                 <div className="flex items-start gap-3">

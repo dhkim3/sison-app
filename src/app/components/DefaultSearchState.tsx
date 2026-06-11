@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Search, Calendar, Users, MapPin, X } from 'lucide-react';
 import { SearchHistory } from './SearchHistory';
 import { DestinationCard } from './DestinationCard';
+import { formatRecentSearchShort, type RecentSearchItem } from '../searchState';
 
 interface DefaultSearchStateProps {
   onSearch: (dest: string, dates: string, people: number) => void;
@@ -10,7 +11,9 @@ interface DefaultSearchStateProps {
   destination: string;
   dateRange: string;
   peopleCount: number;
+  recentSearches: RecentSearchItem[];
   onDestinationChange: (value: string) => void;
+  onRecentSearchSelect: (item: RecentSearchItem) => void;
   onDateConfirm?: (start: Date, end: Date) => void;
   onDateClear?: () => void;
   onPeopleConfirm?: (count: number) => void;
@@ -23,17 +26,13 @@ export function DefaultSearchState({
   destination,
   dateRange,
   peopleCount,
+  recentSearches,
   onDestinationChange,
+  onRecentSearchSelect,
   onDateClear,
 }: DefaultSearchStateProps) {
   const [isDiscoveryOpen, setIsDiscoveryOpen] = useState(false);
   const destinationInputRef = useRef<HTMLInputElement>(null);
-
-  const recentSearches = [
-    { location: '광안리', dates: '7/20~7/22', people: '2명' },
-    { location: '제주', dates: '6/10~6/12', people: '1명' },
-    { location: '강릉', dates: '5/14~5/16', people: '2명' },
-  ];
 
   const destinations = [
     {
@@ -73,18 +72,8 @@ export function DefaultSearchState({
     },
   ];
 
-  const discoverySections = [
-    {
-      title: '최근 검색',
-      icon: Search,
-      items: ['광안리', '안목해변', '제주 애월'],
-    },
-    {
-      title: '실시간 인기 지역',
-      icon: MapPin,
-      items: ['부산 수영구', '강릉 안목', '제주 서쪽'],
-    },
-  ];
+  const topRecentSearches = recentSearches.slice(0, 3);
+  const popularRegionNames = ['부산 수영구', '강릉 안목', '제주 서쪽'];
 
   const handleSearchSubmit = () => {
     onSearch(destination, dateRange, peopleCount);
@@ -94,6 +83,12 @@ export function DefaultSearchState({
     onDestinationChange(value);
     destinationInputRef.current?.blur();
     setIsDiscoveryOpen(false);
+  };
+
+  const handleRecentSelect = (item: RecentSearchItem) => {
+    destinationInputRef.current?.blur();
+    setIsDiscoveryOpen(false);
+    onRecentSearchSelect(item);
   };
 
   const transitionToSelection = (openSelection: () => void) => {
@@ -142,33 +137,51 @@ export function DefaultSearchState({
           >
             <div className="pt-4">
               <div className="space-y-4">
-                {discoverySections.map((section) => {
-                  const Icon = section.icon;
+                {topRecentSearches.length > 0 && (
+                  <section>
+                    <div className="mb-2 flex items-center gap-1.5">
+                      <Search className="w-3.5 h-3.5 text-[#bbb]" strokeWidth={2} />
+                      <h4 className="text-[12px] font-semibold text-[#5a5a5a] leading-none">
+                        최근 검색
+                      </h4>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {topRecentSearches.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => handleRecentSelect(item)}
+                          className="px-3 py-2 rounded-full bg-[#f8f8f5] text-[12px] text-[#5a5a5a] hover:bg-[#e8f5ed] hover:text-[#2a2a2a] transition-colors"
+                        >
+                          {formatRecentSearchShort(item)}
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                )}
 
-                  return (
-                    <section key={section.title}>
-                      <div className="mb-2 flex items-center gap-1.5">
-                        <Icon className="w-3.5 h-3.5 text-[#bbb]" strokeWidth={2} />
-                        <h4 className="text-[12px] font-semibold text-[#5a5a5a] leading-none">
-                          {section.title}
-                        </h4>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {section.items.map((item) => (
-                          <button
-                            key={item}
-                            type="button"
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={() => handleDiscoverySelect(item)}
-                            className="px-3 py-2 rounded-full bg-[#f8f8f5] text-[12px] text-[#5a5a5a] hover:bg-[#e8f5ed] hover:text-[#2a2a2a] transition-colors"
-                          >
-                            {item}
-                          </button>
-                        ))}
-                      </div>
-                    </section>
-                  );
-                })}
+                <section>
+                  <div className="mb-2 flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-[#bbb]" strokeWidth={2} />
+                    <h4 className="text-[12px] font-semibold text-[#5a5a5a] leading-none">
+                      실시간 인기 지역
+                    </h4>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {popularRegionNames.map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => handleDiscoverySelect(item)}
+                        className="px-3 py-2 rounded-full bg-[#f8f8f5] text-[12px] text-[#5a5a5a] hover:bg-[#e8f5ed] hover:text-[#2a2a2a] transition-colors"
+                      >
+                        {item}
+                      </button>
+                    ))}
+                  </div>
+                </section>
               </div>
               <div className="pt-4 pb-4">
                 <div className="h-px bg-black/5" />
@@ -244,7 +257,7 @@ export function DefaultSearchState({
         <h3 className="mb-3">최근 검색</h3>
         <SearchHistory
           items={recentSearches}
-          onItemClick={(item) => onSearch(item.location, item.dates, Number.parseInt(item.people, 10) || 0)}
+          onItemClick={onRecentSearchSelect}
         />
       </section>
 

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { X, Bookmark, Share2, MapPin, Clock, Sparkles } from 'lucide-react';
 import { useBottomSheetScrollLock } from './useBottomSheetScrollLock';
+import { getActivityStatus, getActivityStatusLabel } from '../activityFormatters';
+import { hasKnownCapacity, normalizeCapacity } from '../activityCapacity';
 
 const volunteerTargetFallback = '1365 상세 페이지에서 확인해주세요.';
 
@@ -12,6 +14,8 @@ const needsVolunteerTargetFetch = (value?: string) => {
 interface VolunteerDetailResponse {
   ok: boolean;
   volunteerTarget?: string | null;
+  capacity?: string | null;
+  currentParticipants?: string | null;
 }
 
 interface EnhancedDetailBottomSheetProps {
@@ -68,6 +72,8 @@ export function EnhancedDetailBottomSheet({
 }: EnhancedDetailBottomSheetProps) {
   const [shareMessage, setShareMessage] = useState('');
   const [detailVolunteerTarget, setDetailVolunteerTarget] = useState<string | null>(null);
+  const [detailCapacity, setDetailCapacity] = useState<string | null>(null);
+  const [detailCurrentParticipants, setDetailCurrentParticipants] = useState<string | null>(null);
   useBottomSheetScrollLock(isOpen);
   const formatShortDate = (value?: string) => {
     if (!value) return '';
@@ -115,15 +121,29 @@ export function EnhancedDetailBottomSheet({
   const recruitmentPeriod =
     formatShortPeriod(activity.recruitmentStartDate, activity.recruitmentEndDate, activity.recruitmentPeriod);
   const volunteerTime = activity.volunteerTime || activity.time || '확인 필요';
-  const capacity = activity.capacity || '확인 필요';
+  const capacity = normalizeCapacity(detailCapacity ?? activity.capacity);
   const volunteerTarget = detailVolunteerTarget || activity.volunteerTarget || volunteerTargetFallback;
   const volunteerField = activity.volunteerField || activity.category || '확인 필요';
   const recruitingOrganization = activity.recruitingOrganization || '지역 자원봉사센터';
   const volunteerPlace = activity.volunteerPlace || activity.location;
-  const recruitmentStatus = activity.isRecruiting ? '모집중' : '지난 활동';
+  const activityStatus = getActivityStatus({
+    date: activity.date,
+    time: volunteerTime,
+    recruitmentEndDate: activity.recruitmentEndDate,
+    volunteerPeriod: activity.volunteerPeriod,
+    volunteerTime,
+  });
+  const recruitmentStatus = getActivityStatusLabel({
+    date: activity.date,
+    time: volunteerTime,
+    recruitmentEndDate: activity.recruitmentEndDate,
+    volunteerPeriod: activity.volunteerPeriod,
+    volunteerTime,
+  });
+  const isActiveRecruitmentStatus = activityStatus === 'recruiting' || activityStatus === 'todayDeadline';
   const externalApplyUrl = activity.applyUrl || activity.sourceUrl;
 
-  const currentParticipantsRaw = activity.currentParticipants;
+  const currentParticipantsRaw = normalizeCapacity(detailCurrentParticipants ?? activity.currentParticipants);
   const currentParticipantsNum = currentParticipantsRaw
     ? Number.parseInt(currentParticipantsRaw.replace(/[^0-9]/g, ''), 10)
     : NaN;
@@ -152,10 +172,20 @@ export function EnhancedDetailBottomSheet({
 
   useEffect(() => {
     setDetailVolunteerTarget(null);
+    setDetailCapacity(null);
+    setDetailCurrentParticipants(null);
   }, [activity.progrmRegistNo]);
 
   useEffect(() => {
-    if (!isOpen || !activity.progrmRegistNo || !needsVolunteerTargetFetch(activity.volunteerTarget)) return;
+    const shouldFetchVolunteerTarget = needsVolunteerTargetFetch(activity.volunteerTarget);
+    const shouldFetchCapacity = !hasKnownCapacity(activity.capacity);
+    const shouldFetchCurrentParticipants = !hasKnownCapacity(activity.currentParticipants);
+
+    if (
+      !isOpen ||
+      !activity.progrmRegistNo ||
+      (!shouldFetchVolunteerTarget && !shouldFetchCapacity && !shouldFetchCurrentParticipants)
+    ) return;
 
     const abortController = new AbortController();
     const params = new URLSearchParams({
@@ -169,9 +199,11 @@ export function EnhancedDetailBottomSheet({
         });
         const payload = await response.json() as VolunteerDetailResponse;
 
-        if (!response.ok || !payload.ok || !payload.volunteerTarget) return;
+        if (!response.ok || !payload.ok) return;
 
-        setDetailVolunteerTarget(payload.volunteerTarget);
+        if (payload.volunteerTarget) setDetailVolunteerTarget(payload.volunteerTarget);
+        if (payload.capacity) setDetailCapacity(payload.capacity);
+        if (payload.currentParticipants) setDetailCurrentParticipants(payload.currentParticipants);
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') return;
         console.error('1365 volunteer target detail fetch failed:', error);
@@ -181,7 +213,7 @@ export function EnhancedDetailBottomSheet({
     void fetchVolunteerTarget();
 
     return () => abortController.abort();
-  }, [activity.progrmRegistNo, activity.volunteerTarget, isOpen]);
+  }, [activity.capacity, activity.currentParticipants, activity.progrmRegistNo, activity.volunteerTarget, isOpen]);
 
   const handleShare = async () => {
     const shareUrl = activity.applyUrl || activity.sourceUrl || window.location.href;
@@ -341,12 +373,12 @@ export function EnhancedDetailBottomSheet({
               <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
                 <span
                   className={`w-2.5 h-2.5 rounded-full ${
-                    activity.isRecruiting ? 'recruiting-status-dot bg-[#6fa985]' : 'bg-[#999]'
+                    isActiveRecruitmentStatus ? 'recruiting-status-dot bg-[#6fa985]' : 'bg-[#999]'
                   }`}
                 />
               </div>
               <div className="flex-1 flex items-center">
-                <p className={`${activity.isRecruiting ? 'font-medium text-[#5f9f74]' : 'text-[#999]'}`}>
+                <p className={`${isActiveRecruitmentStatus ? 'font-medium text-[#5f9f74]' : 'text-[#999]'}`}>
                   {recruitmentStatus}
                 </p>
               </div>

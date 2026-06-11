@@ -9,6 +9,7 @@ import { EnhancedDetailBottomSheet } from './EnhancedDetailBottomSheet';
 import { BottomTabBar } from './BottomTabBar';
 import { PageShell } from './PageShell';
 import type { ActivitySaveLookup, ActivitySaveRecord } from '../activitySaveState';
+import { initialRecentSearches } from '../searchState';
 
 const activityCategoryFilters = [
   '생활편의',
@@ -54,11 +55,7 @@ export function SearchResults({
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
 
-  const historyItems = [
-    { location: '광안리', dates: '7/20~7/22', people: '2명' },
-    { location: '제주', dates: '6/10~6/12', people: '1명' },
-    { location: '강릉', dates: '5/14~5/16', people: '2명' },
-  ];
+  const historyItems = initialRecentSearches;
 
   const activities = [
     {

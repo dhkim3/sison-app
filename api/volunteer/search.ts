@@ -1,3 +1,9 @@
+import {
+  normalizeCapacity as normalizeApiCapacity,
+  pickCurrentParticipants,
+  pickRecruitCapacity,
+} from './capacity';
+
 type VercelRequest = {
   method?: string;
   query: Record<string, string | string[] | undefined>;
@@ -6,6 +12,12 @@ type VercelRequest = {
 declare const process: {
   env: Record<string, string | undefined>;
 };
+
+console.log('DATA_GO_KR_SERVICE_KEY exists:', !!process.env.DATA_GO_KR_SERVICE_KEY);
+console.log(
+  'DATA_GO_KR related env keys:',
+  Object.keys(process.env).filter((key) => key.includes('DATA_GO_KR') || key.includes('GO_KR')),
+);
 
 type VercelResponse = {
   status: (statusCode: number) => VercelResponse;
@@ -51,8 +63,19 @@ const fallbackImages: Record<string, string> = {
   '교육': 'https://images.unsplash.com/photo-1491438590914-bc09fcaaf77a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
   '문화': 'https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
   '보건': 'https://images.unsplash.com/photo-1584515933487-779824d29309?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
+  festival: 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
+  beach: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
+  forest: 'https://images.unsplash.com/photo-1448375240586-882707db888b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
+  city: 'https://images.unsplash.com/photo-1519010470956-6d877008eaa4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
   default: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
 };
+
+const festivalImageRotation = [
+  fallbackImages.festival,
+  fallbackImages.city,
+  fallbackImages.beach,
+  fallbackImages.forest,
+];
 
 const getSingleQueryValue = (value: string | string[] | undefined, fallback = '') => {
   if (Array.isArray(value)) return value[0] ?? fallback;
@@ -100,6 +123,45 @@ const toSortableDate = (value: string) => {
   if (digits.length !== 8) return 0;
 
   return Number(digits);
+};
+
+const toApiDateObject = (value: string) => {
+  const digits = toApiDate(value);
+  if (digits.length !== 8) return null;
+
+  return new Date(Number(digits.slice(0, 4)), Number(digits.slice(4, 6)) - 1, Number(digits.slice(6, 8)));
+};
+
+const getApiDateSpanDays = (startValue: string, endValue: string) => {
+  const start = toApiDateObject(startValue);
+  const end = toApiDateObject(endValue);
+  if (!start || !end || end < start) return null;
+
+  return Math.ceil((end.getTime() - start.getTime()) / 86400000) + 1;
+};
+
+const getDaysAfterToday = (value: string) => {
+  const date = toApiDateObject(value);
+  const today = toApiDateObject(getTodayApiDate());
+  if (!date || !today) return null;
+
+  return Math.ceil((date.getTime() - today.getTime()) / 86400000);
+};
+
+const getSeoulDateTime = (dateValue: string, minutes: number) => {
+  const date = toApiDate(dateValue);
+  if (date.length !== 8) return null;
+
+  const hours = Math.floor(minutes / 60);
+  const minute = minutes % 60;
+
+  return new Date(Date.UTC(
+    Number(date.slice(0, 4)),
+    Number(date.slice(4, 6)) - 1,
+    Number(date.slice(6, 8)),
+    hours - 9,
+    minute,
+  ));
 };
 
 const formatTime = (value: string) => {
@@ -164,6 +226,11 @@ const parseVolunteerItems = (xmlText: string) => {
     nanmmbyNm: getTagValue(itemXml, 'nanmmbyNm'),
     noticeBgnde: getTagValue(itemXml, 'noticeBgnde'),
     noticeEndde: getTagValue(itemXml, 'noticeEndde'),
+    noticeEndDate: getTagValue(itemXml, 'noticeEndDate'),
+    rcritEndde: getTagValue(itemXml, 'rcritEndde'),
+    rcritEndDate: getTagValue(itemXml, 'rcritEndDate'),
+    reqstEndde: getTagValue(itemXml, 'reqstEndde'),
+    reqstEndDate: getTagValue(itemXml, 'reqstEndDate'),
     progrmBgnde: getTagValue(itemXml, 'progrmBgnde'),
     progrmEndde: getTagValue(itemXml, 'progrmEndde'),
     actBeginDate: getTagValue(itemXml, 'actBeginDate'),
@@ -176,10 +243,13 @@ const parseVolunteerItems = (xmlText: string) => {
     srvcEndDate: getTagValue(itemXml, 'srvcEndDate'),
     progrmRegistNo: getTagValue(itemXml, 'progrmRegistNo'),
     rcritNmpr: getTagValue(itemXml, 'rcritNmpr'),
+    recrtNmpr: getTagValue(itemXml, 'recrtNmpr'),
     reqstNmpr: getTagValue(itemXml, 'reqstNmpr'),
     progrmRcritNmpr: getTagValue(itemXml, 'progrmRcritNmpr'),
+    rcritNmprCo: getTagValue(itemXml, 'rcritNmprCo'),
     wanted: getTagValue(itemXml, 'wanted'),
     capacity: getTagValue(itemXml, 'capacity'),
+    nanmmbyNmpr: getTagValue(itemXml, 'nanmmbyNmpr'),
     applcntNmpr: getTagValue(itemXml, 'applcntNmpr'),
     appTotal: getTagValue(itemXml, 'appTotal'),
     partcptnNmpr: getTagValue(itemXml, 'partcptnNmpr'),
@@ -200,19 +270,75 @@ const parseVolunteerItems = (xmlText: string) => {
   }));
 };
 
+type ParsedVolunteerItem = ReturnType<typeof parseVolunteerItems>[number];
+
 const getTodayApiDate = () => {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const parts = formatter.formatToParts(now);
+  const year = parts.find((part) => part.type === 'year')?.value ?? '';
+  const month = parts.find((part) => part.type === 'month')?.value ?? '';
+  const day = parts.find((part) => part.type === 'day')?.value ?? '';
 
   return `${year}${month}${day}`;
 };
 
-const getImageUrl = (category: string) => {
-  const matchedKey = Object.keys(fallbackImages).find((key) => key !== 'default' && category.includes(key));
+const getRecruitmentDdayLabelFromApiDate = (value: string) => {
+  const recruitmentEnd = toSortableDate(value);
+  const today = Number(getTodayApiDate());
+  if (!recruitmentEnd) return '';
+  if (recruitmentEnd < today) return '모집마감';
+  if (recruitmentEnd === today) return '오늘 마감';
+
+  const endDate = toApiDateObject(value);
+  const todayDate = toApiDateObject(getTodayApiDate());
+  if (!endDate || !todayDate) return '';
+
+  const daysUntilDeadline = Math.ceil((endDate.getTime() - todayDate.getTime()) / 86400000);
+  return `마감 D-${daysUntilDeadline}`;
+};
+
+const getImageUrl = (category: string, text = '') => {
+  if (/축제|행사|페스티벌|마켓|플리마켓|부스|박람회/.test(text)) return fallbackImages.festival;
+  if (/해변|바다|해수욕장|플로깅/.test(text)) return fallbackImages.beach;
+  if (/숲|숲길|산|공원/.test(text)) return fallbackImages.forest;
+  if (/문화|관광|공연|체험|안내/.test(text)) return fallbackImages.city;
+
+  const matchedKey = Object.keys(fallbackImages).find((key) =>
+    !['default', 'festival', 'beach', 'forest', 'city'].includes(key) && category.includes(key)
+  );
   return fallbackImages[matchedKey ?? 'default'];
 };
+
+const shortenHomeLocation = (value: string) => {
+  const withoutParentheses = value.replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!withoutParentheses) return value;
+
+  const separators = [' / ', '/', ',', ' - ', '·'];
+  const separated = separators
+    .flatMap((separator) => withoutParentheses.split(separator))
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const parts = separated.length > 1 ? separated : withoutParentheses.split(/\s+/);
+  const preferred = [...parts].reverse().find((part) =>
+    /(분원|센터|광장|공원|해변|해수욕장|시장|마켓|회관|체육관|박물관|미술관|문화관|축제장|행사장|일원)$/.test(part)
+  );
+
+  return preferred || (withoutParentheses.length > 18 ? `${withoutParentheses.slice(0, 18)}...` : withoutParentheses);
+};
+
+const avoidConsecutiveImages = (items: VolunteerActivity[]) =>
+  items.map((item, index, array) => {
+    if (index === 0 || item.imageUrl !== array[index - 1].imageUrl) return item;
+
+    const replacement = festivalImageRotation.find((imageUrl) => imageUrl !== array[index - 1].imageUrl) || item.imageUrl;
+    return { ...item, imageUrl: replacement };
+  });
 
 const buildVolunteerSearchUrl = (params: {
   serviceKey: string;
@@ -278,26 +404,8 @@ const mergeAvailabilityFlag = (searchValue: string, detailValue: string) => {
   return searchValue || detailValue;
 };
 
-const formatParticipantCount = (value: string) => {
-  const trimmedValue = value.trim();
-  if (trimmedValue === '') return null;
-  if (/[명人]$/.test(trimmedValue)) return trimmedValue;
-
-  const normalizedNumber = Number(trimmedValue.replace(/,/g, ''));
-  if (Number.isFinite(normalizedNumber)) return `${normalizedNumber.toLocaleString('ko-KR')}명`;
-
-  return trimmedValue;
-};
-
 const getCurrentParticipantValue = (item: ReturnType<typeof parseVolunteerItems>[number]) =>
-  firstPresentValue(
-    item.applcntNmpr,
-    item.partcptnNmpr,
-    item.reqstNmpr,
-    item.requestCount,
-    item.appTotal,
-    item.currentParticipants,
-  );
+  pickCurrentParticipants(item);
 
 const parseParticipantNumber = (value: string) => {
   const trimmedValue = value.trim();
@@ -355,6 +463,11 @@ const getRecentSortInfo = (item: ReturnType<typeof parseVolunteerItems>[number])
   };
 };
 
+const isApiDateAfterToday = (value: string) => {
+  const sortableDate = toSortableDate(value);
+  return sortableDate > 0 && sortableDate > Number(getTodayApiDate());
+};
+
 const isApiDateTodayOrLater = (value: string) => {
   const sortableDate = toSortableDate(value);
   return sortableDate > 0 && sortableDate >= Number(getTodayApiDate());
@@ -374,65 +487,45 @@ const isRecruitingItem = (item: ReturnType<typeof parseVolunteerItems>[number]) 
   return true;
 };
 
-const isOpenFutureActivity = (item: ReturnType<typeof parseVolunteerItems>[number]) => {
-  const recruitmentEndDate = firstPresentValue(
+const getRecruitmentStartDate = (item: ReturnType<typeof parseVolunteerItems>[number]) =>
+  firstPresentValue(item.noticeBgnde, item.srvcStartDate);
+
+const getRecruitmentEndDate = (item: ReturnType<typeof parseVolunteerItems>[number]) =>
+  firstPresentValue(
     item.noticeEndde,
-    item.progrmEndde,
-    item.srvcEndDate,
-  );
-  const activityStartDate = firstPresentValue(
-    item.progrmBgnde,
-    item.actBeginDate,
-    item.srvcStartDate,
+    item.noticeEndDate,
+    item.rcritEndde,
+    item.rcritEndDate,
+    item.reqstEndde,
+    item.reqstEndDate,
   );
 
+const getActivityStartDate = (item: ReturnType<typeof parseVolunteerItems>[number]) =>
+  firstPresentValue(item.progrmBgnde, item.actBeginDate, item.srvcStartDate);
+
+const isHomeVisibleRecruitingActivity = (item: ReturnType<typeof parseVolunteerItems>[number]) => {
+  const recruitmentStartDate = getRecruitmentStartDate(item);
+  const recruitmentEndDate = getRecruitmentEndDate(item);
+  const activityStartDate = getActivityStartDate(item);
+
   return (
-    isApiDateTodayOrLater(recruitmentEndDate) &&
-    isApiDateTodayOrLater(activityStartDate) &&
-    isRecruitingItem(item)
+    isRecruitingItem(item) &&
+    isApiDateTodayOrEarlier(recruitmentStartDate) &&
+    isApiDateAfterToday(recruitmentEndDate) &&
+    isApiDateAfterToday(activityStartDate)
   );
+};
+
+const isOpenFutureActivity = (item: ReturnType<typeof parseVolunteerItems>[number]) => {
+  return isHomeVisibleRecruitingActivity(item);
 };
 
 const isFutureRecruitingActivity = (item: ReturnType<typeof parseVolunteerItems>[number]) => {
-  const recruitmentEndDate = firstPresentValue(
-    item.noticeEndde,
-    item.progrmEndde,
-    item.srvcEndDate,
-  );
-  const activityStartDate = firstPresentValue(
-    item.progrmBgnde,
-    item.actBeginDate,
-    item.srvcStartDate,
-  );
-
-  return (
-    isApiDateTodayOrLater(recruitmentEndDate) &&
-    isApiDateTodayOrLater(activityStartDate) &&
-    isRecruitingItem(item)
-  );
+  return isHomeVisibleRecruitingActivity(item);
 };
 
 const isCurrentlyRecruitingActivity = (item: ReturnType<typeof parseVolunteerItems>[number]) => {
-  const recruitmentStartDate = firstPresentValue(
-    item.noticeBgnde,
-    item.srvcStartDate,
-  );
-  const recruitmentEndDate = firstPresentValue(
-    item.noticeEndde,
-    item.srvcEndDate,
-  );
-  const activityEndDate = firstPresentValue(
-    item.progrmEndde,
-    item.actEndDate,
-    item.srvcEndDate,
-  );
-
-  return (
-    isApiDateTodayOrEarlier(recruitmentStartDate) &&
-    isApiDateTodayOrLater(recruitmentEndDate) &&
-    isApiDateTodayOrLater(activityEndDate) &&
-    isRecruitingItem(item)
-  );
+  return isHomeVisibleRecruitingActivity(item);
 };
 
 const sortVolunteerItemsByRecent = (items: Array<ReturnType<typeof parseVolunteerItems>[number]>) => {
@@ -450,7 +543,15 @@ const sortVolunteerItemsByRecent = (items: Array<ReturnType<typeof parseVoluntee
 };
 
 const filterVolunteerItemsByRecruiting = (items: Array<ReturnType<typeof parseVolunteerItems>[number]>) =>
-  items.filter(isCurrentlyRecruitingActivity);
+  items
+    .filter(isCurrentlyRecruitingActivity)
+    .sort((a, b) => {
+      const aStart = toSortableDate(getRecruitmentStartDate(a));
+      const bStart = toSortableDate(getRecruitmentStartDate(b));
+
+      if (aStart !== bStart) return bStart - aStart;
+      return toSortableDate(getActivityStartDate(a)) - toSortableDate(getActivityStartDate(b));
+    });
 
 const travelFriendlyHardExcludePattern = /정기|상시|멘토링|학습지도|치매|요양|상담|사무|장애/;
 
@@ -479,70 +580,639 @@ const getTravelFriendlyScore = (item: ReturnType<typeof parseVolunteerItems>[num
   return score;
 };
 
-const lightweightFriendlyCategoryKeywords = [
+const lightweightPreferredCategoryKeywords = [
   '환경',
   '생태',
   '문화',
   '체육',
   '예술',
   '관광',
+  '생활편의',
   '생활',
   '지역행사',
   '지역 행사',
+  '지역안전',
+  '지역 안전',
+  '농어촌',
+  '농촌',
+  '어촌',
 ];
 
-const lightweightFriendlyTitleKeywords = [
+const lightweightPriorityTitleKeywords = [
   '플로깅',
   '환경정화',
+  '산책',
   '산책로',
+  '해변',
+  '바다',
+  '공원',
+  '숲길',
   '축제',
+  '행사',
   '안내',
   '정리',
-  '체험부스',
+  '체험',
+  '부스',
 ];
 
-const lightweightPenaltyPattern = /정기|상시|멘토링|학습지도|교육|치매|요양|어르신|센터|상담|사무|장애/;
+const lightweightForceExcludePattern = /정기|상시|멘토링|학습지도|치매|요양|상담|사무/;
+const lightweightSecondaryPenaltyPattern = /교육|어르신|센터/;
+const lightweightLongRunningTitlePattern = /프로그램|동아리/;
+const lightweightSupplementKeywords = ['바다', '축제', '플로깅', '환경정화', '공원', '산책', '행사', '안내'];
 
-const getLightweightActivityScore = (item: ReturnType<typeof parseVolunteerItems>[number]) => {
-  const categoryAndTitle = `${item.srvcClCode} ${item.progrmSj}`;
-  const durationMinutes = getActivityDurationMinutes(item);
-  let score = 0;
-
-  if (lightweightFriendlyCategoryKeywords.some((kw) => categoryAndTitle.includes(kw))) score += 40;
-  if (lightweightFriendlyTitleKeywords.some((kw) => item.progrmSj.includes(kw))) score += 40;
-  if (durationMinutes !== null && durationMinutes >= 120 && durationMinutes <= 240) score += 30;
-  else if (durationMinutes !== null && durationMinutes > 0 && durationMinutes < 120) score += 10;
-  if (lightweightPenaltyPattern.test(item.progrmSj)) score -= 100;
-
-  return score;
+type LightweightRelaxationProfile = {
+  allowLongActivityPeriod: boolean;
+  allowLongRecruitmentPeriod: boolean;
+  allowLongDuration: boolean;
+  allowLongRunningTitle: boolean;
 };
 
-const filterLightweightActivities = (items: Array<ReturnType<typeof parseVolunteerItems>[number]>) => {
-  return items
-    .filter(isCurrentlyRecruitingActivity)
-    .filter(isAdultEligibleItem)
-    .map((item, index) => {
-      const activityStartDate = firstPresentValue(item.progrmBgnde, item.actBeginDate, item.srvcStartDate);
-      const score = getLightweightActivityScore(item);
-      return {
-        item,
-        index,
-        score,
-        sortableDate: toSortableDate(activityStartDate),
-        durationMinutes: getActivityDurationMinutes(item),
-      };
-    })
-    .filter(({ score }) => score >= 0)
-    .sort((a, b) => {
-      if (a.sortableDate && b.sortableDate && a.sortableDate !== b.sortableDate) {
-        return a.sortableDate - b.sortableDate;
+const lightweightRelaxationProfiles: LightweightRelaxationProfile[] = [
+  {
+    allowLongActivityPeriod: false,
+    allowLongRecruitmentPeriod: false,
+    allowLongDuration: false,
+    allowLongRunningTitle: false,
+  },
+  {
+    allowLongActivityPeriod: true,
+    allowLongRecruitmentPeriod: true,
+    allowLongDuration: false,
+    allowLongRunningTitle: false,
+  },
+  {
+    allowLongActivityPeriod: true,
+    allowLongRecruitmentPeriod: true,
+    allowLongDuration: true,
+    allowLongRunningTitle: false,
+  },
+  {
+    allowLongActivityPeriod: true,
+    allowLongRecruitmentPeriod: true,
+    allowLongDuration: true,
+    allowLongRunningTitle: true,
+  },
+];
+
+const getLightweightActivityEndDate = (item: ParsedVolunteerItem) =>
+  firstPresentValue(item.progrmEndde, item.actEndDate, item.srvcEndDate);
+
+const isActivityEnded = (item: ParsedVolunteerItem) => {
+  const activityEndDate = getLightweightActivityEndDate(item) || getActivityStartDate(item);
+  const endMinutes = toTimeMinutes(item.actEndTm) ?? ((23 * 60) + 59);
+  const activityEndDateTime = getSeoulDateTime(activityEndDate, endMinutes);
+
+  return activityEndDateTime ? activityEndDateTime.getTime() < Date.now() : false;
+};
+
+const isLightweightOpenActivity = (item: ParsedVolunteerItem) => {
+  const recruitmentEndDate = getRecruitmentEndDate(item);
+  const activityStartDate = getActivityStartDate(item);
+  const activityEndDate = getLightweightActivityEndDate(item);
+
+  return (
+    isRecruitingItem(item) &&
+    isApiDateAfterToday(recruitmentEndDate) &&
+    (isApiDateAfterToday(activityStartDate) || isApiDateAfterToday(activityEndDate))
+  );
+};
+
+const getLightweightActivityReferenceDate = (item: ParsedVolunteerItem) => {
+  const activityStartDate = getActivityStartDate(item);
+  if (isApiDateAfterToday(activityStartDate)) return activityStartDate;
+
+  return getLightweightActivityEndDate(item);
+};
+
+const getLightweightActivityScore = (
+  item: ParsedVolunteerItem,
+  index: number,
+  profile: LightweightRelaxationProfile,
+) => {
+  const title = item.progrmSj;
+  const categoryAndTitle = `${item.srvcClCode} ${title}`;
+  const searchableText = `${categoryAndTitle} ${item.actPlace} ${item.nanmmbyNm}`;
+  const durationMinutes = getActivityDurationMinutes(item);
+  const recruitmentSpanDays = getApiDateSpanDays(getRecruitmentStartDate(item), getRecruitmentEndDate(item));
+  const activitySpanDays = getApiDateSpanDays(getActivityStartDate(item), getLightweightActivityEndDate(item));
+  const daysUntilActivity = getDaysAfterToday(getLightweightActivityReferenceDate(item));
+  const hasLongRunningTitle = lightweightLongRunningTitlePattern.test(title);
+
+  if (!isLightweightOpenActivity(item)) return null;
+  if (lightweightForceExcludePattern.test(searchableText)) return null;
+  if (!profile.allowLongActivityPeriod && activitySpanDays !== null && activitySpanDays > 30) return null;
+  if (!profile.allowLongRecruitmentPeriod && recruitmentSpanDays !== null && recruitmentSpanDays > 60) return null;
+  if (!profile.allowLongDuration && durationMinutes !== null && durationMinutes > 240) return null;
+  if (!profile.allowLongRunningTitle && hasLongRunningTitle) return null;
+
+  let score = 0;
+
+  if (isYesFlag(item.adultPosblAt)) score += 25;
+  if (lightweightPreferredCategoryKeywords.some((keyword) => categoryAndTitle.includes(keyword))) score += 45;
+
+  const priorityKeywordCount = lightweightPriorityTitleKeywords.filter((keyword) =>
+    searchableText.includes(keyword)
+  ).length;
+  score += Math.min(priorityKeywordCount * 18, 72);
+
+  if (durationMinutes !== null && durationMinutes <= 240) score += 35;
+  if (durationMinutes !== null && durationMinutes <= 120) score += 10;
+  if (durationMinutes === null) score += 5;
+
+  if (daysUntilActivity !== null && daysUntilActivity >= 0) {
+    score += Math.max(0, 35 - Math.min(daysUntilActivity, 35));
+  }
+
+  if (activitySpanDays !== null && activitySpanDays > 30) score -= 35;
+  if (recruitmentSpanDays !== null && recruitmentSpanDays > 60) score -= 25;
+  if (lightweightSecondaryPenaltyPattern.test(searchableText)) score -= 25;
+  if (hasLongRunningTitle) score -= 35;
+
+  return {
+    item,
+    index,
+    score,
+    activityDate: toSortableDate(getLightweightActivityReferenceDate(item)),
+  };
+};
+
+const filterLightweightActivities = (items: ParsedVolunteerItem[]) => {
+  for (const profile of lightweightRelaxationProfiles) {
+    const candidates = items
+      .map((item, index) => getLightweightActivityScore(item, index, profile))
+      .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== null)
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        if (a.activityDate !== b.activityDate) return a.activityDate - b.activityDate;
+        return a.index - b.index;
+      });
+
+    if (candidates.length >= 3 || profile === lightweightRelaxationProfiles[lightweightRelaxationProfiles.length - 1]) {
+      return candidates.slice(0, 3).map(({ item }) => item);
+    }
+  }
+
+  return [];
+};
+
+const mergeVolunteerItems = (items: ParsedVolunteerItem[]) => {
+  const itemMap = new Map<string, ParsedVolunteerItem>();
+
+  items.forEach((item) => {
+    const key = item.progrmRegistNo || `${item.progrmSj}-${item.noticeEndde}-${item.progrmBgnde}`;
+    if (!key || itemMap.has(key)) return;
+
+    itemMap.set(key, item);
+  });
+
+  return Array.from(itemMap.values());
+};
+
+const fetchLightweightSupplementItems = async (params: {
+  serviceKey: string;
+  startDate: string;
+  endDate: string;
+}) => {
+  const supplementalItems: ParsedVolunteerItem[] = [];
+
+  for (const keyword of lightweightSupplementKeywords) {
+    const supplementUrl = buildVolunteerSearchUrl({
+      serviceKey: params.serviceKey,
+      pageNo: 1,
+      numOfRows: 30,
+      keyword,
+      startDate: params.startDate,
+      endDate: params.endDate,
+    });
+
+    try {
+      const response = await fetch(supplementUrl);
+      const xmlText = await response.text();
+
+      if (!response.ok) {
+        console.error('1365 lightweight supplement request failed:', {
+          keyword,
+          status: response.status,
+          responseText: stripScriptTags(xmlText).slice(0, 500),
+        });
+        continue;
       }
-      const aDur = a.durationMinutes ?? Infinity;
-      const bDur = b.durationMinutes ?? Infinity;
-      if (aDur !== bDur) return aDur - bDur;
-      return b.score - a.score;
-    })
-    .map(({ item }) => item);
+
+      supplementalItems.push(...parseVolunteerItems(xmlText));
+    } catch (error) {
+      console.error('1365 lightweight supplement request errored:', {
+        keyword,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return supplementalItems;
+};
+
+const weeklyPreferredCategoryKeywords = [
+  '환경',
+  '생태',
+  '문화',
+  '체육',
+  '예술',
+  '관광',
+  '생활편의',
+  '생활',
+  '지역행사',
+  '지역 행사',
+  '지역안전',
+  '지역 안전',
+  '농어촌',
+  '농촌',
+  '어촌',
+];
+
+const weeklyPriorityTitleKeywords = [
+  '축제',
+  '행사',
+  '플로깅',
+  '환경정화',
+  '산책',
+  '공원',
+  '해변',
+  '안내',
+  '정리',
+  '체험',
+  '부스',
+];
+
+const weeklyForceExcludePattern = /정기|상시|멘토링|학습지도|치매|요양|상담|사무/;
+const weeklyLongRunningTitlePattern = /프로그램|동아리/;
+const weeklySecondaryPenaltyPattern = /교육|어르신|센터/;
+
+type WeeklyRelaxationProfile = {
+  maxDaysUntilActivity: number;
+  requireShortDuration: boolean;
+  allowLongActivityPeriod: boolean;
+  allowLongRunningTitle: boolean;
+};
+
+const weeklyRelaxationProfiles: WeeklyRelaxationProfile[] = [
+  { maxDaysUntilActivity: 7, requireShortDuration: true, allowLongActivityPeriod: false, allowLongRunningTitle: false },
+  { maxDaysUntilActivity: 14, requireShortDuration: true, allowLongActivityPeriod: false, allowLongRunningTitle: false },
+  { maxDaysUntilActivity: 30, requireShortDuration: false, allowLongActivityPeriod: false, allowLongRunningTitle: false },
+  { maxDaysUntilActivity: 30, requireShortDuration: false, allowLongActivityPeriod: true, allowLongRunningTitle: true },
+];
+
+const getWeeklyActivityScore = (
+  item: ParsedVolunteerItem,
+  index: number,
+  profile: WeeklyRelaxationProfile,
+) => {
+  const title = item.progrmSj;
+  const categoryAndTitle = `${item.srvcClCode} ${title}`;
+  const searchableText = `${categoryAndTitle} ${item.actPlace} ${item.nanmmbyNm}`;
+  const activityStartDate = getActivityStartDate(item);
+  const activityEndDate = getLightweightActivityEndDate(item);
+  const recruitmentEndDate = getRecruitmentEndDate(item);
+  const activitySpanDays = getApiDateSpanDays(activityStartDate, activityEndDate);
+  const daysUntilActivity = getDaysAfterToday(activityStartDate);
+  const durationMinutes = getActivityDurationMinutes(item);
+
+  if (!isRecruitingItem(item)) return null;
+  if (isActivityEnded(item)) return null;
+  if (!isApiDateTodayOrLater(recruitmentEndDate)) return null;
+  if (!isApiDateTodayOrLater(activityEndDate || activityStartDate)) return null;
+  if (weeklyForceExcludePattern.test(searchableText)) return null;
+  if (!profile.allowLongRunningTitle && weeklyLongRunningTitlePattern.test(title)) return null;
+  if (!profile.allowLongActivityPeriod && activitySpanDays !== null && activitySpanDays > 30) return null;
+  if (daysUntilActivity === null || daysUntilActivity < 0 || daysUntilActivity > profile.maxDaysUntilActivity) return null;
+  if (profile.requireShortDuration && durationMinutes !== null && durationMinutes > 240) return null;
+
+  let score = 0;
+
+  if (isYesFlag(item.adultPosblAt)) score += 20;
+  if (weeklyPreferredCategoryKeywords.some((keyword) => categoryAndTitle.includes(keyword))) score += 35;
+
+  const priorityKeywordCount = weeklyPriorityTitleKeywords.filter((keyword) =>
+    searchableText.includes(keyword)
+  ).length;
+  score += Math.min(priorityKeywordCount * 12, 48);
+
+  if (durationMinutes !== null && durationMinutes <= 240) score += 20;
+  if (durationMinutes !== null && durationMinutes <= 120) score += 8;
+  if (weeklySecondaryPenaltyPattern.test(searchableText)) score -= 20;
+
+  return {
+    item,
+    index,
+    score,
+    bucket: profile.maxDaysUntilActivity,
+    activityDate: toSortableDate(activityStartDate),
+    durationMinutes: durationMinutes ?? Infinity,
+  };
+};
+
+const filterWeeklyActivities = (items: ParsedVolunteerItem[]) => {
+  const validRecruitmentEnd = items.filter((item) => isApiDateTodayOrLater(getRecruitmentEndDate(item)));
+  const futureActivities = validRecruitmentEnd.filter((item) => {
+    const activityStartDate = getActivityStartDate(item);
+    const activityEndDate = getLightweightActivityEndDate(item);
+
+    return (
+      isRecruitingItem(item) &&
+      !isActivityEnded(item) &&
+      isApiDateTodayOrLater(activityStartDate) &&
+      isApiDateTodayOrLater(activityEndDate || activityStartDate) &&
+      !weeklyForceExcludePattern.test(`${item.srvcClCode} ${item.progrmSj} ${item.actPlace} ${item.nanmmbyNm}`)
+    );
+  });
+  const candidatesByProfile = weeklyRelaxationProfiles.map((profile) =>
+    items
+      .map((item, index) => getWeeklyActivityScore(item, index, profile))
+      .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== null)
+  );
+
+  console.log('[ThisWeekActivities] raw:', items.length);
+  console.log('[ThisWeekActivities] futureOnly:', futureActivities.length);
+  console.log('[ThisWeekActivities] validRecruitmentEnd:', validRecruitmentEnd.length);
+  console.log('[ThisWeekActivities] 7days:', candidatesByProfile[0]?.length ?? 0);
+  console.log('[ThisWeekActivities] 14days:', candidatesByProfile[1]?.length ?? 0);
+  console.log('[ThisWeekActivities] 30days:', candidatesByProfile[2]?.length ?? 0);
+
+  for (const profile of weeklyRelaxationProfiles) {
+    const candidates = items
+      .map((item, index) => getWeeklyActivityScore(item, index, profile))
+      .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== null)
+      .sort((a, b) => {
+        if (a.bucket !== b.bucket) return a.bucket - b.bucket;
+        if (a.activityDate !== b.activityDate) return a.activityDate - b.activityDate;
+        if (b.score !== a.score) return b.score - a.score;
+        if (a.durationMinutes !== b.durationMinutes) return a.durationMinutes - b.durationMinutes;
+        return a.index - b.index;
+      });
+
+    if (candidates.length >= 3 || profile === weeklyRelaxationProfiles[weeklyRelaxationProfiles.length - 1]) {
+      const finalItems = candidates.slice(0, 3).map(({ item }) => item);
+      console.log('[ThisWeekActivities] final:', finalItems.length);
+      return finalItems;
+    }
+  }
+
+  console.log('[ThisWeekActivities] final:', 0);
+  return [];
+};
+
+const festivalPriorityKeywords = [
+  '축제',
+  '행사',
+  '문화',
+  '관광',
+  '공연',
+  '박람회',
+  '체험',
+  '체험부스',
+  '부스',
+  '안내',
+  '운영지원',
+  '운영 지원',
+  '페스티벌',
+  '플리마켓',
+  '마켓',
+  '지역축제',
+  '거리축제',
+  '해변축제',
+  '봄축제',
+  '여름축제',
+];
+
+const festivalCoreKeywordPattern = /축제|행사/;
+
+const festivalPreferredCategoryKeywords = [
+  '문화',
+  '체육',
+  '예술',
+  '관광',
+  '생활편의',
+  '생활',
+  '지역행사',
+  '지역 행사',
+  '지역안전',
+  '지역 안전',
+  '환경',
+  '생태',
+];
+
+const festivalForceExcludePattern = /정기|상시|멘토링|학습지도|치매|요양|상담|사무/;
+const festivalSecondaryPenaltyPattern = /교육원|교육청|고등학생|프로그램|센터|기관|보조|교육|어르신/;
+const festivalLongRunningTitlePattern = /프로그램|동아리/;
+const festivalSupplementKeywords = ['축제', '행사', '문화', '관광', '체험', '부스', '안내', '페스티벌', '마켓'];
+
+type FestivalRelaxationProfile = {
+  maxDaysUntilActivity: number;
+  requirePreferredSignal: boolean;
+  requireShortActivityPeriod: boolean;
+};
+
+const festivalRelaxationProfiles: FestivalRelaxationProfile[] = [
+  { maxDaysUntilActivity: 14, requirePreferredSignal: true, requireShortActivityPeriod: true },
+  { maxDaysUntilActivity: 30, requirePreferredSignal: true, requireShortActivityPeriod: true },
+  { maxDaysUntilActivity: 30, requirePreferredSignal: false, requireShortActivityPeriod: true },
+  { maxDaysUntilActivity: 30, requirePreferredSignal: false, requireShortActivityPeriod: false },
+];
+
+const getFestivalActivityReferenceDate = (item: ParsedVolunteerItem) => {
+  const activityStartDate = getActivityStartDate(item);
+  if (isApiDateTodayOrLater(activityStartDate)) return activityStartDate;
+
+  return getLightweightActivityEndDate(item);
+};
+
+const getFestivalActivityScore = (
+  item: ParsedVolunteerItem,
+  index: number,
+  profile: FestivalRelaxationProfile,
+) => {
+  const title = item.progrmSj;
+  const categoryAndTitle = `${item.srvcClCode} ${title}`;
+  const searchableText = `${categoryAndTitle} ${item.actPlace} ${item.nanmmbyNm}`;
+  const recruitmentEndDate = getRecruitmentEndDate(item);
+  const daysUntilDeadline = getDaysAfterToday(recruitmentEndDate);
+  const activityReferenceDate = getFestivalActivityReferenceDate(item);
+  const daysUntilActivity = getDaysAfterToday(activityReferenceDate);
+  const activitySpanDays = getApiDateSpanDays(getActivityStartDate(item), getLightweightActivityEndDate(item));
+  const recruitmentSpanDays = getApiDateSpanDays(getRecruitmentStartDate(item), recruitmentEndDate);
+  const priorityKeywordCount = festivalPriorityKeywords.filter((keyword) =>
+    searchableText.includes(keyword)
+  ).length;
+  const hasCoreKeyword = festivalCoreKeywordPattern.test(searchableText);
+  const hasPreferredCategory = festivalPreferredCategoryKeywords.some((keyword) => categoryAndTitle.includes(keyword));
+  const hasPreferredSignal = priorityKeywordCount > 0 || hasPreferredCategory;
+  const hasLongRunningTitle = festivalLongRunningTitlePattern.test(title);
+
+  if (!isRecruitingItem(item)) return null;
+  if (isActivityEnded(item)) return null;
+  if (!isApiDateTodayOrLater(recruitmentEndDate)) return null;
+  if (daysUntilActivity === null || daysUntilActivity < 0 || daysUntilActivity > profile.maxDaysUntilActivity) return null;
+  if (festivalForceExcludePattern.test(searchableText)) return null;
+  if (!hasPreferredSignal) return null;
+  if (profile.requirePreferredSignal && priorityKeywordCount === 0 && !hasPreferredCategory) return null;
+  if (profile.requireShortActivityPeriod && activitySpanDays !== null && activitySpanDays > 30 && !hasCoreKeyword) return null;
+  if (recruitmentSpanDays !== null && recruitmentSpanDays > 60 && !hasCoreKeyword) return null;
+  if (hasLongRunningTitle && !hasCoreKeyword) return null;
+
+  let score = 0;
+
+  if (/축제|행사/.test(title)) score += 95;
+  else if (hasCoreKeyword) score += 70;
+  score += Math.min(priorityKeywordCount * 18, 90);
+  if (categoryAndTitle.includes('문화') || categoryAndTitle.includes('관광')) score += 45;
+  else if (hasPreferredCategory) score += 28;
+
+  if (isYesFlag(item.adultPosblAt)) score += 12;
+  if (daysUntilActivity !== null && daysUntilActivity >= 0) {
+    score += Math.max(0, 30 - Math.min(daysUntilActivity, 30));
+  }
+  if (daysUntilDeadline !== null) {
+    if (daysUntilDeadline >= 2 && daysUntilDeadline <= 14) score += 28;
+    else if (daysUntilDeadline === 0) score -= 35;
+    else if (daysUntilDeadline === 1) score -= 8;
+  }
+  if (activitySpanDays !== null && activitySpanDays >= 1 && activitySpanDays <= 3) score += 32;
+  else if (activitySpanDays !== null && activitySpanDays > 30) score -= hasCoreKeyword ? 25 : 60;
+  if (recruitmentSpanDays !== null && recruitmentSpanDays > 60) score -= hasCoreKeyword ? 20 : 45;
+  if (festivalSecondaryPenaltyPattern.test(searchableText)) score -= 45;
+  if (hasLongRunningTitle) score -= 30;
+
+  return {
+    item,
+    index,
+    score,
+    activityDate: toSortableDate(activityReferenceDate),
+    daysUntilDeadline: daysUntilDeadline ?? Infinity,
+  };
+};
+
+const pickFestivalFinalCandidates = (
+  candidates: Array<NonNullable<ReturnType<typeof getFestivalActivityScore>>>,
+) => {
+  const preferredDeadline = candidates.filter((candidate) =>
+    candidate.daysUntilDeadline >= 2 && candidate.daysUntilDeadline <= 14
+  );
+  const otherFutureDeadline = candidates.filter((candidate) =>
+    candidate.daysUntilDeadline > 14 || candidate.daysUntilDeadline === 1
+  );
+  const todayDeadline = candidates.filter((candidate) => candidate.daysUntilDeadline === 0);
+  const selected: typeof candidates = [];
+
+  [...preferredDeadline, ...otherFutureDeadline].forEach((candidate) => {
+    if (selected.length < 3) selected.push(candidate);
+  });
+
+  if (selected.length < 3 && todayDeadline.length > 0) {
+    selected.push(todayDeadline[0]);
+  }
+
+  return selected.slice(0, 3);
+};
+
+const limitTodayDeadlineActivities = (items: ParsedVolunteerItem[]) => {
+  const sortedItems = [...items].sort((a, b) => {
+    const aDays = getDaysAfterToday(getRecruitmentEndDate(a));
+    const bDays = getDaysAfterToday(getRecruitmentEndDate(b));
+    const aPreferred = aDays !== null && aDays >= 2 && aDays <= 14 ? 0 : aDays === 0 ? 2 : 1;
+    const bPreferred = bDays !== null && bDays >= 2 && bDays <= 14 ? 0 : bDays === 0 ? 2 : 1;
+
+    if (aPreferred !== bPreferred) return aPreferred - bPreferred;
+    return (aDays ?? Infinity) - (bDays ?? Infinity);
+  });
+  const selected: ParsedVolunteerItem[] = [];
+  let todayDeadlineCount = 0;
+
+  sortedItems.forEach((item) => {
+    if (selected.length >= 3) return;
+
+    const daysUntilDeadline = getDaysAfterToday(getRecruitmentEndDate(item));
+    if (daysUntilDeadline === 0) {
+      if (todayDeadlineCount >= 1) return;
+      todayDeadlineCount += 1;
+    }
+
+    selected.push(item);
+  });
+
+  return selected;
+};
+
+const filterFestivalActivities = (items: ParsedVolunteerItem[]) => {
+  for (const profile of festivalRelaxationProfiles) {
+    const candidates = items
+      .map((item, index) => getFestivalActivityScore(item, index, profile))
+      .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== null)
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        if (a.activityDate !== b.activityDate) return a.activityDate - b.activityDate;
+        return a.index - b.index;
+      });
+
+    if (candidates.length >= 3 || profile === festivalRelaxationProfiles[festivalRelaxationProfiles.length - 1]) {
+      const finalCandidates = pickFestivalFinalCandidates(candidates);
+      console.log('[FestivalActivities] raw:', items.length);
+      console.log('[FestivalActivities] candidates:', candidates.length);
+      console.log('[FestivalActivities] final:', finalCandidates.map(({ item, score }) => ({
+        title: item.progrmSj,
+        category: item.srvcClCode,
+        location: shortenHomeLocation(item.actPlace),
+        recruitmentEndDate: formatDate(getRecruitmentEndDate(item)),
+        ddayLabel: getRecruitmentDdayLabelFromApiDate(getRecruitmentEndDate(item)),
+        score,
+      })));
+      return finalCandidates.map(({ item }) => item);
+    }
+  }
+
+  console.log('[FestivalActivities] raw:', items.length);
+  console.log('[FestivalActivities] candidates:', 0);
+  console.log('[FestivalActivities] final:', []);
+  return [];
+};
+
+const fetchFestivalSupplementItems = async (params: {
+  serviceKey: string;
+  startDate: string;
+  endDate: string;
+}) => {
+  const supplementalItems: ParsedVolunteerItem[] = [];
+
+  for (const keyword of festivalSupplementKeywords) {
+    const supplementUrl = buildVolunteerSearchUrl({
+      serviceKey: params.serviceKey,
+      pageNo: 1,
+      numOfRows: 30,
+      keyword,
+      startDate: params.startDate,
+      endDate: params.endDate,
+    });
+
+    try {
+      const response = await fetch(supplementUrl);
+      const xmlText = await response.text();
+
+      if (!response.ok) {
+        console.error('1365 festival supplement request failed:', {
+          keyword,
+          status: response.status,
+          responseText: stripScriptTags(xmlText).slice(0, 500),
+        });
+        continue;
+      }
+
+      supplementalItems.push(...parseVolunteerItems(xmlText));
+    } catch (error) {
+      console.error('1365 festival supplement request errored:', {
+        keyword,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return supplementalItems;
 };
 
 const hiddenFriendlyCategoryKeywords = [
@@ -605,12 +1275,23 @@ const getHiddenActivityCandidates = (
     .slice(0, limit)
     .map(({ item }) => item);
 
-const filterHiddenActivitiesWithConfirmedZeroParticipants = (
+const sortHiddenActivitiesByLowParticipants = (
   items: Array<ReturnType<typeof parseVolunteerItems>[number]>,
 ) =>
   items
-    .filter((item) => parseParticipantNumber(getCurrentParticipantValue(item)) === 0)
-    .sort((a, b) => getHiddenActivityCandidateScore(b) - getHiddenActivityCandidateScore(a));
+    .map((item) => ({
+      item,
+      participantCount: parseParticipantNumber(getCurrentParticipantValue(item)),
+    }))
+    .filter(({ participantCount }) => participantCount !== null)
+    .sort((a, b) => {
+      if (a.participantCount !== b.participantCount) {
+        return (a.participantCount ?? Infinity) - (b.participantCount ?? Infinity);
+      }
+
+      return toSortableDate(getActivityStartDate(a.item)) - toSortableDate(getActivityStartDate(b.item));
+    })
+    .map(({ item }) => item);
 
 const mergeVolunteerDetailItem = (
   searchItem: ReturnType<typeof parseVolunteerItems>[number],
@@ -620,11 +1301,20 @@ const mergeVolunteerDetailItem = (
 
   return {
     ...searchItem,
-    rcritNmpr: searchItem.rcritNmpr || detailItem.rcritNmpr,
+    noticeEndde: detailItem.noticeEndde || searchItem.noticeEndde,
+    noticeEndDate: detailItem.noticeEndDate || searchItem.noticeEndDate,
+    rcritEndde: detailItem.rcritEndde || searchItem.rcritEndde,
+    rcritEndDate: detailItem.rcritEndDate || searchItem.rcritEndDate,
+    reqstEndde: detailItem.reqstEndde || searchItem.reqstEndde,
+    reqstEndDate: detailItem.reqstEndDate || searchItem.reqstEndDate,
+    rcritNmpr: detailItem.rcritNmpr || searchItem.rcritNmpr,
+    recrtNmpr: detailItem.recrtNmpr || searchItem.recrtNmpr,
     reqstNmpr: searchItem.reqstNmpr || detailItem.reqstNmpr,
-    progrmRcritNmpr: searchItem.progrmRcritNmpr || detailItem.progrmRcritNmpr,
-    wanted: searchItem.wanted || detailItem.wanted,
-    capacity: searchItem.capacity || detailItem.capacity,
+    progrmRcritNmpr: detailItem.progrmRcritNmpr || searchItem.progrmRcritNmpr,
+    rcritNmprCo: detailItem.rcritNmprCo || searchItem.rcritNmprCo,
+    wanted: detailItem.wanted || searchItem.wanted,
+    capacity: detailItem.capacity || searchItem.capacity,
+    nanmmbyNmpr: detailItem.nanmmbyNmpr || searchItem.nanmmbyNmpr,
     applcntNmpr: detailItem.applcntNmpr || searchItem.applcntNmpr,
     appTotal: detailItem.appTotal || searchItem.appTotal,
     partcptnNmpr: detailItem.partcptnNmpr || searchItem.partcptnNmpr,
@@ -665,12 +1355,29 @@ const fetchVolunteerDetailItem = async (serviceKey: string, progrmRegistNo: stri
 
     const detailItem = parseVolunteerItems(xmlText)[0] ?? null;
     if (detailItem) {
+      console.log('1365 detail item', {
+        progrmRegistNo: detailItem.progrmRegistNo || progrmRegistNo,
+        title: detailItem.progrmSj,
+        recruitmentEndCandidates: {
+          noticeEndde: detailItem.noticeEndde,
+          noticeEndDate: detailItem.noticeEndDate,
+          rcritEndde: detailItem.rcritEndde,
+          rcritEndDate: detailItem.rcritEndDate,
+          reqstEndde: detailItem.reqstEndde,
+          reqstEndDate: detailItem.reqstEndDate,
+          progrmEndde: detailItem.progrmEndde,
+          srvcEndDate: detailItem.srvcEndDate,
+        },
+      });
       console.log('1365 volunteer detail count candidates:', {
         progrmRegistNo: detailItem.progrmRegistNo,
         capacityCandidates: {
           rcritNmpr: detailItem.rcritNmpr,
+          recrtNmpr: detailItem.recrtNmpr,
           reqstNmpr: detailItem.reqstNmpr,
           progrmRcritNmpr: detailItem.progrmRcritNmpr,
+          rcritNmprCo: detailItem.rcritNmprCo,
+          nanmmbyNmpr: detailItem.nanmmbyNmpr,
           wanted: detailItem.wanted,
           capacity: detailItem.capacity,
         },
@@ -706,40 +1413,39 @@ const fetchVolunteerDetailItem = async (serviceKey: string, progrmRegistNo: stri
   }
 };
 
-const mapVolunteerActivity = (item: ReturnType<typeof parseVolunteerItems>[number]): VolunteerActivity => {
+const mapVolunteerActivity = (
+  item: ReturnType<typeof parseVolunteerItems>[number],
+  options: { compactLocation?: boolean; keywordImage?: boolean } = {},
+): VolunteerActivity => {
   const beginTime = formatTime(item.actBeginTm);
   const endTime = formatTime(item.actEndTm);
-  const rawEndDate = toApiDate(item.progrmEndde);
-  const status: VolunteerStatus = rawEndDate && getTodayApiDate() > rawEndDate ? '지난 활동' : '모집중';
+  const status: VolunteerStatus = isActivityEnded(item) ? '지난 활동' : '모집중';
   const detailUrl = normalizeVolunteerUrl(item.url, item.progrmRegistNo);
   const recentSortInfo = getRecentSortInfo(item);
-  const capacity = firstPresentValue(
-    item.rcritNmpr,
-    item.reqstNmpr,
-    item.progrmRcritNmpr,
-    item.wanted,
-    item.capacity,
-  );
+  const capacity = pickRecruitCapacity(item);
   const currentParticipants = getCurrentParticipantValue(item);
 
   return {
     id: item.progrmRegistNo,
     title: item.progrmSj,
-    location: item.actPlace,
+    location: options.compactLocation ? shortenHomeLocation(item.actPlace) : item.actPlace,
     region: [item.sidoCd, item.gugunCd].filter(Boolean).join(' '),
     recruitmentStartDate: formatDate(item.noticeBgnde),
-    recruitmentEndDate: formatDate(item.noticeEndde),
+    recruitmentEndDate: formatDate(getRecruitmentEndDate(item)),
     activityStartDate: formatDate(item.progrmBgnde),
     activityEndDate: formatDate(item.progrmEndde),
     time: [beginTime, endTime].filter(Boolean).join(' ~ '),
     category: item.srvcClCode,
     organization: item.nanmmbyNm,
-    capacity: formatParticipantCount(capacity),
-    currentParticipants: formatParticipantCount(currentParticipants),
+    capacity: normalizeApiCapacity(capacity),
+    currentParticipants: normalizeApiCapacity(currentParticipants),
     volunteerTarget: formatVolunteerTarget(item),
     volunteerType: formatVolunteerType(item),
     status,
-    imageUrl: getImageUrl(item.srvcClCode),
+    imageUrl: getImageUrl(
+      item.srvcClCode,
+      options.keywordImage ? `${item.progrmSj} ${item.actPlace} ${item.nanmmbyNm}` : '',
+    ),
     applyUrl: detailUrl || undefined,
     sourceUrl: detailUrl || undefined,
     recentSortBasis: recentSortInfo.basis,
@@ -799,6 +1505,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const resultMsg = getTagValue(xmlText, 'resultMsg');
     const totalCount = Number.parseInt(getTagValue(xmlText, 'totalCount'), 10) || 0;
     const rawItems = parseVolunteerItems(xmlText);
+    console.log('1365 raw item', rawItems.slice(0, 5).map((item) => ({
+      progrmRegistNo: item.progrmRegistNo,
+      title: item.progrmSj,
+      recruitmentEndCandidates: {
+        noticeEndde: item.noticeEndde,
+        noticeEndDate: item.noticeEndDate,
+        rcritEndde: item.rcritEndde,
+        rcritEndDate: item.rcritEndDate,
+        reqstEndde: item.reqstEndde,
+        reqstEndDate: item.reqstEndDate,
+        progrmEndde: item.progrmEndde,
+        srvcEndDate: item.srvcEndDate,
+      },
+    })));
 
     if (resultCode && resultCode !== '00') {
       console.error('1365 upstream returned error result:', {
@@ -810,7 +1530,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    if (sort === 'recent' || sort === 'recruiting' || sort === 'hidden' || sort === 'lightweight') {
+    if (sort === 'recent' || sort === 'recruiting' || sort === 'hidden' || sort === 'lightweight' || sort === 'weekly' || sort === 'festival') {
       console.log('1365 home volunteer filter candidates:', rawItems.slice(0, 10).map((item) => ({
         progrmRegistNo: item.progrmRegistNo,
         title: item.progrmSj,
@@ -820,6 +1540,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
         recruitmentEndCandidates: {
           noticeEndde: item.noticeEndde,
+          noticeEndDate: item.noticeEndDate,
+          rcritEndde: item.rcritEndde,
+          rcritEndDate: item.rcritEndDate,
+          reqstEndde: item.reqstEndde,
+          reqstEndDate: item.reqstEndDate,
+          progrmEndde: item.progrmEndde,
           srvcEndDate: item.srvcEndDate,
         },
         activityStartCandidates: {
@@ -837,6 +1563,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           progrmSttusSe: item.progrmSttusSe,
           rcritAt: item.rcritAt,
         },
+        capacityCandidates: {
+          rcritNmpr: item.rcritNmpr,
+          recrtNmpr: item.recrtNmpr,
+          reqstNmpr: item.reqstNmpr,
+          progrmRcritNmpr: item.progrmRcritNmpr,
+          rcritNmprCo: item.rcritNmprCo,
+          nanmmbyNmpr: item.nanmmbyNmpr,
+          wanted: item.wanted,
+          capacity: item.capacity,
+        },
         currentParticipantCandidates: {
           applcntNmpr: item.applcntNmpr,
           partcptnNmpr: item.partcptnNmpr,
@@ -850,12 +1586,132 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (sort === 'lightweight') {
-      const lightweightItems = filterLightweightActivities(rawItems)
-        .slice(0, 3)
+      let lightweightSourceItems = rawItems;
+      let lightweightItems = filterLightweightActivities(lightweightSourceItems);
+
+      if (lightweightItems.length < 3) {
+        const supplementalItems = await fetchLightweightSupplementItems({
+          serviceKey,
+          startDate,
+          endDate,
+        });
+        lightweightSourceItems = mergeVolunteerItems([...rawItems, ...supplementalItems]);
+        lightweightItems = filterLightweightActivities(lightweightSourceItems);
+      }
+
+      const mappedLightweightItems = lightweightItems
         .map(mapVolunteerActivity);
 
       sendSuccess(res, {
-        items: lightweightItems,
+        items: mappedLightweightItems,
+        totalCount,
+        page: pageNo,
+        size: numOfRows,
+      });
+      return;
+    }
+
+    if (sort === 'weekly') {
+      console.log('[ThisWeekActivities] raw item', rawItems.slice(0, 10).map((item) => ({
+        title: item.progrmSj,
+        activityDate: getActivityStartDate(item),
+        activityEndDate: getLightweightActivityEndDate(item),
+        recruitmentEndCandidates: {
+          noticeEndde: item.noticeEndde,
+          noticeEndDate: item.noticeEndDate,
+          rcritEndde: item.rcritEndde,
+          rcritEndDate: item.rcritEndDate,
+          reqstEndde: item.reqstEndde,
+          reqstEndDate: item.reqstEndDate,
+          progrmEndde: item.progrmEndde,
+          srvcEndDate: item.srvcEndDate,
+        },
+      })));
+
+      const weeklyDetailItems = await Promise.all(
+        rawItems.map((item) => fetchVolunteerDetailItem(serviceKey, item.progrmRegistNo))
+      );
+      const weeklySourceItems = rawItems.map((item, index) => {
+        const detailItem = weeklyDetailItems[index];
+
+        if (detailItem) {
+          console.log('[ThisWeekActivities] detail item', {
+            title: detailItem.progrmSj || item.progrmSj,
+            activityDate: getActivityStartDate(detailItem),
+            activityEndDate: getLightweightActivityEndDate(detailItem),
+            recruitmentEndCandidates: {
+              noticeEndde: detailItem.noticeEndde,
+              noticeEndDate: detailItem.noticeEndDate,
+              rcritEndde: detailItem.rcritEndde,
+              rcritEndDate: detailItem.rcritEndDate,
+              reqstEndde: detailItem.reqstEndde,
+              reqstEndDate: detailItem.reqstEndDate,
+              progrmEndde: detailItem.progrmEndde,
+              srvcEndDate: detailItem.srvcEndDate,
+            },
+          });
+        }
+
+        return mergeVolunteerDetailItem(item, detailItem);
+      });
+      const weeklyItems = filterWeeklyActivities(weeklySourceItems)
+        .map(mapVolunteerActivity)
+        .filter((activity) => activity.status !== '지난 활동');
+
+      console.log('[ThisWeekActivities] final:', weeklyItems.map((activity) => ({
+          title: activity.title,
+          activityDate: activity.activityStartDate,
+          activityEndDate: activity.activityEndDate,
+          recruitmentEndDate: activity.recruitmentEndDate,
+          status: activity.status,
+          ddayLabel: getRecruitmentDdayLabelFromApiDate(activity.recruitmentEndDate),
+        })));
+
+      sendSuccess(res, {
+        items: weeklyItems,
+        totalCount,
+        page: pageNo,
+        size: numOfRows,
+      });
+      return;
+    }
+
+    if (sort === 'festival') {
+      let festivalSourceItems = rawItems;
+      let festivalItems = filterFestivalActivities(festivalSourceItems);
+
+      if (festivalItems.length < 3) {
+        const supplementalItems = await fetchFestivalSupplementItems({
+          serviceKey,
+          startDate,
+          endDate,
+        });
+        festivalSourceItems = mergeVolunteerItems([...rawItems, ...supplementalItems]);
+        festivalItems = filterFestivalActivities(festivalSourceItems);
+      }
+
+      const festivalDetailItems = await Promise.all(
+        festivalItems.map((item) => fetchVolunteerDetailItem(serviceKey, item.progrmRegistNo))
+      );
+      const finalFestivalItems = limitTodayDeadlineActivities(festivalItems
+        .map((item, index) => mergeVolunteerDetailItem(item, festivalDetailItems[index]))
+        .filter((item) => isApiDateTodayOrLater(getRecruitmentEndDate(item)))
+      );
+      console.log('[FestivalActivities] final:', finalFestivalItems.map((item) => ({
+        title: item.progrmSj,
+        category: item.srvcClCode,
+        location: shortenHomeLocation(item.actPlace),
+        recruitmentEndDate: formatDate(getRecruitmentEndDate(item)),
+        ddayLabel: getRecruitmentDdayLabelFromApiDate(getRecruitmentEndDate(item)),
+        score: getFestivalActivityScore(item, 0, festivalRelaxationProfiles[festivalRelaxationProfiles.length - 1])?.score ?? 0,
+      })));
+
+      const mappedFestivalItems = avoidConsecutiveImages(
+        finalFestivalItems.map((item) => mapVolunteerActivity(item, { compactLocation: true, keywordImage: true }))
+      );
+
+      sendSuccess(res, {
+        items: mappedFestivalItems,
         totalCount,
         page: pageNo,
         size: numOfRows,
@@ -868,7 +1724,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const detailItems = await Promise.all(
         hiddenCandidates.map((item) => fetchVolunteerDetailItem(serviceKey, item.progrmRegistNo))
       );
-      const hiddenItems = filterHiddenActivitiesWithConfirmedZeroParticipants(
+      const hiddenItems = sortHiddenActivitiesByLowParticipants(
         hiddenCandidates.map((item, index) => mergeVolunteerDetailItem(item, detailItems[index]))
           .filter(isAdultEligibleItem)
       )
@@ -894,8 +1750,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       title: item.progrmSj,
       capacityCandidates: {
         rcritNmpr: item.rcritNmpr,
+        recrtNmpr: item.recrtNmpr,
         reqstNmpr: item.reqstNmpr,
         progrmRcritNmpr: item.progrmRcritNmpr,
+        rcritNmprCo: item.rcritNmprCo,
+        nanmmbyNmpr: item.nanmmbyNmpr,
         wanted: item.wanted,
         capacity: item.capacity,
       },
@@ -919,7 +1778,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const processedItems = sort === 'recruiting'
       ? mergedItems
           .filter((item) => !isTravelHardExcluded(item))
-          .sort((a, b) => getTravelFriendlyScore(b) - getTravelFriendlyScore(a))
       : mergedItems.sort((a, b) => getTravelFriendlyScore(b) - getTravelFriendlyScore(a));
 
     const items = processedItems.map(mapVolunteerActivity);

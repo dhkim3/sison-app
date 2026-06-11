@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Bell, Bookmark, Calendar, Clock, MapPin } from 'lucide-react';
-import { formatActivityDate, getRecruitmentDeadlineLabel } from '../activityFormatters';
+import { formatActivityDate, getActivityStatus, getRecruitmentDday } from '../activityFormatters';
+import { normalizeCapacity } from '../activityCapacity';
 import { EnhancedSearchCard } from './EnhancedSearchCard';
 import { CalendarBottomSheet } from './CalendarBottomSheet';
 import { PeopleCountModal } from './PeopleCountModal';
@@ -56,26 +57,57 @@ interface VolunteerApiResponse {
   error?: string;
 }
 
-const formatParticipantLabel = (value: string | number | null) => {
-  if (value === null || value === undefined) return '확인 필요';
-  if (typeof value === 'number') return `${value.toLocaleString('ko-KR')}명`;
+type ActivitySectionState = 'loading' | 'error' | 'empty' | 'success';
 
-  const trimmedValue = value.trim();
-  if (!trimmedValue) return '확인 필요';
-  if (/[명人]$/.test(trimmedValue)) return trimmedValue;
+const activityStateMessages: Record<Exclude<ActivitySectionState, 'success'>, { title: string; description?: string }> = {
+  loading: {
+    title: '활동을 불러오는 중이에요',
+  },
+  error: {
+    title: '활동을 불러오지 못했어요',
+    description: '잠시 후 다시 시도해주세요',
+  },
+  empty: {
+    title: '조건에 맞는 활동이 없어요',
+    description: '다른 지역이나 날짜로 찾아보세요',
+  },
+};
 
-  const normalizedNumber = Number(trimmedValue.replace(/,/g, ''));
-  return Number.isFinite(normalizedNumber)
-    ? `${normalizedNumber.toLocaleString('ko-KR')}명`
-    : trimmedValue;
+const getActivitySectionState = (
+  isLoading: boolean,
+  hasError: boolean,
+  activities: ActivitySaveRecord[],
+): ActivitySectionState => {
+  if (isLoading) return 'loading';
+  if (hasError) return 'error';
+  if (activities.length === 0) return 'empty';
+  return 'success';
 };
 
 const getRecruitingLabel = (activity: VolunteerApiActivity) =>
   activity.category || '기타';
 
-const isRecruitingSection = (sectionTitle: string) => sectionTitle === '모집중인 활동';
-const isHiddenSection = (sectionTitle: string) => sectionTitle === '숨은 활동';
+const isWeeklySection = (sectionTitle: string) => sectionTitle === '이번 주 활동';
+const isFestivalSection = (sectionTitle: string) => sectionTitle === '축제·행사 활동';
 
+function ActivityState({
+  state,
+  emptyTitle,
+}: {
+  state: Exclude<ActivitySectionState, 'success'>;
+  emptyTitle?: string;
+}) {
+  const message = activityStateMessages[state];
+
+  return (
+    <div className="rounded-2xl border border-black/[0.04] bg-white px-4 py-5 text-center shadow-[0_2px_12px_rgba(39,45,40,0.035)]">
+      <p className="text-[13px] font-medium text-[#8f8f8f]">{state === 'empty' && emptyTitle ? emptyTitle : message.title}</p>
+      {message.description && (
+        <p className="mt-1.5 text-[12px] font-normal text-[#aaa]">{message.description}</p>
+      )}
+    </div>
+  );
+}
 
 const mapVolunteerApiActivityToRecentActivity = (activity: VolunteerApiActivity): RecentActivity => ({
   id: activity.id || activity.progrmRegistNo,
@@ -87,13 +119,17 @@ const mapVolunteerApiActivityToRecentActivity = (activity: VolunteerApiActivity)
   date: activity.activityStartDate,
   time: activity.time || '시간 확인 필요',
   status: activity.status,
-  isRecruiting: activity.status === '모집중',
+  isRecruiting: ['recruiting', 'todayDeadline'].includes(getActivityStatus({
+    date: activity.activityStartDate,
+    time: activity.time,
+    recruitmentEndDate: activity.recruitmentEndDate,
+  })),
   description: activity.organization
     ? `${activity.organization}에서 모집하는 1365 봉사활동입니다.`
     : '1365에서 제공한 봉사활동입니다.',
   materials: '1365 상세 페이지에서 확인해주세요.',
-  capacity: formatParticipantLabel(activity.capacity),
-  currentParticipants: formatParticipantLabel(activity.currentParticipants),
+  capacity: normalizeCapacity(activity.capacity),
+  currentParticipants: normalizeCapacity(activity.currentParticipants),
   volunteerTarget: activity.volunteerTarget || undefined,
   volunteerType: activity.volunteerType || undefined,
   recommendation: '현재 모집중인 1365 활동 중 여행 흐름에 맞는지 살펴보세요.',
@@ -142,7 +178,7 @@ function HiddenPlaceActivityCard({
   onClick,
 }: HiddenPlaceActivityCardProps) {
   const dateTime = [formatActivityDate(activity.date), activity.time].filter(Boolean).join(' · ');
-  const recruitmentMetadata = getRecruitmentDeadlineLabel(activity.recruitmentEndDate);
+  const recruitmentMetadata = getRecruitmentDday(activity);
 
   return (
     <div
@@ -230,7 +266,7 @@ function RecentTimelineActivityCard({
   const registeredLabel = activity.recentLabel || '새로 열린 일정';
   const registeredTextColor = registeredTextColors[index % registeredTextColors.length];
   const dateTime = [formatActivityDate(activity.date), activity.time].filter(Boolean).join(' · ');
-  const recruitmentMetadata = getRecruitmentDeadlineLabel(activity.recruitmentEndDate);
+  const recruitmentMetadata = getRecruitmentDday(activity);
 
   return (
     <div className="relative grid grid-cols-[22px_minmax(0,1fr)] gap-3">
@@ -326,10 +362,13 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
   const [activeHeroIndex, setActiveHeroIndex] = useState(0);
   const [apiLightweightActivities, setApiLightweightActivities] = useState<RecentActivity[]>([]);
   const [isLightweightActivitiesLoading, setIsLightweightActivitiesLoading] = useState(true);
+  const [hasLightweightActivitiesError, setHasLightweightActivitiesError] = useState(false);
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
   const [isRecentActivitiesLoading, setIsRecentActivitiesLoading] = useState(true);
+  const [hasRecentActivitiesError, setHasRecentActivitiesError] = useState(false);
   const [hiddenActivities, setHiddenActivities] = useState<RecentActivity[]>([]);
   const [isHiddenActivitiesLoading, setIsHiddenActivitiesLoading] = useState(true);
+  const [hasHiddenActivitiesError, setHasHiddenActivitiesError] = useState(false);
 
   useEffect(() => {
     heroImages.forEach((image) => {
@@ -357,6 +396,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
 
     const fetchLightweightActivities = async () => {
       setIsLightweightActivitiesLoading(true);
+      setHasLightweightActivitiesError(false);
 
       try {
         const response = await fetch(`/api/volunteer/search?${params.toString()}`, {
@@ -373,9 +413,12 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
           : [];
 
         setApiLightweightActivities(nextActivities);
+        setHasLightweightActivitiesError(false);
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') return;
         console.error('Home lightweight activities failed:', error);
+        setApiLightweightActivities([]);
+        setHasLightweightActivitiesError(true);
       } finally {
         if (!abortController.signal.aborted) {
           setIsLightweightActivitiesLoading(false);
@@ -393,11 +436,12 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
       keyword: '',
       page: '1',
       size: '30',
-      sort: 'recruiting',
+      sort: 'weekly',
     });
 
     const fetchRecentActivities = async () => {
       setIsRecentActivitiesLoading(true);
+      setHasRecentActivitiesError(false);
 
       try {
         const response = await fetch(`/api/volunteer/search?${params.toString()}`, {
@@ -406,7 +450,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
         const payload = await response.json() as VolunteerApiResponse;
 
         if (!response.ok || !payload.ok) {
-          throw new Error(payload.error || '모집중인 활동을 불러오지 못했어요.');
+          throw new Error(payload.error || '이번 주 활동을 불러오지 못했어요.');
         }
 
         const nextActivities = Array.isArray(payload.items)
@@ -414,11 +458,13 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
           : [];
 
         setRecentActivities(nextActivities);
+        setHasRecentActivitiesError(false);
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') return;
 
-        console.error('Home recruiting volunteer activities failed:', error);
+        console.error('Home weekly volunteer activities failed:', error);
         setRecentActivities([]);
+        setHasRecentActivitiesError(true);
       } finally {
         if (!abortController.signal.aborted) {
           setIsRecentActivitiesLoading(false);
@@ -437,11 +483,12 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
       keyword: '',
       page: '1',
       size: '50',
-      sort: 'hidden',
+      sort: 'festival',
     });
 
     const fetchHiddenActivities = async () => {
       setIsHiddenActivitiesLoading(true);
+      setHasHiddenActivitiesError(false);
 
       try {
         const response = await fetch(`/api/volunteer/search?${params.toString()}`, {
@@ -450,7 +497,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
         const payload = await response.json() as VolunteerApiResponse;
 
         if (!response.ok || !payload.ok) {
-          throw new Error(payload.error || '숨은 활동을 불러오지 못했어요.');
+          throw new Error(payload.error || '축제·행사 활동을 불러오지 못했어요.');
         }
 
         const nextActivities = Array.isArray(payload.items)
@@ -458,11 +505,13 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
           : [];
 
         setHiddenActivities(nextActivities);
+        setHasHiddenActivitiesError(false);
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') return;
 
-        console.error('Home hidden volunteer activities failed:', error);
+        console.error('Home festival volunteer activities failed:', error);
         setHiddenActivities([]);
+        setHasHiddenActivitiesError(true);
       } finally {
         if (!abortController.signal.aborted) {
           setIsHiddenActivitiesLoading(false);
@@ -482,7 +531,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
 
   const formatDateRangeFull = () => {
     if (!startDate || !endDate) return '';
-    return `2026.${String(startDate.getMonth() + 1).padStart(2, '0')}.${String(startDate.getDate()).padStart(2, '0')} - 2026.${String(endDate.getMonth() + 1).padStart(2, '0')}.${String(endDate.getDate()).padStart(2, '0')}`;
+    return `${startDate.getFullYear()}.${String(startDate.getMonth() + 1).padStart(2, '0')}.${String(startDate.getDate()).padStart(2, '0')} - ${endDate.getFullYear()}.${String(endDate.getMonth() + 1).padStart(2, '0')}.${String(endDate.getDate()).padStart(2, '0')}`;
   };
 
   const handleSearch = () => {
@@ -491,7 +540,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
       startDate,
       endDate,
       dateRangeLabel: formatDateRangeFull(),
-      peopleCount: 0,
+      peopleCount,
     });
   };
 
@@ -512,22 +561,41 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
   const lightweightSectionActivities: ActivitySaveRecord[] = isLightweightActivitiesLoading
     ? []
     : apiLightweightActivities;
+  const weeklySectionActivities = recentActivities.slice(0, 3);
+  const hiddenSectionActivities = hiddenActivities.slice(0, 3);
 
   const activitySections = [
     {
       title: '가벼운 활동',
       description: '여행 중 산책하듯 참여하기 좋아요',
       activities: lightweightSectionActivities,
+      state: getActivitySectionState(
+        isLightweightActivitiesLoading,
+        hasLightweightActivitiesError,
+        lightweightSectionActivities,
+      ),
     },
     {
-      title: '모집중인 활동',
-      description: '지금 신청 가능한 1365 활동이에요',
-      activities: recentActivities.slice(0, 3),
+      title: '이번 주 활동',
+      description: '이번 주에 참여할 수 있는 활동이에요',
+      activities: weeklySectionActivities,
+      state: getActivitySectionState(
+        isRecentActivitiesLoading,
+        hasRecentActivitiesError,
+        weeklySectionActivities,
+      ),
+      emptyTitle: '이번 주에 참여할 수 있는 활동이 없어요',
     },
     {
-      title: '숨은 활동',
-      description: '아직 많이 알려지지 않은 활동이에요',
-      activities: hiddenActivities.slice(0, 3),
+      title: '축제·행사 활동',
+      description: '여행지의 특별한 순간에 함께해요',
+      activities: hiddenSectionActivities,
+      state: getActivitySectionState(
+        isHiddenActivitiesLoading,
+        hasHiddenActivitiesError,
+        hiddenSectionActivities,
+      ),
+      emptyTitle: '축제·행사 활동이 아직 없어요',
     },
   ];
   const allHomeActivities = [
@@ -649,35 +717,9 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
                 <p className="text-[12px] text-[#aaa]">{section.description}</p>
               </div>
               <div className="space-y-2.5">
-                {!isRecruitingSection(section.title) && !isHiddenSection(section.title) && section.activities.length === 0 && (
-                  <div className="rounded-2xl border border-black/[0.04] bg-white px-4 py-5 text-center shadow-[0_2px_12px_rgba(39,45,40,0.035)]">
-                    <p className="text-[13px] font-medium text-[#8f8f8f]">
-                      {isLightweightActivitiesLoading
-                        ? '가벼운 활동을 찾고 있어요'
-                        : '지금 참여 가능한 가벼운 활동이 없어요'}
-                    </p>
-                  </div>
-                )}
-                {isRecruitingSection(section.title) && section.activities.length === 0 && (
-                  <div className="rounded-2xl border border-black/[0.04] bg-white px-4 py-5 text-center shadow-[0_2px_12px_rgba(39,45,40,0.035)]">
-                    <p className="text-[13px] font-medium text-[#8f8f8f]">
-                      {isRecentActivitiesLoading
-                        ? '모집중인 활동을 찾고 있어요'
-                        : '현재 신청 가능한 활동을 찾고 있어요'}
-                    </p>
-                  </div>
-                )}
-                {isHiddenSection(section.title) && section.activities.length === 0 && (
-                  <div className="rounded-[1.75rem] border border-black/[0.04] bg-white px-4 py-5 text-center shadow-[0_8px_24px_rgba(40,45,42,0.06)]">
-                    <p className="text-[13px] font-medium text-[#8f8f8f]">
-                      {isHiddenActivitiesLoading
-                        ? '숨은 활동을 찾고 있어요'
-                        : '아직 조건에 맞는 숨은 활동이 없어요'}
-                    </p>
-                  </div>
-                )}
+                {section.state !== 'success' && <ActivityState state={section.state} emptyTitle={section.emptyTitle} />}
                 {section.activities.map((activity, activityIndex) => (
-                  isRecruitingSection(section.title) ? (
+                  isWeeklySection(section.title) ? (
                     <RecentTimelineActivityCard
                       key={`${section.title}-${activity.title}`}
                       activity={activity}
@@ -687,7 +729,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
                       onBookmarkClick={() => onToggleSavedActivity(activity)}
                       onClick={() => { setSelectedActivity(activity); setIsDetailOpen(true); }}
                     />
-                  ) : isHiddenSection(section.title) ? (
+                  ) : isFestivalSection(section.title) ? (
                     <HiddenPlaceActivityCard
                       key={`${section.title}-${activity.title}`}
                       activity={activity}

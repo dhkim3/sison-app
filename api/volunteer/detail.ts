@@ -3,6 +3,13 @@ type VercelRequest = {
   query: Record<string, string | string[] | undefined>;
 };
 
+import {
+  firstPresentValue as firstPresentCapacityValue,
+  normalizeCapacity,
+  pickCurrentParticipants,
+  pickRecruitCapacity,
+} from './capacity';
+
 type VercelResponse = {
   status: (statusCode: number) => VercelResponse;
   json: (body: unknown) => void;
@@ -12,6 +19,12 @@ type VercelResponse = {
 declare const process: {
   env: Record<string, string | undefined>;
 };
+
+console.log('DATA_GO_KR_SERVICE_KEY exists:', !!process.env.DATA_GO_KR_SERVICE_KEY);
+console.log(
+  'DATA_GO_KR related env keys:',
+  Object.keys(process.env).filter((key) => key.includes('DATA_GO_KR') || key.includes('GO_KR')),
+);
 
 const VOLUNTEER_DETAIL_URL =
   'http://openapi.1365.go.kr/openapi/service/rest/VolunteerPartcptnService/getVltrPartcptnItem';
@@ -66,6 +79,27 @@ const parseVolunteerDetailItem = (xmlText: string) => {
     familyPosblAt: getTagValue(itemXml, 'familyPosblAt'),
     grpPosblAt: getTagValue(itemXml, 'grpPosblAt'),
     mnnstNm: getTagValue(itemXml, 'mnnstNm'),
+    noticeEndde: getTagValue(itemXml, 'noticeEndde'),
+    noticeEndDate: getTagValue(itemXml, 'noticeEndDate'),
+    rcritEndde: getTagValue(itemXml, 'rcritEndde'),
+    rcritEndDate: getTagValue(itemXml, 'rcritEndDate'),
+    reqstEndde: getTagValue(itemXml, 'reqstEndde'),
+    reqstEndDate: getTagValue(itemXml, 'reqstEndDate'),
+    progrmEndde: getTagValue(itemXml, 'progrmEndde'),
+    srvcEndDate: getTagValue(itemXml, 'srvcEndDate'),
+    rcritNmpr: getTagValue(itemXml, 'rcritNmpr'),
+    recrtNmpr: getTagValue(itemXml, 'recrtNmpr'),
+    reqstNmpr: getTagValue(itemXml, 'reqstNmpr'),
+    progrmRcritNmpr: getTagValue(itemXml, 'progrmRcritNmpr'),
+    rcritNmprCo: getTagValue(itemXml, 'rcritNmprCo'),
+    wanted: getTagValue(itemXml, 'wanted'),
+    capacity: getTagValue(itemXml, 'capacity'),
+    nanmmbyNmpr: getTagValue(itemXml, 'nanmmbyNmpr'),
+    applcntNmpr: getTagValue(itemXml, 'applcntNmpr'),
+    appTotal: getTagValue(itemXml, 'appTotal'),
+    partcptnNmpr: getTagValue(itemXml, 'partcptnNmpr'),
+    currentParticipants: getTagValue(itemXml, 'currentParticipants'),
+    requestCount: getTagValue(itemXml, 'requestCount'),
     target: getTagValue(itemXml, 'target'),
     srvcTarget: getTagValue(itemXml, 'srvcTarget'),
     volunteerTarget: getTagValue(itemXml, 'volunteerTarget'),
@@ -82,6 +116,23 @@ const formatVolunteerTarget = (item: ReturnType<typeof parseVolunteerDetailItem>
   );
   return textTarget || null;
 };
+
+const formatDate = (value: string) => {
+  const digits = value.replace(/\D/g, '').slice(0, 8);
+  if (digits.length !== 8) return value;
+
+  return `${digits.slice(0, 4)}.${digits.slice(4, 6)}.${digits.slice(6, 8)}`;
+};
+
+const getRecruitmentEndDate = (item: ReturnType<typeof parseVolunteerDetailItem>) =>
+  firstPresentCapacityValue(
+    item.noticeEndde,
+    item.noticeEndDate,
+    item.rcritEndde,
+    item.rcritEndDate,
+    item.reqstEndde,
+    item.reqstEndDate,
+  );
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -124,8 +175,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const item = parseVolunteerDetailItem(xmlText);
-    console.log('1365 detail volunteer target candidates:', {
+    const capacity = normalizeCapacity(pickRecruitCapacity(item));
+    const currentParticipants = normalizeCapacity(pickCurrentParticipants(item));
+
+    console.log('1365 detail volunteer candidates:', {
       progrmRegistNo: item.progrmRegistNo || progrmRegistNo,
+      recruitmentEndCandidates: {
+        noticeEndde: item.noticeEndde,
+        noticeEndDate: item.noticeEndDate,
+        rcritEndde: item.rcritEndde,
+        rcritEndDate: item.rcritEndDate,
+        reqstEndde: item.reqstEndde,
+        reqstEndDate: item.reqstEndDate,
+        progrmEndde: item.progrmEndde,
+        srvcEndDate: item.srvcEndDate,
+      },
+      capacityCandidates: {
+        rcritNmpr: item.rcritNmpr,
+        recrtNmpr: item.recrtNmpr,
+        reqstNmpr: item.reqstNmpr,
+        progrmRcritNmpr: item.progrmRcritNmpr,
+        rcritNmprCo: item.rcritNmprCo,
+        nanmmbyNmpr: item.nanmmbyNmpr,
+        wanted: item.wanted,
+        capacity: item.capacity,
+      },
+      normalizedCapacity: capacity,
+      currentParticipantCandidates: {
+        applcntNmpr: item.applcntNmpr,
+        partcptnNmpr: item.partcptnNmpr,
+        reqstNmpr: item.reqstNmpr,
+        requestCount: item.requestCount,
+        appTotal: item.appTotal,
+        currentParticipants: item.currentParticipants,
+      },
+      normalizedCurrentParticipants: currentParticipants,
       target: item.target,
       srvcTarget: item.srvcTarget,
       volunteerTarget: item.volunteerTarget,
@@ -141,6 +225,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ok: true,
       progrmRegistNo: item.progrmRegistNo || progrmRegistNo,
       volunteerTarget: formatVolunteerTarget(item),
+      recruitmentEndDate: formatDate(getRecruitmentEndDate(item)),
+      capacity,
+      currentParticipants,
     });
   } catch (error) {
     console.error('1365 detail volunteer target request errored:', {
