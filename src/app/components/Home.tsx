@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Bell, Bookmark, Calendar, Clock, MapPin } from 'lucide-react';
 import { formatActivityDate, getActivityStatus, getRecruitmentDday } from '../activityFormatters';
 import { normalizeCapacity } from '../activityCapacity';
-import { logActivityImageMappings, withResolvedActivityImage } from '../utils/activityImage';
+import { avoidConsecutiveActivityImages, logActivityImageMappings, withResolvedActivityImage } from '../utils/activityImage';
 import { EnhancedSearchCard } from './EnhancedSearchCard';
 import { CalendarBottomSheet } from './CalendarBottomSheet';
 import { PeopleCountModal } from './PeopleCountModal';
@@ -154,6 +154,15 @@ const mapVolunteerApiActivityToRecentActivity = (activity: VolunteerApiActivity)
     recentLabel: getRecruitingLabel(activity),
     recentSortDate: activity.recentSortDate,
   });
+
+const HOME_CACHE_TTL = 5 * 60 * 1000;
+interface HomeActivityCache {
+  timestamp: number;
+  lightweight: RecentActivity[];
+  monthly: RecentActivity[];
+  festival: RecentActivity[];
+}
+let homeActivityCache: HomeActivityCache | null = null;
 
 const heroImages = [
   {
@@ -392,144 +401,82 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
   }, []);
 
   useEffect(() => {
+    const cached = homeActivityCache;
+    if (cached && Date.now() - cached.timestamp < HOME_CACHE_TTL) {
+      setApiLightweightActivities(cached.lightweight);
+      setRecentActivities(cached.monthly);
+      setHiddenActivities(cached.festival);
+      setIsLightweightActivitiesLoading(false);
+      setIsRecentActivitiesLoading(false);
+      setIsHiddenActivitiesLoading(false);
+      return;
+    }
+
     const abortController = new AbortController();
-    const params = new URLSearchParams({
-      keyword: '',
-      page: '1',
-      size: '30',
-      sort: 'lightweight',
-    });
 
-    const fetchLightweightActivities = async () => {
-      setIsLightweightActivitiesLoading(true);
-      setHasLightweightActivitiesError(false);
+    const fetchSection = async (sort: string, size: string): Promise<RecentActivity[]> => {
+      const params = new URLSearchParams({ keyword: '', page: '1', size, sort });
+      const response = await fetch(`/api/volunteer/search?${params.toString()}`, {
+        signal: abortController.signal,
+      });
+      const payload = await response.json() as VolunteerApiResponse;
+      if (!response.ok || !payload.ok) throw new Error(payload.error || '활동을 불러오지 못했어요.');
+      return Array.isArray(payload.items)
+        ? avoidConsecutiveActivityImages(payload.items.map(mapVolunteerApiActivityToRecentActivity).slice(0, 3))
+        : [];
+    };
 
-      try {
-        const response = await fetch(`/api/volunteer/search?${params.toString()}`, {
-          signal: abortController.signal,
-        });
-        const payload = await response.json() as VolunteerApiResponse;
+    const fetchAllHomeActivities = async () => {
+      const [lightweightResult, monthlyResult, festivalResult] = await Promise.allSettled([
+        fetchSection('lightweight', '30'),
+        fetchSection('monthly', '30'),
+        fetchSection('festival', '50'),
+      ]);
 
-        if (!response.ok || !payload.ok) {
-          throw new Error(payload.error || '가벼운 활동을 불러오지 못했어요.');
-        }
+      if (abortController.signal.aborted) return;
 
-        const nextActivities = Array.isArray(payload.items)
-          ? payload.items.map(mapVolunteerApiActivityToRecentActivity).slice(0, 3)
-          : [];
+      const lightweight = lightweightResult.status === 'fulfilled' ? lightweightResult.value : [];
+      const monthly = monthlyResult.status === 'fulfilled' ? monthlyResult.value : [];
+      const festival = festivalResult.status === 'fulfilled' ? festivalResult.value : [];
 
-        logActivityImageMappings('home-lightweight', nextActivities);
-        setApiLightweightActivities(nextActivities);
+      if (lightweightResult.status === 'fulfilled') {
+        setApiLightweightActivities(lightweight);
         setHasLightweightActivitiesError(false);
-      } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') return;
-        console.error('Home lightweight activities failed:', error);
+      } else if (!(lightweightResult.reason instanceof DOMException && lightweightResult.reason.name === 'AbortError')) {
         setApiLightweightActivities([]);
         setHasLightweightActivitiesError(true);
-      } finally {
-        if (!abortController.signal.aborted) {
-          setIsLightweightActivitiesLoading(false);
-        }
       }
-    };
 
-    void fetchLightweightActivities();
-    return () => abortController.abort();
-  }, []);
-
-  useEffect(() => {
-    const abortController = new AbortController();
-    const params = new URLSearchParams({
-      keyword: '',
-      page: '1',
-      size: '30',
-      sort: 'monthly',
-    });
-
-    const fetchRecentActivities = async () => {
-      setIsRecentActivitiesLoading(true);
-      setHasRecentActivitiesError(false);
-
-      try {
-        const response = await fetch(`/api/volunteer/search?${params.toString()}`, {
-          signal: abortController.signal,
-        });
-        const payload = await response.json() as VolunteerApiResponse;
-
-        if (!response.ok || !payload.ok) {
-          throw new Error(payload.error || '이달의 활동을 불러오지 못했어요.');
-        }
-
-        const nextActivities = Array.isArray(payload.items)
-          ? payload.items.map(mapVolunteerApiActivityToRecentActivity).slice(0, 3)
-          : [];
-
-        logActivityImageMappings('home-monthly', nextActivities);
-        setRecentActivities(nextActivities);
+      if (monthlyResult.status === 'fulfilled') {
+        setRecentActivities(monthly);
         setHasRecentActivitiesError(false);
-      } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') return;
-
-        console.error('Home monthly volunteer activities failed:', error);
+      } else if (!(monthlyResult.reason instanceof DOMException && monthlyResult.reason.name === 'AbortError')) {
         setRecentActivities([]);
         setHasRecentActivitiesError(true);
-      } finally {
-        if (!abortController.signal.aborted) {
-          setIsRecentActivitiesLoading(false);
-        }
       }
-    };
 
-    void fetchRecentActivities();
-
-    return () => abortController.abort();
-  }, []);
-
-  useEffect(() => {
-    const abortController = new AbortController();
-    const params = new URLSearchParams({
-      keyword: '',
-      page: '1',
-      size: '50',
-      sort: 'festival',
-    });
-
-    const fetchHiddenActivities = async () => {
-      setIsHiddenActivitiesLoading(true);
-      setHasHiddenActivitiesError(false);
-
-      try {
-        const response = await fetch(`/api/volunteer/search?${params.toString()}`, {
-          signal: abortController.signal,
-        });
-        const payload = await response.json() as VolunteerApiResponse;
-
-        if (!response.ok || !payload.ok) {
-          throw new Error(payload.error || '축제·행사 활동을 불러오지 못했어요.');
-        }
-
-        const nextActivities = Array.isArray(payload.items)
-          ? payload.items.map(mapVolunteerApiActivityToRecentActivity).slice(0, 3)
-          : [];
-
-        logActivityImageMappings('home-festival', nextActivities);
-        setHiddenActivities(nextActivities);
+      if (festivalResult.status === 'fulfilled') {
+        setHiddenActivities(festival);
         setHasHiddenActivitiesError(false);
-      } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') return;
-
-        console.error('Home festival volunteer activities failed:', error);
+      } else if (!(festivalResult.reason instanceof DOMException && festivalResult.reason.name === 'AbortError')) {
         setHiddenActivities([]);
         setHasHiddenActivitiesError(true);
-      } finally {
-        if (!abortController.signal.aborted) {
-          setIsHiddenActivitiesLoading(false);
-        }
       }
+
+      if (
+        lightweightResult.status === 'fulfilled' &&
+        monthlyResult.status === 'fulfilled' &&
+        festivalResult.status === 'fulfilled'
+      ) {
+        homeActivityCache = { timestamp: Date.now(), lightweight, monthly, festival };
+      }
+
+      setIsLightweightActivitiesLoading(false);
+      setIsRecentActivitiesLoading(false);
+      setIsHiddenActivitiesLoading(false);
     };
 
-    void fetchHiddenActivities();
-
+    void fetchAllHomeActivities();
     return () => abortController.abort();
   }, []);
 

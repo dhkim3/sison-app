@@ -1521,7 +1521,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     serviceKey,
     pageNo,
     numOfRows,
-    keyword: useRegionCodes ? '' : keyword,
+    keyword,
     startDate,
     endDate,
     sidoCd: useRegionCodes ? sidoCd : undefined,
@@ -1566,7 +1566,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const tryKeywordFallback = async (kw: string): Promise<boolean> => {
         if (!kw) return false;
         try {
-          const kwUrl = buildVolunteerSearchUrl({ serviceKey, pageNo, numOfRows, keyword: kw, startDate, endDate });
+          const kwUrl = buildVolunteerSearchUrl({ serviceKey, pageNo, numOfRows, keyword: kw, startDate, endDate, sidoCd: sidoCd || undefined, gugunCd: gugunCd || undefined });
           const kwRes = await fetch(kwUrl);
           if (!kwRes.ok) return false;
           const kwXml = await kwRes.text();
@@ -1619,20 +1619,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (sort === 'weekly') {
-      const buildWeeklySourceItems = async (items: ParsedVolunteerItem[]) => {
-        const weeklyDetailItems = await Promise.all(
-          items.map((item) => fetchVolunteerDetailItem(serviceKey, item.progrmRegistNo))
-        );
-
-        return items.map((item, index) => {
-          const detailItem = weeklyDetailItems[index];
-
-          return mergeVolunteerDetailItem(item, detailItem);
-        });
-      };
-
-      let weeklySourceItems = await buildWeeklySourceItems(rawItems);
-      let weeklyFilteredItems = filterWeeklyActivities(weeklySourceItems);
+      // Filter first using search fields, then fetch details only for candidates (~3)
+      let weeklyFilteredItems = filterWeeklyActivities(rawItems);
 
       if (weeklyFilteredItems.length < 3) {
         const supplementalItems = await fetchWeeklySupplementItems({
@@ -1644,12 +1632,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (supplementalItems.length > 0) {
           const mergedWeeklyItems = mergeVolunteerItems([...rawItems, ...supplementalItems]);
-          weeklySourceItems = await buildWeeklySourceItems(mergedWeeklyItems);
-          weeklyFilteredItems = filterWeeklyActivities(weeklySourceItems);
+          weeklyFilteredItems = filterWeeklyActivities(mergedWeeklyItems);
         }
       }
 
+      const weeklyDetailItems = await Promise.all(
+        weeklyFilteredItems.map((item) => fetchVolunteerDetailItem(serviceKey, item.progrmRegistNo))
+      );
       const weeklyItems = weeklyFilteredItems
+        .map((item, index) => mergeVolunteerDetailItem(item, weeklyDetailItems[index]))
         .map(mapVolunteerActivity)
         .filter((activity) => activity.status !== '지난 활동');
 
@@ -1663,14 +1654,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (sort === 'monthly') {
+      // Filter first (search fields suffice), then fetch details only for the ~3 candidates
+      const monthlyFilteredItems = filterMonthlyActivities(rawItems);
       const monthlyDetailItems = await Promise.all(
-        rawItems.map((item) => fetchVolunteerDetailItem(serviceKey, item.progrmRegistNo))
+        monthlyFilteredItems.map((item) => fetchVolunteerDetailItem(serviceKey, item.progrmRegistNo))
       );
-      const monthlySourceItems = rawItems.map((item, index) =>
-        mergeVolunteerDetailItem(item, monthlyDetailItems[index])
-      );
-      const monthlyFilteredItems = filterMonthlyActivities(monthlySourceItems);
       const monthlyItems = monthlyFilteredItems
+        .map((item, index) => mergeVolunteerDetailItem(item, monthlyDetailItems[index]))
         .map(mapVolunteerActivity)
         .filter((activity) => activity.status !== '지난 활동');
 
@@ -1719,7 +1709,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (sort === 'hidden') {
-      const hiddenCandidates = getHiddenActivityCandidates(rawItems, 20);
+      const hiddenCandidates = getHiddenActivityCandidates(rawItems, 10);
       const detailItems = await Promise.all(
         hiddenCandidates.map((item) => fetchVolunteerDetailItem(serviceKey, item.progrmRegistNo))
       );

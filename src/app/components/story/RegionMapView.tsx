@@ -17,22 +17,50 @@ interface RegionMapViewProps {
   userStories?: StoryItem[];
 }
 
-const regions = [
-  { name: '서울',  count: 24, top: '16%',  left: '43%' },
-  { name: '경기',  count: 18, top: '24%',  left: '38%' },
-  { name: '강원',  count: 12, top: '26%',  left: '68%' },
-  { name: '충남',  count: 10, top: '36%',  left: '40%', label: '충청' },
-  { name: '경북',  count:  9, top: '43%',  left: '65%' },
-  { name: '전남',  count:  8, top: '66%',  left: '26%' },
-  { name: '경남',  count: 15, top: '57%',  left: '51%' },
-  { name: '부산',  count: 18, top: '60%',  left: '66%' },
-  { name: '제주',  count: 11, top: '86%',  left: '27%' },
+interface RegionMarker {
+  name: string;
+  count: number;
+  x: number;
+  y: number;
+  label?: string;
+}
+
+const regions: RegionMarker[] = [
+  { name: '서울', count: 24, x: 282, y: 194 },
+  { name: '경기', count: 18, x: 205, y: 246 },
+  { name: '강원', count: 12, x: 426, y: 184 },
+  { name: '충남', count: 10, x: 230, y: 342 },
+  { name: '충북', count: 9, x: 390, y: 316 },
+  { name: '대전', count: 8, x: 356, y: 382 },
+  { name: '전북', count: 11, x: 240, y: 402 },
+  { name: '전남', count: 8, x: 200, y: 558 },
+  { name: '광주', count: 7, x: 210, y: 488 },
+  { name: '경북', count: 9, x: 478, y: 358 },
+  { name: '대구', count: 13, x: 486, y: 414 },
+  { name: '경남', count: 15, x: 420, y: 500 },
+  { name: '울산', count: 10, x: 514, y: 454 },
+  { name: '부산', count: 18, x: 492, y: 492 },
 ];
 
-const mapImagePlacement = {
-  size: '128%',
-  top: '42%',
+const jejuRegion: RegionMarker = { name: '제주', count: 11, x: 210, y: 690 };
+
+const mainlandImagePlacement = {
+  width: '134%',
+  left: '56%',
+  top: '67%',
   opacity: 0.9,
+};
+
+const jejuInsetImagePlacement = {
+  width: 675,
+  left: -117,
+  top: -572,
+  opacity: 0.92,
+};
+
+const mapViewBox = {
+  width: 767,
+  height: 777,
 };
 
 const mockStories: StoryItem[] = [
@@ -143,7 +171,8 @@ export function RegionMapView({
     ? stories.filter((s) => s.region === selectedRegion)
     : stories;
   const recentStories = visibleStories.slice(0, 5);
-  const selectedRegionLabel = regions.find((region) => region.name === selectedRegion)?.label ?? selectedRegion;
+  const selectedRegionLabel =
+    [...regions, jejuRegion].find((region) => region.name === selectedRegion)?.label ?? selectedRegion;
   const currentRegionStories = stories.filter((story) => story.region === currentRegion).slice(0, 5);
   const fullStoryList =
     activeStoryList === 'current-location'
@@ -237,116 +266,166 @@ export function RegionMapView({
               <div
                 className="relative w-full overflow-hidden rounded-3xl"
                 style={{
-                  height: 'clamp(300px, 80vw, 322px)',
+                  height: 'clamp(410px, 108vw, 440px)',
                   background:
-                    'radial-gradient(circle at 50% 40%, rgba(255,255,255,0.88) 0%, rgba(255,255,255,0.34) 38%, transparent 68%), linear-gradient(145deg, #fbf7ee 0%, #edf7f0 54%, #f8f4e9 100%)',
+                    'linear-gradient(145deg, #fbf7ee 0%, #eef7f0 52%, #f8f4e9 100%)',
                   boxShadow:
-                    '0 12px 28px rgba(83,102,85,0.08), inset 0 1px 0 rgba(255,255,255,0.86), inset 0 -24px 48px rgba(170,190,171,0.10)',
+                    '0 12px 28px rgba(83,102,85,0.08), inset 0 1px 0 rgba(255,255,255,0.68), inset 0 -22px 44px rgba(170,190,171,0.08)',
                 }}
               >
                 <div
                   aria-hidden="true"
-                  className="absolute inset-5 rounded-[1.35rem]"
+                  className="pointer-events-none absolute inset-0"
                   style={{
                     background:
-                      'radial-gradient(circle at 50% 45%, rgba(204,232,214,0.38) 0%, rgba(255,255,255,0.46) 44%, rgba(255,255,255,0) 72%)',
-                    boxShadow: '0 0 42px rgba(176,221,195,0.26)',
+                      'linear-gradient(180deg, rgba(251,247,238,0.32) 0%, rgba(251,247,238,0) 18%, rgba(251,247,238,0) 78%, rgba(248,244,233,0.24) 100%)',
                   }}
                 />
 
                 <div
-                  aria-hidden="true"
                   className="absolute inset-0 overflow-hidden rounded-3xl"
                   style={{
                     margin: '8px',
                   }}
                 >
-                  <img
-                    src="/sison-korea-admin-map.svg"
-                    alt=""
-                    aria-hidden="true"
-                    className="absolute left-1/2 max-w-none select-none object-contain"
-                    draggable={false}
+                  <div
+                    className="absolute inset-x-0 top-0 overflow-hidden"
                     style={{
-                      top: mapImagePlacement.top,
-                      width: mapImagePlacement.size,
-                      height: mapImagePlacement.size,
-                      opacity: mapImagePlacement.opacity,
-                      transform: 'translate(-50%, -50%)',
+                      bottom: '82px',
                     }}
-                  />
-                </div>
-
-                <div
-                  aria-hidden="true"
-                  className="absolute inset-0"
-                  style={{
-                    background:
-                      'linear-gradient(180deg, rgba(251,247,238,0.20) 0%, rgba(237,247,240,0.16) 48%, rgba(251,247,238,0.20) 100%)',
-                  }}
-                />
-
-                {/* Region markers */}
-                {regions.map((region) => {
-                  const isSelected = selectedRegion === region.name;
-                  const isOtherSelected = selectedRegion !== null && !isSelected;
-
-                  return (
-                    <button
-                      type="button"
-                      key={region.name}
-                      aria-label={`${region.label ?? region.name} 지역 스토리 보기`}
-                      onClick={() => onSelectRegion(isSelected ? null : region.name)}
-                      className="absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2 transition-all duration-200"
+                  >
+                    <div
+                      className="absolute max-w-none"
                       style={{
-                        top: region.top,
-                        left: region.left,
-                        opacity: isOtherSelected ? 0.38 : 1,
+                        left: mainlandImagePlacement.left,
+                        top: mainlandImagePlacement.top,
+                        width: mainlandImagePlacement.width,
+                        aspectRatio: `${mapViewBox.width} / ${mapViewBox.height}`,
+                        transform: 'translate(-50%, -50%)',
                       }}
                     >
-                      <span
-                        className="flex h-[18px] w-[18px] items-center justify-center rounded-full"
-                        style={{
-                          backgroundColor: 'rgba(255,255,255,0.94)',
-                          boxShadow: isSelected
-                            ? '0 0 0 2px rgba(255,255,255,0.9), 0 0 0 5px rgba(142,205,168,0.38), 0 5px 14px rgba(92,146,113,0.28)'
-                            : '0 0 0 1.5px rgba(255,255,255,0.85), 0 4px 12px rgba(80,110,90,0.28)',
-                        }}
-                      >
-                        <span
-                          className="block h-[8px] w-[8px] rounded-full"
-                          style={{
-                            backgroundColor: isSelected ? '#5fa07a' : '#88c4a2',
-                            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.5)',
-                          }}
-                        />
-                      </span>
-                      <span
-                        className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold leading-none"
-                        style={{
-                          color: isSelected ? '#3d7a58' : '#546459',
-                          backgroundColor: isSelected ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.78)',
-                          boxShadow: isSelected
-                            ? '0 2px 8px rgba(92,146,113,0.14)'
-                            : '0 1px 4px rgba(60,80,65,0.10)',
-                        }}
-                      >
-                        {region.label ?? region.name}
-                      </span>
-                      <span className="sr-only">{region.count}개의 스토리</span>
-                      <span
+                      <img
+                        src="/sison-korea-admin-map.svg"
+                        alt=""
                         aria-hidden="true"
-                        className="pointer-events-none absolute -top-5 rounded-full px-1.5 py-0.5 text-[9px] font-medium leading-none opacity-0 transition-opacity duration-200"
+                        className="absolute inset-0 h-full w-full select-none object-contain"
+                        draggable={false}
                         style={{
-                          color: '#6f9f83',
-                          backgroundColor: 'rgba(255,255,255,0.86)',
+                          opacity: mainlandImagePlacement.opacity,
                         }}
-                      >
-                        {region.count}
-                      </span>
-                    </button>
-                  );
-                })}
+                      />
+
+                      {/* Mainland region buttons */}
+                      {regions.map((region) => {
+                        const isSelected = selectedRegion === region.name;
+                        const isOtherSelected = selectedRegion !== null && !isSelected;
+
+                        return (
+                          <button
+                            type="button"
+                            key={region.name}
+                            aria-label={`${region.label ?? region.name} 지역 스토리 보기`}
+                            onClick={() => onSelectRegion(isSelected ? null : region.name)}
+                            className="absolute z-10 flex min-h-11 min-w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center transition-all duration-200 active:scale-[0.98]"
+                            style={{
+                              top: `${(region.y / mapViewBox.height) * 100}%`,
+                              left: `${(region.x / mapViewBox.width) * 100}%`,
+                              opacity: isOtherSelected ? 0.42 : 1,
+                              transform: isSelected
+                                ? 'translate(-50%, -50%) scale(1.06)'
+                                : 'translate(-50%, -50%) scale(1)',
+                            }}
+                          >
+                            <span
+                              className="whitespace-nowrap rounded-full px-2 py-1 text-[10px] leading-none"
+                              style={{
+                                fontWeight: isSelected ? 700 : 600,
+                                color: isSelected ? '#1e4d38' : '#526258',
+                                backgroundColor: isSelected ? 'rgba(155,211,179,0.95)' : 'rgba(255,255,255,0.84)',
+                                boxShadow: isSelected
+                                  ? '0 0 0 1.5px rgba(80,155,115,0.28), 0 6px 16px rgba(70,130,100,0.22)'
+                                  : '0 1px 6px rgba(60,80,65,0.13)',
+                                backdropFilter: 'blur(3px)',
+                              }}
+                            >
+                              {region.label ?? region.name}
+                            </span>
+                            <span className="sr-only">{region.count}개의 스토리</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Top fade overlay — softens the sharp map edge at the top */}
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute left-0 right-0 top-0 z-[1]"
+                    style={{
+                      height: '40px',
+                      background:
+                        'linear-gradient(to bottom, rgba(251,247,238,0.96) 0%, rgba(238,247,240,0.60) 50%, rgba(251,247,238,0) 100%)',
+                    }}
+                  />
+
+                  <div
+                    className="absolute bottom-[20px] right-[16px] h-[74px] w-[136px] overflow-hidden rounded-[28px]"
+                    style={{
+                      background:
+                        'radial-gradient(circle at 52% 56%, rgba(255,255,255,0.36), rgba(255,255,255,0) 68%)',
+                      boxShadow: '0 10px 22px rgba(90,105,92,0.06)',
+                    }}
+                  >
+                    <img
+                      src="/sison-korea-admin-map.svg"
+                      alt=""
+                      aria-hidden="true"
+                      className="absolute max-w-none select-none"
+                      draggable={false}
+                      style={{
+                        width: `${jejuInsetImagePlacement.width}px`,
+                        left: `${jejuInsetImagePlacement.left}px`,
+                        top: `${jejuInsetImagePlacement.top}px`,
+                        opacity: jejuInsetImagePlacement.opacity,
+                      }}
+                    />
+                    {(() => {
+                      const isSelected = selectedRegion === jejuRegion.name;
+                      const isOtherSelected = selectedRegion !== null && !isSelected;
+
+                      return (
+                        <button
+                          type="button"
+                          aria-label="제주 지역 스토리 보기"
+                          onClick={() => onSelectRegion(isSelected ? null : jejuRegion.name)}
+                          className="absolute bottom-1 left-1/2 z-10 flex min-h-11 min-w-14 -translate-x-1/2 items-center justify-center transition-all duration-200 active:scale-[0.98]"
+                          style={{
+                            opacity: isOtherSelected ? 0.42 : 1,
+                            transform: isSelected
+                              ? 'translateX(-50%) scale(1.06)'
+                              : 'translateX(-50%) scale(1)',
+                          }}
+                        >
+                          <span
+                            className="whitespace-nowrap rounded-full px-2 py-1 text-[10px] leading-none"
+                            style={{
+                              fontWeight: isSelected ? 700 : 600,
+                              color: isSelected ? '#1e4d38' : '#526258',
+                              backgroundColor: isSelected ? 'rgba(155,211,179,0.95)' : 'rgba(255,255,255,0.84)',
+                              boxShadow: isSelected
+                                ? '0 0 0 1.5px rgba(80,155,115,0.28), 0 6px 16px rgba(70,130,100,0.22)'
+                                : '0 1px 6px rgba(60,80,65,0.13)',
+                              backdropFilter: 'blur(3px)',
+                            }}
+                          >
+                            제주
+                          </span>
+                          <span className="sr-only">{jejuRegion.count}개의 스토리</span>
+                        </button>
+                      );
+                    })()}
+                  </div>
+                </div>
               </div>
             </section>
 

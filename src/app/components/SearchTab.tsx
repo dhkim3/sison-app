@@ -15,7 +15,7 @@ import { PageShell } from './PageShell';
 import type { ActivitySaveLookup, ActivitySaveRecord } from '../activitySaveState';
 import { getActivityStatus, isPastActivity } from '../activityFormatters';
 import { normalizeCapacity } from '../activityCapacity';
-import { logActivityImageMappings, withResolvedActivityImage } from '../utils/activityImage';
+import { avoidConsecutiveActivityImages, logActivityImageMappings, withResolvedActivityImage } from '../utils/activityImage';
 import {
   addRecentSearch,
   createSearchKey,
@@ -150,6 +150,7 @@ export function SearchTab({
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [appliedCategoryFilters, setAppliedCategoryFilters] = useState<string[]>([]);
+  const [visibleCount, setVisibleCount] = useState(15);
   const [destinationActivityCounts, setDestinationActivityCounts] = useState<Record<string, DestinationActivityCount>>({});
   const searchApiState = searchState.api;
   const searchApiStateRef = useRef(searchApiState);
@@ -300,6 +301,7 @@ export function SearchTab({
     setPeopleCount(nextPeopleCount);
     setSummaryPeople(nextPeopleCount > 0 ? `${nextPeopleCount}명` : '');
     setHasSearched(true);
+    setVisibleCount(15);
 
     onSearchStateChange((currentState) => ({
       ...currentState,
@@ -401,7 +403,7 @@ export function SearchTab({
     return {
       payload,
       activities: Array.isArray(payload.items)
-        ? payload.items.map(mapApiActivityToCardActivity).filter(isSearchVisibleActivity)
+        ? avoidConsecutiveActivityImages(payload.items.map(mapApiActivityToCardActivity).filter(isSearchVisibleActivity))
         : [],
     };
   };
@@ -412,6 +414,7 @@ export function SearchTab({
     nextEndDate: Date | null,
     resolved: ResolvedSearchLocation | null,
     logLabel: string,
+    pageLimit = INITIAL_SEARCH_MAX_PAGE,
   ) => {
     const params = buildVolunteerSearchParams(keyword, nextStartDate, nextEndDate, resolved);
     const firstPage = await fetchVisibleSearchPage(params, 1, logLabel);
@@ -420,18 +423,17 @@ export function SearchTab({
     let lastFetchedPage = 1;
 
     while (
-      activities.length < SEARCH_PAGE_SIZE &&
-      lastFetchedPage < INITIAL_SEARCH_MAX_PAGE &&
+      lastFetchedPage < pageLimit &&
       lastFetchedPage * SEARCH_PAGE_SIZE < totalCount
     ) {
       lastFetchedPage += 1;
       const nextPage = await fetchVisibleSearchPage(params, lastFetchedPage, logLabel);
-      activities = mergeUniqueActivities(activities, nextPage.activities);
+      activities = avoidConsecutiveActivityImages(mergeUniqueActivities(activities, nextPage.activities));
       totalCount = Math.max(totalCount, nextPage.payload.totalCount ?? totalCount);
     }
 
     return {
-      activities,
+      activities: avoidConsecutiveActivityImages(activities),
       totalCount,
       lastFetchedPage,
     };
@@ -603,7 +605,10 @@ export function SearchTab({
       }
 
       const moreActivities = Array.isArray(payload.items)
-        ? payload.items.map(mapApiActivityToCardActivity).filter(isSearchVisibleActivity)
+        ? avoidConsecutiveActivityImages([
+            ...searchApiStateRef.current.results.slice(-1),
+            ...payload.items.map(mapApiActivityToCardActivity).filter(isSearchVisibleActivity),
+          ]).slice(1)
         : [];
 
       onSearchStateChange((currentState) => ({
@@ -816,7 +821,7 @@ export function SearchTab({
     !isLoadingResults && searchApiState.failedSearchKey === currentSearchKey
       ? searchApiState.error || ''
       : '';
-  const filteredResults = rawResults.filter((activity) => {
+  const filteredResults = avoidConsecutiveActivityImages(rawResults.filter((activity) => {
     const searchableText = `${activity.title} ${activity.location}`.toLowerCase();
     // alias 지역코드 검색 시 백엔드가 이미 지역 필터링 → 클라이언트 destination 필터 생략
     const resolvedKeywords = resolvedLocationRef.current?.keywords ?? [];
@@ -833,18 +838,16 @@ export function SearchTab({
       appliedCategoryFilters.length === 0 || appliedCategoryFilters.includes(normalizedCategory);
 
     return matchesDestination && matchesPeople && matchesCategory;
-  });
-  const visibleResults = filteredResults;
+  }));
+  const visibleResults = filteredResults.slice(0, visibleCount);
   const hasAppliedCategoryFilters = appliedCategoryFilters.length > 0;
   const resultCount = filteredResults.length;
   const shouldShowResultCount = isLoadingResults || (!searchError && filteredResults.length > 0);
-  const hasMoreVisibleResults = filteredResults.length > visibleResults.length;
-
-  const hasMoreResults = hasCachedResultsForCurrentSearch &&
+  const hasMoreClientResults = filteredResults.length > visibleCount;
+  const hasMoreApiResults = hasCachedResultsForCurrentSearch &&
     filteredResults.length > 0 &&
-    (hasAppliedCategoryFilters
-      ? hasMoreVisibleResults
-      : searchApiState.totalCount > rawResults.length);
+    searchApiState.currentPage * SEARCH_PAGE_SIZE < searchApiState.totalCount;
+  const hasMoreResults = hasMoreClientResults || (!hasAppliedCategoryFilters && hasMoreApiResults);
 
   const currentSummaryDateRange = summaryDateRange || formatDateRangeFull();
   const currentPeopleCount = summaryPeople ? Number.parseInt(summaryPeople, 10) || peopleCount : peopleCount;
@@ -996,7 +999,13 @@ export function SearchTab({
                 <div className="pt-2 pb-2 flex justify-center">
                   <button
                     type="button"
-                    onClick={() => void loadMoreActivities()}
+                    onClick={() => {
+                      if (hasMoreClientResults) {
+                        setVisibleCount((prev) => prev + 15);
+                      } else {
+                        void loadMoreActivities().then(() => setVisibleCount((prev) => prev + 15));
+                      }
+                    }}
                     disabled={searchApiState.isLoadingMore}
                     className="px-6 py-2.5 rounded-full border border-black/10 bg-white text-[13px] text-[#555] font-medium disabled:opacity-50 transition-opacity active:bg-black/5"
                   >

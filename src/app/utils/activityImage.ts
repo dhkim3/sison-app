@@ -13,6 +13,8 @@ export interface ActivityImageInput {
   id?: string;
   progrmRegistNo?: string;
   imageUrl?: string | null;
+  imageType?: ActivityImageType | string;
+  imageReason?: string;
   title?: string | null;
   category?: string | null;
   volunteerCategory?: string | null;
@@ -34,34 +36,43 @@ const ACTIVITY_IMAGE_SETS: Record<ActivityImageType, string[]> = {
   'beach-cleanup': [
     '/activity-images/beach-cleanup-1.png',
     '/activity-images/beach-cleanup-2.png',
+    '/activity-images/beach-cleanup-3.png',
   ],
   'forest-trail': [
     '/activity-images/forest-trail-1.png',
     '/activity-images/forest-trail-2.png',
+    '/activity-images/forest-trail-3.png',
   ],
   'festival-event': [
     '/activity-images/festival-event-1.png',
     '/activity-images/festival-event-2.png',
+    '/activity-images/festival-event-3.png',
   ],
   'city-travel': [
     '/activity-images/city-travel-1.png',
     '/activity-images/city-travel-2.png',
+    '/activity-images/city-travel-3.png',
   ],
   'education-culture': [
     '/activity-images/education-culture-1.png',
+    '/activity-images/education-culture-2.png',
   ],
   'rural-village': [
     '/activity-images/default-travel-1.png',
+    '/activity-images/rural-village-2.png',
   ],
   'care-community': [
     '/activity-images/care-community-1.png',
+    '/activity-images/care-community-2.png',
   ],
   'office-campaign': [
     '/activity-images/office-campaign-1.png',
+    '/activity-images/office-campaign-2.png',
   ],
   'default-travel': [
     '/activity-images/default-travel-1.png',
     '/activity-images/default-travel-2.png',
+    '/activity-images/default-travel-3.png',
   ],
 };
 
@@ -162,6 +173,27 @@ const pickImage = (type: ActivityImageType, activity: ActivityImageInput) => {
   return imageSet[stableHash(key) % imageSet.length];
 };
 
+const isActivityImageType = (value?: string): value is ActivityImageType =>
+  Boolean(value && value in ACTIVITY_IMAGE_SETS);
+
+const pickAlternativeImage = (
+  type: ActivityImageType,
+  currentImageUrl: string,
+  activity: ActivityImageInput,
+  index: number,
+) => {
+  const imageSet = ACTIVITY_IMAGE_SETS[type];
+  if (imageSet.length <= 1) return currentImageUrl;
+
+  const currentIndex = imageSet.indexOf(currentImageUrl);
+  if (currentIndex === -1) return currentImageUrl;
+
+  const key = activity.id || activity.progrmRegistNo || activity.title || buildActivityText(activity) || type;
+  const step = 1 + (stableHash(`${key}-${index}`) % (imageSet.length - 1));
+
+  return imageSet[(currentIndex + step) % imageSet.length];
+};
+
 export const resolveActivityImage = (activity: ActivityImageInput): ResolvedActivityImage => {
   if (!isFallbackImage(activity.imageUrl)) {
     return {
@@ -190,6 +222,33 @@ export const withResolvedActivityImage = <T extends ActivityImageInput>(activity
     imageType: resolved.imageType,
     imageReason: resolved.imageReason,
   };
+};
+
+export const avoidConsecutiveActivityImages = <T extends ActivityImageInput>(activities: T[]): T[] => {
+  let previousImageUrl = '';
+
+  return activities.map((activity, index) => {
+    const resolvedActivity = activity.imageType && activity.imageReason && activity.imageUrl
+      ? activity
+      : withResolvedActivityImage(activity);
+    const imageUrl = resolvedActivity.imageUrl ?? '';
+    const imageType = isActivityImageType(resolvedActivity.imageType)
+      ? resolvedActivity.imageType
+      : 'default-travel';
+    const nextImageUrl = imageUrl === previousImageUrl
+      ? pickAlternativeImage(imageType, imageUrl, resolvedActivity, index)
+      : imageUrl;
+
+    previousImageUrl = nextImageUrl;
+
+    if (nextImageUrl === imageUrl) return resolvedActivity;
+
+    return {
+      ...resolvedActivity,
+      imageUrl: nextImageUrl,
+      imageReason: `${resolvedActivity.imageReason ?? '활동 이미지'} · 연속 이미지 회피`,
+    };
+  });
 };
 
 export const logActivityImageMappings = (label: string, activities: ActivityImageInput[]) => {

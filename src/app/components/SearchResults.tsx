@@ -10,7 +10,7 @@ import { BottomTabBar } from './BottomTabBar';
 import { PageShell } from './PageShell';
 import type { ActivitySaveLookup, ActivitySaveRecord } from '../activitySaveState';
 import type { RecentSearchItem } from '../searchState';
-import { withResolvedActivityImage } from '../utils/activityImage';
+import { avoidConsecutiveActivityImages, withResolvedActivityImage } from '../utils/activityImage';
 
 const activityCategoryFilters = [
   '생활편의',
@@ -58,7 +58,7 @@ export function SearchResults({
 
   const historyItems: RecentSearchItem[] = [];
 
-  const activities = [
+  const baseActivities = [
     {
       imageUrl: 'https://images.unsplash.com/photo-1565803974275-dccd2f933cbb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxLb3JlYW4lMjBiZWFjaCUyMGNsZWFudXAlMjB2b2x1bnRlZXIlMjBlbnZpcm9ubWVudGFsfGVufDF8fHx8MTc3OTA4MzAyMXww&ixlib=rb-4.1.0&q=80&w=1080',
       title: '광안리 해변 환경정화',
@@ -136,16 +136,17 @@ export function SearchResults({
       indoorOutdoor: '실내',
     },
   ].map(withResolvedActivityImage);
+  const activities = avoidConsecutiveActivityImages(baseActivities);
 
   const handleActivityClick = (activity: any) => {
     setSelectedActivity(activity);
     setIsDetailOpen(true);
   };
 
-  const displayedActivities = activities.filter((activity) => {
+  const displayedActivities = avoidConsecutiveActivityImages(activities.filter((activity) => {
     const normalizedCategory = categoryLabelMap[activity.category] || activity.category;
     return isAdultActivity(activity) && (selectedFilters.length === 0 || selectedFilters.includes(normalizedCategory));
-  });
+  }));
 
   return (
     <>
