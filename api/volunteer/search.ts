@@ -2,7 +2,7 @@ import {
   normalizeCapacity as normalizeApiCapacity,
   pickCurrentParticipants,
   pickRecruitCapacity,
-} from './capacity';
+} from './capacity.js';
 
 type VercelRequest = {
   method?: string;
@@ -1489,6 +1489,9 @@ const mapVolunteerActivity = (
   };
 };
 
+const mapDefaultVolunteerActivity = (item: ReturnType<typeof parseVolunteerItems>[number]) =>
+  mapVolunteerActivity(item);
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
@@ -1607,7 +1610,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const mappedLightweightItems = lightweightItems
-        .map(mapVolunteerActivity);
+        .map(mapDefaultVolunteerActivity);
 
       sendSuccess(res, {
         items: mappedLightweightItems,
@@ -1641,7 +1644,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
       const weeklyItems = weeklyFilteredItems
         .map((item, index) => mergeVolunteerDetailItem(item, weeklyDetailItems[index]))
-        .map(mapVolunteerActivity)
+        .map(mapDefaultVolunteerActivity)
         .filter((activity) => activity.status !== '지난 활동');
 
       sendSuccess(res, {
@@ -1661,7 +1664,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
       const monthlyItems = monthlyFilteredItems
         .map((item, index) => mergeVolunteerDetailItem(item, monthlyDetailItems[index]))
-        .map(mapVolunteerActivity)
+        .map(mapDefaultVolunteerActivity)
         .filter((activity) => activity.status !== '지난 활동');
 
       sendSuccess(res, {
@@ -1718,7 +1721,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .filter(isAdultEligibleItem)
       )
         .slice(0, 3)
-        .map(mapVolunteerActivity);
+        .map(mapDefaultVolunteerActivity);
 
       sendSuccess(res, {
         items: hiddenItems,
@@ -1747,7 +1750,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .filter((item) => !isTravelHardExcluded(item))
       : mergedItems.sort((a, b) => getTravelFriendlyScore(b) - getTravelFriendlyScore(a));
 
-    const items = processedItems.map(mapVolunteerActivity);
+    const items = processedItems.map(mapDefaultVolunteerActivity);
 
     sendSuccess(res, {
       items,

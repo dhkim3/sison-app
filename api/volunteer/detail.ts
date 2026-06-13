@@ -8,7 +8,7 @@ import {
   normalizeCapacity,
   pickCurrentParticipants,
   pickRecruitCapacity,
-} from './capacity';
+} from './capacity.js';
 
 type VercelResponse = {
   status: (statusCode: number) => VercelResponse;
