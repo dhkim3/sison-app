@@ -102,7 +102,7 @@ const getRecruitingLabel = (activity: VolunteerApiActivity) =>
   activity.category || '기타';
 
 const isWeeklySection = (sectionTitle: string) => sectionTitle === '이달의 활동';
-const isFestivalSection = (sectionTitle: string) => sectionTitle === '축제·행사 활동';
+const isFestivalSection = (sectionTitle: string) => sectionTitle === '축제 · 행사 활동';
 
 function ActivityState({
   state,
@@ -591,7 +591,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
       emptyTitle: '이달에 참여할 수 있는 활동이 없어요',
     },
     {
-      title: '축제·행사 활동',
+      title: '축제 · 행사 활동',
       description: '여행지의 특별한 순간에 함께해요',
       activities: hiddenSectionActivities,
       state: getActivitySectionState(
@@ -599,7 +599,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
         hasHiddenActivitiesError,
         hiddenSectionActivities,
       ),
-      emptyTitle: '축제·행사 활동이 아직 없어요',
+      emptyTitle: '축제 · 행사 활동이 아직 없어요',
     },
   ];
   const allHomeActivities = [

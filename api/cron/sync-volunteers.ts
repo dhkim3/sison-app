@@ -17,6 +17,8 @@ type VercelResponse = {
 
 const HOME_CACHE_PATH = 'volunteers-home.json';
 
+const getBlobReadWriteToken = () => process.env.BLOB_READ_WRITE_TOKEN?.trim();
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
@@ -32,7 +34,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  const blobToken = getBlobReadWriteToken();
+  if (!blobToken) {
     res.status(500).json({ ok: false, error: 'BLOB_READ_WRITE_TOKEN이 설정되지 않았어요.' });
     return;
   }
@@ -40,22 +43,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const generatedAt = new Date().toISOString();
     const sections = await buildHomeVolunteerSections(serviceKey);
+    const normalizedSections = {
+      lightweight: Array.isArray(sections.lightweight) ? sections.lightweight : [],
+      monthly: Array.isArray(sections.monthly) ? sections.monthly : [],
+      festival: Array.isArray(sections.festival) ? sections.festival : [],
+    };
     const counts = {
-      lightweight: sections.lightweight.length,
-      monthly: sections.monthly.length,
-      festival: sections.festival.length,
+      lightweight: normalizedSections.lightweight.length,
+      monthly: normalizedSections.monthly.length,
+      festival: normalizedSections.festival.length,
     };
     const cachePayload = {
       cacheVersion: 1,
       generatedAt,
       source: '1365',
       counts,
-      sections,
+      sections: normalizedSections,
     };
     const blob = await put(HOME_CACHE_PATH, JSON.stringify(cachePayload), {
       access: 'private',
       allowOverwrite: true,
       contentType: 'application/json; charset=utf-8',
+      token: blobToken,
     });
 
     res.status(200).json({
