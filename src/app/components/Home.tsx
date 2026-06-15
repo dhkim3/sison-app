@@ -59,6 +59,18 @@ interface VolunteerApiResponse {
   error?: string;
 }
 
+interface HomeVolunteerApiResponse {
+  ok: boolean;
+  cacheStatus?: 'hit' | 'fallback' | 'error';
+  generatedAt: string | null;
+  sections: {
+    lightweight: VolunteerApiActivity[];
+    monthly: VolunteerApiActivity[];
+    festival: VolunteerApiActivity[];
+  };
+  error?: string;
+}
+
 type ActivitySectionState = 'loading' | 'error' | 'empty' | 'success';
 
 const activityStateMessages: Record<Exclude<ActivitySectionState, 'success'>, { title: string; description?: string }> = {
@@ -414,6 +426,11 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
 
     const abortController = new AbortController();
 
+    const mapHomeSectionActivities = (items: VolunteerApiActivity[] | undefined): RecentActivity[] =>
+      Array.isArray(items)
+        ? avoidConsecutiveActivityImages(items.map(mapVolunteerApiActivityToRecentActivity).slice(0, 3))
+        : [];
+
     const fetchSection = async (sort: string, size: string): Promise<RecentActivity[]> => {
       const params = new URLSearchParams({ keyword: '', page: '1', size, sort });
       const response = await fetch(`/api/volunteer/search?${params.toString()}`, {
@@ -421,12 +438,43 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
       });
       const payload = await response.json() as VolunteerApiResponse;
       if (!response.ok || !payload.ok) throw new Error(payload.error || '활동을 불러오지 못했어요.');
-      return Array.isArray(payload.items)
-        ? avoidConsecutiveActivityImages(payload.items.map(mapVolunteerApiActivityToRecentActivity).slice(0, 3))
-        : [];
+      return mapHomeSectionActivities(payload.items);
+    };
+
+    const fetchCachedHomeSections = async () => {
+      const response = await fetch('/api/volunteer/home', {
+        signal: abortController.signal,
+      });
+      const payload = await response.json() as HomeVolunteerApiResponse;
+      if (!response.ok || !payload.ok) throw new Error(payload.error || '홈 활동을 불러오지 못했어요.');
+
+      return {
+        lightweight: mapHomeSectionActivities(payload.sections?.lightweight),
+        monthly: mapHomeSectionActivities(payload.sections?.monthly),
+        festival: mapHomeSectionActivities(payload.sections?.festival),
+      };
     };
 
     const fetchAllHomeActivities = async () => {
+      try {
+        const cachedSections = await fetchCachedHomeSections();
+        if (abortController.signal.aborted) return;
+
+        setApiLightweightActivities(cachedSections.lightweight);
+        setRecentActivities(cachedSections.monthly);
+        setHiddenActivities(cachedSections.festival);
+        setHasLightweightActivitiesError(false);
+        setHasRecentActivitiesError(false);
+        setHasHiddenActivitiesError(false);
+        homeActivityCache = { timestamp: Date.now(), ...cachedSections };
+        setIsLightweightActivitiesLoading(false);
+        setIsRecentActivitiesLoading(false);
+        setIsHiddenActivitiesLoading(false);
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+      }
+
       const [lightweightResult, monthlyResult, festivalResult] = await Promise.allSettled([
         fetchSection('lightweight', '30'),
         fetchSection('monthly', '30'),

@@ -31,15 +31,15 @@ const regions: RegionMarker[] = [
   { name: '강원', count: 12, x: 426, y: 184 },
   { name: '충남', count: 10, x: 230, y: 342 },
   { name: '충북', count: 9, x: 390, y: 316 },
-  { name: '대전', count: 8, x: 356, y: 382 },
+  { name: '대전', count: 8, x: 330, y: 372 },
   { name: '전북', count: 11, x: 240, y: 402 },
   { name: '전남', count: 8, x: 200, y: 558 },
-  { name: '광주', count: 7, x: 210, y: 488 },
+  { name: '광주', count: 7, x: 172, y: 480 },
   { name: '경북', count: 9, x: 478, y: 358 },
-  { name: '대구', count: 13, x: 486, y: 414 },
+  { name: '대구', count: 13, x: 506, y: 392 },
   { name: '경남', count: 15, x: 420, y: 500 },
-  { name: '울산', count: 10, x: 514, y: 454 },
-  { name: '부산', count: 18, x: 492, y: 492 },
+  { name: '울산', count: 10, x: 548, y: 444 },
+  { name: '부산', count: 18, x: 512, y: 514 },
 ];
 
 const jejuRegion: RegionMarker = { name: '제주', count: 11, x: 210, y: 690 };
@@ -291,7 +291,7 @@ export function RegionMapView({
                   <div
                     className="absolute inset-x-0 top-0 overflow-hidden"
                     style={{
-                      bottom: '82px',
+                      bottom: '32px',
                     }}
                   >
                     <div
@@ -330,7 +330,7 @@ export function RegionMapView({
                             style={{
                               top: `${(region.y / mapViewBox.height) * 100}%`,
                               left: `${(region.x / mapViewBox.width) * 100}%`,
-                              opacity: isOtherSelected ? 0.42 : 1,
+                              opacity: isOtherSelected ? 0.56 : 1,
                               transform: isSelected
                                 ? 'translate(-50%, -50%) scale(1.06)'
                                 : 'translate(-50%, -50%) scale(1)',
@@ -400,7 +400,7 @@ export function RegionMapView({
                           onClick={() => onSelectRegion(isSelected ? null : jejuRegion.name)}
                           className="absolute bottom-1 left-1/2 z-10 flex min-h-11 min-w-14 -translate-x-1/2 items-center justify-center transition-all duration-200 active:scale-[0.98]"
                           style={{
-                            opacity: isOtherSelected ? 0.42 : 1,
+                            opacity: isOtherSelected ? 0.56 : 1,
                             transform: isSelected
                               ? 'translateX(-50%) scale(1.06)'
                               : 'translateX(-50%) scale(1)',

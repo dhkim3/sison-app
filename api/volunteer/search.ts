@@ -21,7 +21,7 @@ type VercelResponse = {
 
 type VolunteerStatus = '모집중' | '지난 활동';
 
-interface VolunteerActivity {
+export interface VolunteerActivity {
   id: string;
   title: string;
   location: string;
@@ -249,6 +249,7 @@ const parseVolunteerItems = (xmlText: string) => {
     partcptnNmpr: getTagValue(itemXml, 'partcptnNmpr'),
     currentParticipants: getTagValue(itemXml, 'currentParticipants'),
     requestCount: getTagValue(itemXml, 'requestCount'),
+    progrmCn: getTagValue(itemXml, 'progrmCn'),
     progrmSj: getTagValue(itemXml, 'progrmSj'),
     progrmSttusSe: getTagValue(itemXml, 'progrmSttusSe'),
     rcritAt: getTagValue(itemXml, 'rcritAt'),
@@ -955,47 +956,91 @@ const filterWeeklyActivities = (items: ParsedVolunteerItem[]) => {
   return [];
 };
 
+const monthlyRemoteActivityPattern = /비대면|온라인|재택|키트|각 가정|개인공간/;
+const monthlyCareFacilityPattern = /요양|병원|치매|간병|어르신 돌봄|재활요양/;
+const monthlyOperationalPattern = /정기|상시|멘토링|학습지도|상담|사무/;
+const monthlyTravelerFriendlyPattern = /문화|관광|축제|행사|환경|플로깅|해변|공원|산책|캠페인|체험|마을|거리|해안|정화|버스킹/;
+const monthlySecondaryPenaltyPattern = /교육|센터|어르신|프로그램/;
+const monthlyInstitutionalPenaltyPattern = /기관|복지관|요양원|병동|재가|무료 급식|급식|조리|돌봄/;
+const monthlyRepeatPenaltyPattern = /매주|주\s*\d+회|월\s*\d+회|반복|장기|기간\s*내|수시/;
+
+const getMonthBoundsFromApiDate = (today: string) => {
+  const year = Number(today.slice(0, 4));
+  const month = Number(today.slice(4, 6));
+  const monthEnd = new Date(year, month, 0);
+
+  return {
+    monthStart: Number(`${today.slice(0, 6)}01`),
+    monthEnd: Number(
+      `${monthEnd.getFullYear()}${String(monthEnd.getMonth() + 1).padStart(2, '0')}${String(monthEnd.getDate()).padStart(2, '0')}`,
+    ),
+  };
+};
+
+const clampApiDate = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
 const getMonthlyActivityScore = (item: ParsedVolunteerItem, index: number) => {
   const title = item.progrmSj;
   const categoryAndTitle = `${item.srvcClCode} ${title}`;
-  const searchableText = `${categoryAndTitle} ${item.actPlace} ${item.nanmmbyNm}`;
+  const searchableText = `${categoryAndTitle} ${item.actPlace} ${item.nanmmbyNm} ${item.progrmCn}`;
   const activityStartDate = getActivityStartDate(item);
   const activityEndDate = getLightweightActivityEndDate(item);
   const recruitmentEndDate = getRecruitmentEndDate(item);
   const durationMinutes = getActivityDurationMinutes(item);
   const today = getTodayApiDate();
+  const todayValue = Number(today);
+  const { monthStart, monthEnd } = getMonthBoundsFromApiDate(today);
+  const activityStartValue = toSortableDate(activityStartDate);
+  const activityEndValue = toSortableDate(activityEndDate || activityStartDate);
+  const recruitmentEndValue = toSortableDate(recruitmentEndDate);
+  const activitySpanDays = getApiDateSpanDays(activityStartDate, activityEndDate || activityStartDate);
+  const hasTravelerFriendlyKeyword = monthlyTravelerFriendlyPattern.test(searchableText);
 
   if (!isRecruitingItem(item)) return null;
   if (isActivityEnded(item)) return null;
-  if (!recruitmentEndDate || !isApiDateTodayOrLater(recruitmentEndDate)) return null;
+  if (!recruitmentEndDate || recruitmentEndValue < todayValue) return null;
   if (!activityStartDate) return null;
-  // 1회성 활동만: startDate와 endDate가 다르면 제외
-  if (activityEndDate && toApiDate(activityStartDate) !== toApiDate(activityEndDate)) return null;
-  // 오늘 이후여야 함
-  if (!isApiDateTodayOrLater(activityStartDate)) return null;
-  // 이번 달 안에 있어야 함
-  if (toApiDate(activityStartDate).slice(0, 6) !== today.slice(0, 6)) return null;
-  // 강제 제외 패턴 (프로그램|동아리 포함)
-  if (weeklyForceExcludePattern.test(searchableText)) return null;
-  if (weeklyLongRunningTitlePattern.test(title)) return null;
+  if (!activityEndValue || activityEndValue < todayValue) return null;
+  if (!activityStartValue || activityStartValue > monthEnd) return null;
+  if (activityEndValue < monthStart) return null;
+  if (!isYesFlag(item.adultPosblAt)) return null;
+  if (monthlyRemoteActivityPattern.test(searchableText)) return null;
+  if (monthlyCareFacilityPattern.test(searchableText)) return null;
+  if (monthlyOperationalPattern.test(searchableText)) return null;
+  if (activitySpanDays !== null && activitySpanDays >= 60 && !hasTravelerFriendlyKeyword) return null;
 
   let score = 0;
-  if (isYesFlag(item.adultPosblAt)) score += 20;
-  if (weeklyPreferredCategoryKeywords.some((kw) => categoryAndTitle.includes(kw))) score += 35;
+  const availableStartDate = clampApiDate(activityStartValue, Math.max(todayValue, monthStart), monthEnd);
+  const availableEndDate = clampApiDate(activityEndValue, monthStart, monthEnd);
+
+  if (hasTravelerFriendlyKeyword) score += 45;
+  if (weeklyPreferredCategoryKeywords.some((kw) => categoryAndTitle.includes(kw))) score += 30;
+
   const priorityCount = weeklyPriorityTitleKeywords.filter((kw) => searchableText.includes(kw)).length;
-  score += Math.min(priorityCount * 12, 48);
-  if (durationMinutes !== null && durationMinutes <= 240) score += 20;
-  if (durationMinutes !== null && durationMinutes <= 120) score += 8;
-  if (weeklySecondaryPenaltyPattern.test(searchableText)) score -= 20;
-  // 오늘 마감 활동은 후순위
-  if (toSortableDate(recruitmentEndDate) === Number(today)) score -= 10;
+  score += Math.min(priorityCount * 10, 40);
+
+  if (durationMinutes !== null && durationMinutes >= 60 && durationMinutes <= 240) score += 35;
+  else if (durationMinutes !== null && durationMinutes <= 360) score += 12;
+
+  if (activitySpanDays !== null && activitySpanDays <= 14) score += 18;
+  else if (activitySpanDays !== null && activitySpanDays >= 30) score -= 18;
+  if (activitySpanDays !== null && activitySpanDays >= 60) score -= 28;
+
+  if (monthlySecondaryPenaltyPattern.test(searchableText)) score -= 18;
+  if (monthlyInstitutionalPenaltyPattern.test(searchableText)) score -= 24;
+  if (monthlyRepeatPenaltyPattern.test(searchableText)) score -= 20;
+  if (recruitmentEndValue === todayValue) score -= 10;
 
   return {
     item,
     index,
     score,
-    activityDate: toSortableDate(activityStartDate),
+    availableStartDate,
+    availableEndDate,
+    recruitmentEndDate: recruitmentEndValue,
     durationMinutes: durationMinutes ?? Infinity,
+    hasTravelerFriendlyKeyword,
+    activitySpanDays: activitySpanDays ?? Infinity,
   };
 };
 
@@ -1004,9 +1049,13 @@ const filterMonthlyActivities = (items: ParsedVolunteerItem[]) => {
     .map((item, index) => getMonthlyActivityScore(item, index))
     .filter((c): c is NonNullable<typeof c> => c !== null)
     .sort((a, b) => {
-      if (a.activityDate !== b.activityDate) return a.activityDate - b.activityDate;
-      if (b.score !== a.score) return b.score - a.score;
+      if (a.availableStartDate !== b.availableStartDate) return a.availableStartDate - b.availableStartDate;
+      if (a.recruitmentEndDate !== b.recruitmentEndDate) return a.recruitmentEndDate - b.recruitmentEndDate;
       if (a.durationMinutes !== b.durationMinutes) return a.durationMinutes - b.durationMinutes;
+      if (a.hasTravelerFriendlyKeyword !== b.hasTravelerFriendlyKeyword) return a.hasTravelerFriendlyKeyword ? -1 : 1;
+      if (b.score !== a.score) return b.score - a.score;
+      if (a.activitySpanDays !== b.activitySpanDays) return a.activitySpanDays - b.activitySpanDays;
+      if (a.availableEndDate !== b.availableEndDate) return a.availableEndDate - b.availableEndDate;
       return a.index - b.index;
     });
 
@@ -1449,7 +1498,7 @@ const fetchVolunteerDetailItem = async (serviceKey: string, progrmRegistNo: stri
 
 const mapVolunteerActivity = (
   item: ReturnType<typeof parseVolunteerItems>[number],
-  options: { compactLocation?: boolean; keywordImage?: boolean } = {},
+  options: { compactLocation?: boolean; keywordImage?: boolean; omitImageUrl?: boolean } = {},
 ): VolunteerActivity => {
   const beginTime = formatTime(item.actBeginTm);
   const endTime = formatTime(item.actEndTm);
@@ -1476,10 +1525,12 @@ const mapVolunteerActivity = (
     volunteerTarget: formatVolunteerTarget(item),
     volunteerType: formatVolunteerType(item),
     status,
-    imageUrl: getImageUrl(
-      item.srvcClCode,
-      options.keywordImage ? `${item.progrmSj} ${item.actPlace} ${item.nanmmbyNm}` : '',
-    ),
+    imageUrl: options.omitImageUrl
+      ? ''
+      : getImageUrl(
+        item.srvcClCode,
+        options.keywordImage ? `${item.progrmSj} ${item.actPlace} ${item.nanmmbyNm}` : '',
+      ),
     applyUrl: detailUrl || undefined,
     sourceUrl: detailUrl || undefined,
     recentSortBasis: recentSortInfo.basis,
@@ -1491,6 +1542,121 @@ const mapVolunteerActivity = (
 
 const mapDefaultVolunteerActivity = (item: ReturnType<typeof parseVolunteerItems>[number]) =>
   mapVolunteerActivity(item);
+
+const mapHomeVolunteerActivity = (item: ReturnType<typeof parseVolunteerItems>[number]) =>
+  mapVolunteerActivity(item, { omitImageUrl: true });
+
+export type HomeVolunteerSections = {
+  lightweight: VolunteerActivity[];
+  monthly: VolunteerActivity[];
+  festival: VolunteerActivity[];
+};
+
+const fetchHomeVolunteerSearchItems = async (params: {
+  serviceKey: string;
+  sort: 'lightweight' | 'monthly' | 'festival';
+  numOfRows: number;
+}) => {
+  const upstreamUrl = buildVolunteerSearchUrl({
+    serviceKey: params.serviceKey,
+    pageNo: 1,
+    numOfRows: params.numOfRows,
+    keyword: '',
+    startDate: '',
+    endDate: '',
+  });
+
+  const response = await fetch(upstreamUrl);
+  const xmlText = await response.text();
+
+  if (!response.ok) {
+    console.error('1365 home cache upstream request failed:', {
+      sort: params.sort,
+      requestUrl: upstreamUrl.replace(params.serviceKey, '[REDACTED_SERVICE_KEY]'),
+      status: response.status,
+      responseText: stripScriptTags(xmlText).slice(0, 1000),
+    });
+    throw new Error(`1365 ${params.sort} 홈 데이터를 불러오지 못했어요.`);
+  }
+
+  const resultCode = getTagValue(xmlText, 'resultCode');
+  const resultMsg = getTagValue(xmlText, 'resultMsg');
+
+  if (resultCode && resultCode !== '00') {
+    console.error('1365 home cache upstream returned error result:', {
+      sort: params.sort,
+      requestUrl: upstreamUrl.replace(params.serviceKey, '[REDACTED_SERVICE_KEY]'),
+      status: response.status,
+      responseText: stripScriptTags(xmlText).slice(0, 1000),
+    });
+    throw new Error(resultMsg || `1365 ${params.sort} 홈 데이터를 불러오지 못했어요.`);
+  }
+
+  return {
+    totalCount: Number.parseInt(getTagValue(xmlText, 'totalCount'), 10) || 0,
+    items: parseVolunteerItems(xmlText),
+  };
+};
+
+const buildLightweightHomeSection = async (serviceKey: string) => {
+  const { items } = await fetchHomeVolunteerSearchItems({ serviceKey, sort: 'lightweight', numOfRows: 30 });
+  let sourceItems = items;
+  let lightweightItems = filterLightweightActivities(sourceItems);
+
+  if (lightweightItems.length < 3) {
+    const supplementalItems = await fetchLightweightSupplementItems({
+      serviceKey,
+      startDate: '',
+      endDate: '',
+    });
+    sourceItems = mergeVolunteerItems([...items, ...supplementalItems]);
+    lightweightItems = filterLightweightActivities(sourceItems);
+  }
+
+  return lightweightItems.map(mapHomeVolunteerActivity);
+};
+
+const buildMonthlyHomeSection = async (serviceKey: string) => {
+  const { items } = await fetchHomeVolunteerSearchItems({ serviceKey, sort: 'monthly', numOfRows: 30 });
+
+  return filterMonthlyActivities(items)
+    .map(mapHomeVolunteerActivity)
+    .filter((activity) => activity.status !== '지난 활동');
+};
+
+const buildFestivalHomeSection = async (serviceKey: string) => {
+  const { items } = await fetchHomeVolunteerSearchItems({ serviceKey, sort: 'festival', numOfRows: 50 });
+  let sourceItems = items;
+  let festivalItems = filterFestivalActivities(sourceItems);
+
+  if (festivalItems.length < 3) {
+    const supplementalItems = await fetchFestivalSupplementItems({
+      serviceKey,
+      startDate: '',
+      endDate: '',
+    });
+    sourceItems = mergeVolunteerItems([...items, ...supplementalItems]);
+    festivalItems = filterFestivalActivities(sourceItems);
+  }
+
+  const finalFestivalItems = limitTodayDeadlineActivities(
+    festivalItems.filter((item) => isApiDateTodayOrLater(getRecruitmentEndDate(item)))
+  );
+
+  return finalFestivalItems.map((item) =>
+    mapVolunteerActivity(item, { compactLocation: true, omitImageUrl: true })
+  );
+};
+
+export const buildHomeVolunteerSections = async (serviceKey: string): Promise<HomeVolunteerSections> => {
+  const [lightweight, monthly, festival] = await Promise.all([
+    buildLightweightHomeSection(serviceKey),
+    buildMonthlyHomeSection(serviceKey),
+    buildFestivalHomeSection(serviceKey),
+  ]);
+
+  return { lightweight, monthly, festival };
+};
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -1610,7 +1776,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const mappedLightweightItems = lightweightItems
-        .map(mapDefaultVolunteerActivity);
+        .map(mapHomeVolunteerActivity);
 
       sendSuccess(res, {
         items: mappedLightweightItems,
@@ -1657,14 +1823,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (sort === 'monthly') {
-      // Filter first (search fields suffice), then fetch details only for the ~3 candidates
       const monthlyFilteredItems = filterMonthlyActivities(rawItems);
-      const monthlyDetailItems = await Promise.all(
-        monthlyFilteredItems.map((item) => fetchVolunteerDetailItem(serviceKey, item.progrmRegistNo))
-      );
       const monthlyItems = monthlyFilteredItems
-        .map((item, index) => mergeVolunteerDetailItem(item, monthlyDetailItems[index]))
-        .map(mapDefaultVolunteerActivity)
+        .map(mapHomeVolunteerActivity)
         .filter((activity) => activity.status !== '지난 활동');
 
       sendSuccess(res, {
@@ -1690,16 +1851,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         festivalItems = filterFestivalActivities(festivalSourceItems);
       }
 
-      const festivalDetailItems = await Promise.all(
-        festivalItems.map((item) => fetchVolunteerDetailItem(serviceKey, item.progrmRegistNo))
-      );
-      const finalFestivalItems = limitTodayDeadlineActivities(festivalItems
-        .map((item, index) => mergeVolunteerDetailItem(item, festivalDetailItems[index]))
-        .filter((item) => isApiDateTodayOrLater(getRecruitmentEndDate(item)))
+      const finalFestivalItems = limitTodayDeadlineActivities(
+        festivalItems.filter((item) => isApiDateTodayOrLater(getRecruitmentEndDate(item)))
       );
 
-      const mappedFestivalItems = avoidConsecutiveImages(
-        finalFestivalItems.map((item) => mapVolunteerActivity(item, { compactLocation: true, keywordImage: true }))
+      const mappedFestivalItems = finalFestivalItems.map((item) =>
+        mapVolunteerActivity(item, { compactLocation: true, omitImageUrl: true })
       );
 
       sendSuccess(res, {
@@ -1737,6 +1894,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       : sort === 'recruiting'
         ? filterVolunteerItemsByRecruiting(rawItems)
         : rawItems;
+
+    if (!sort) {
+      const processedItems = parsedItems
+        .filter(isAdultEligibleItem)
+        .sort((a, b) => getTravelFriendlyScore(b) - getTravelFriendlyScore(a));
+      const items = processedItems.map(mapDefaultVolunteerActivity);
+
+      sendSuccess(res, {
+        items,
+        totalCount,
+        page: pageNo,
+        size: numOfRows,
+      });
+      return;
+    }
 
     const detailItems = await Promise.all(
       parsedItems.map((item) => fetchVolunteerDetailItem(serviceKey, item.progrmRegistNo))
