@@ -963,6 +963,7 @@ const monthlyTravelerFriendlyPattern = /문화|관광|축제|행사|환경|플�
 const monthlySecondaryPenaltyPattern = /교육|센터|어르신|프로그램/;
 const monthlyInstitutionalPenaltyPattern = /기관|복지관|요양원|병동|재가|무료 급식|급식|조리|돌봄/;
 const monthlyRepeatPenaltyPattern = /매주|주\s*\d+회|월\s*\d+회|반복|장기|기간\s*내|수시/;
+const monthlySupplementKeywords = ['플로깅', '환경정화', '캠페인', '공원', '문화', '체험', '축제', '행사'];
 
 const getMonthBoundsFromApiDate = (today: string) => {
   const year = Number(today.slice(0, 4));
@@ -1044,6 +1045,40 @@ const getMonthlyActivityScore = (item: ParsedVolunteerItem, index: number) => {
   };
 };
 
+const getMonthlyActivityRejectReason = (item: ParsedVolunteerItem) => {
+  const title = item.progrmSj;
+  const categoryAndTitle = `${item.srvcClCode} ${title}`;
+  const searchableText = `${categoryAndTitle} ${item.actPlace} ${item.nanmmbyNm} ${item.progrmCn}`;
+  const activityStartDate = getActivityStartDate(item);
+  const activityEndDate = getLightweightActivityEndDate(item);
+  const recruitmentEndDate = getRecruitmentEndDate(item);
+  const today = getTodayApiDate();
+  const todayValue = Number(today);
+  const { monthStart, monthEnd } = getMonthBoundsFromApiDate(today);
+  const activityStartValue = toSortableDate(activityStartDate);
+  const activityEndValue = toSortableDate(activityEndDate || activityStartDate);
+  const recruitmentEndValue = toSortableDate(recruitmentEndDate);
+  const activitySpanDays = getApiDateSpanDays(activityStartDate, activityEndDate || activityStartDate);
+  const hasTravelerFriendlyKeyword = monthlyTravelerFriendlyPattern.test(searchableText);
+
+  if (!isRecruitingItem(item)) return 'not_recruiting';
+  if (isActivityEnded(item)) return 'activity_ended';
+  if (!recruitmentEndDate || recruitmentEndValue < todayValue) return 'recruitment_ended';
+  if (!activityStartDate) return 'missing_activity_start';
+  if (!activityEndValue || activityEndValue < todayValue) return 'activity_end_before_today';
+  if (!activityStartValue || activityStartValue > monthEnd) return 'activity_start_after_month_end';
+  if (activityEndValue < monthStart) return 'activity_end_before_month_start';
+  if (!isYesFlag(item.adultPosblAt)) return 'not_adult_eligible';
+  if (monthlyRemoteActivityPattern.test(searchableText)) return 'remote_keyword';
+  if (monthlyCareFacilityPattern.test(searchableText)) return 'care_facility_keyword';
+  if (monthlyOperationalPattern.test(searchableText)) return 'operational_keyword';
+  if (activitySpanDays !== null && activitySpanDays >= 60 && !hasTravelerFriendlyKeyword) {
+    return 'long_without_traveler_keyword';
+  }
+
+  return 'passed';
+};
+
 const filterMonthlyActivities = (items: ParsedVolunteerItem[]) => {
   const candidates = items
     .map((item, index) => getMonthlyActivityScore(item, index))
@@ -1060,6 +1095,55 @@ const filterMonthlyActivities = (items: ParsedVolunteerItem[]) => {
     });
 
   return candidates.slice(0, 3).map(({ item }) => item);
+};
+
+const getMonthlyRejectReasonCounts = (items: ParsedVolunteerItem[]) =>
+  items.reduce<Record<string, number>>((counts, item) => {
+    const reason = getMonthlyActivityRejectReason(item);
+    counts[reason] = (counts[reason] ?? 0) + 1;
+    return counts;
+  }, {});
+
+const fetchMonthlySupplementItems = async (params: {
+  serviceKey: string;
+  startDate: string;
+  endDate: string;
+}) => {
+  const supplementalItems: ParsedVolunteerItem[] = [];
+
+  for (const keyword of monthlySupplementKeywords) {
+    const supplementUrl = buildVolunteerSearchUrl({
+      serviceKey: params.serviceKey,
+      pageNo: 1,
+      numOfRows: 20,
+      keyword,
+      startDate: params.startDate,
+      endDate: params.endDate,
+    });
+
+    try {
+      const response = await fetch(supplementUrl);
+      const xmlText = await response.text();
+
+      if (!response.ok) {
+        console.error('1365 monthly supplement request failed:', {
+          keyword,
+          status: response.status,
+          responseText: stripScriptTags(xmlText).slice(0, 500),
+        });
+        continue;
+      }
+
+      supplementalItems.push(...parseVolunteerItems(xmlText));
+    } catch (error) {
+      console.error('1365 monthly supplement request errored:', {
+        keyword,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return supplementalItems;
 };
 
 const fetchWeeklySupplementItems = async (params: {
@@ -1618,10 +1702,29 @@ const buildLightweightHomeSection = async (serviceKey: string) => {
 
 const buildMonthlyHomeSection = async (serviceKey: string) => {
   const { items } = await fetchHomeVolunteerSearchItems({ serviceKey, sort: 'monthly', numOfRows: 30 });
-
-  return filterMonthlyActivities(items)
+  const supplementalItems = await fetchMonthlySupplementItems({
+    serviceKey,
+    startDate: '',
+    endDate: '',
+  });
+  const sourceItems = mergeVolunteerItems([...items, ...supplementalItems]);
+  const monthlyFilteredItems = filterMonthlyActivities(sourceItems);
+  const monthlyItems = monthlyFilteredItems
     .map(mapHomeVolunteerActivity)
     .filter((activity) => activity.status !== '지난 활동');
+
+  if (monthlyItems.length === 0) {
+    console.warn('1365 monthly home candidates filtered to zero:', {
+      baseCandidateCount: items.length,
+      supplementCandidateCount: supplementalItems.length,
+      mergedCandidateCount: sourceItems.length,
+      filterPassedCount: monthlyFilteredItems.length,
+      finalMonthlyCount: monthlyItems.length,
+      rejectReasonCounts: getMonthlyRejectReasonCounts(sourceItems),
+    });
+  }
+
+  return monthlyItems;
 };
 
 const buildFestivalHomeSection = async (serviceKey: string) => {
@@ -1823,10 +1926,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (sort === 'monthly') {
-      const monthlyFilteredItems = filterMonthlyActivities(rawItems);
+      const supplementalItems = await fetchMonthlySupplementItems({
+        serviceKey,
+        startDate,
+        endDate,
+      });
+      const monthlySourceItems = mergeVolunteerItems([...rawItems, ...supplementalItems]);
+      const monthlyFilteredItems = filterMonthlyActivities(monthlySourceItems);
       const monthlyItems = monthlyFilteredItems
         .map(mapHomeVolunteerActivity)
         .filter((activity) => activity.status !== '지난 활동');
+
+      if (monthlyItems.length === 0) {
+        console.warn('1365 monthly search candidates filtered to zero:', {
+          baseCandidateCount: rawItems.length,
+          supplementCandidateCount: supplementalItems.length,
+          mergedCandidateCount: monthlySourceItems.length,
+          filterPassedCount: monthlyFilteredItems.length,
+          finalMonthlyCount: monthlyItems.length,
+          rejectReasonCounts: getMonthlyRejectReasonCounts(monthlySourceItems),
+        });
+      }
 
       sendSuccess(res, {
         items: monthlyItems,
