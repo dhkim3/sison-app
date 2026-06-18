@@ -47,7 +47,7 @@ const jejuRegion: RegionMarker = { name: '제주', count: 11, x: 210, y: 690 };
 const mainlandImagePlacement = {
   width: '134%',
   left: '56%',
-  top: '67%',
+  top: '60%',
   opacity: 0.9,
 };
 
@@ -266,7 +266,7 @@ export function RegionMapView({
               <div
                 className="relative w-full overflow-hidden rounded-3xl"
                 style={{
-                  height: 'clamp(410px, 108vw, 440px)',
+                  height: 'clamp(345px, 90vw, 365px)',
                   background:
                     'linear-gradient(145deg, #fbf7ee 0%, #eef7f0 52%, #f8f4e9 100%)',
                   boxShadow:
@@ -291,7 +291,7 @@ export function RegionMapView({
                   <div
                     className="absolute inset-x-0 top-0 overflow-hidden"
                     style={{
-                      bottom: '32px',
+                      bottom: '0px',
                     }}
                   >
                     <div
