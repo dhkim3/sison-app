@@ -60,7 +60,7 @@ export function SearchResults({
 
   const baseActivities = [
     {
-      imageUrl: 'https://images.unsplash.com/photo-1565803974275-dccd2f933cbb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxLb3JlYW4lMjBiZWFjaCUyMGNsZWFudXAlMjB2b2x1bnRlZXIlMjBlbnZpcm9ubWVudGFsfGVufDF8fHx8MTc3OTA4MzAyMXww&ixlib=rb-4.1.0&q=80&w=1080',
+      imageUrl: '',
       title: '광안리 해변 환경정화',
       location: '부산 수영구 광안리해수욕장',
       distance: '도보 10분',
@@ -79,7 +79,7 @@ export function SearchResults({
       indoorOutdoor: '실외',
     },
     {
-      imageUrl: 'https://images.unsplash.com/photo-1775116259654-404b3376c02e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxLb3JlYW4lMjBwYXJrJTIwbmF0dXJlJTIwd2Fsa2luZyUyMHBlYWNlZnVsfGVufDF8fHx8MTc3OTA4MzAyMnww&ixlib=rb-4.1.0&q=80&w=1080',
+      imageUrl: '',
       title: '수영 공원 산책로 정비',
       location: '부산 수영구 수영 근린공원',
       distance: '차량 15분',
@@ -98,7 +98,7 @@ export function SearchResults({
       indoorOutdoor: '실외',
     },
     {
-      imageUrl: 'https://images.unsplash.com/photo-1610093674388-cee0337f2684?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwyfHxLb3JlYW4lMjBiZWFjaCUyMGNsZWFudXAlMjB2b2x1bnRlZXIlMjBlbnZpcm9ubWVudGFsfGVufDF8fHx8MTc3OTA4MzAyMXww&ixlib=rb-4.1.0&q=80&w=1080',
+      imageUrl: '',
       title: '해운대 바다 지키기',
       location: '부산 해운대구 해운대 해수욕장',
       distance: '도보 25분',
@@ -117,7 +117,7 @@ export function SearchResults({
       indoorOutdoor: '실외',
     },
     {
-      imageUrl: 'https://images.unsplash.com/photo-1636625093308-e29128dbbc08?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwyfHxLb3JlYW4lMjBjb21tdW5pdHklMjBnYXJkZW4lMjBsaWJyYXJ5JTIwY3VsdHVyYWwlMjBjZW50ZXJ8ZW58MXx8fHwxNzc5MDgzMDIyfDA&ixlib=rb-4.1.0&q=80&w=1080',
+      imageUrl: '',
       title: '지역 문화센터 행사 도우미',
       location: '부산 중구 부산 문화회관',
       distance: '차량 20분',

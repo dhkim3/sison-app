@@ -143,6 +143,30 @@ export function StoryDetailSheet({
 
             <p className="mt-4 text-[15px] leading-7 text-[#5a5a5a]">{story.body}</p>
 
+            {(story.activityTitle || story.relatedActivity || story.location || story.activityDate || story.tags?.length) && (
+              <div className="mt-4 rounded-2xl bg-[#f8f8f5] px-4 py-3">
+                {(story.activityTitle || story.relatedActivity) && (
+                  <p className="text-[13px] font-medium text-[#4f5f54]">
+                    {story.activityTitle ?? story.relatedActivity}
+                  </p>
+                )}
+                {(story.location || story.activityDate) && (
+                  <p className="mt-1 text-[12px] leading-5 text-[#8d8982]">
+                    {[story.location, story.activityDate].filter(Boolean).join(' · ')}
+                  </p>
+                )}
+                {story.tags && story.tags.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {story.tags.map((tag) => (
+                      <span key={tag} className="rounded-full bg-white px-2 py-1 text-[11px] text-[#8b958d]">
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="mt-4 flex items-center gap-4 text-[12px]">
               <button
                 type="button"

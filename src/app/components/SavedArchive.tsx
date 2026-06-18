@@ -14,6 +14,7 @@ import type { StoryItem } from './story/storyTypes';
 import { getActivitySaveKey, type ActivitySaveLookup, type ActivitySaveRecord } from '../activitySaveState';
 import type { StoryInteractionProps } from '../storyInteractionState';
 import { captureElementAsPng, downloadBlob } from '../utils/captureElementAsImage';
+import { avoidConsecutiveActivityImages } from '../utils/activityImage';
 
 export type SavedArchiveTab = 0 | 1 | 2;
 type TravelCardActionMode = 'actions' | 'confirm-delete';
@@ -22,7 +23,7 @@ type ArchiveTravelCard = TravelCard & { id: string };
 const initialArchiveStories: StoryItem[] = [
   {
     id: 101,
-    imageUrl: 'https://images.unsplash.com/photo-1565803974275-dccd2f933cbb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
+    imageUrl: '/activity-images/beach-cleanup-1.png',
     title: '광안리 해변에서의 아침',
     region: '부산',
     author: '여행자',
@@ -33,7 +34,7 @@ const initialArchiveStories: StoryItem[] = [
   },
   {
     id: 102,
-    imageUrl: 'https://images.unsplash.com/photo-1621478763597-11fb71047890?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
+    imageUrl: '/activity-images/beach-cleanup-2.png',
     title: '제주 바다의 석양',
     region: '제주',
     author: '여행자',
@@ -44,7 +45,7 @@ const initialArchiveStories: StoryItem[] = [
   },
   {
     id: 103,
-    imageUrl: 'https://images.unsplash.com/photo-1775116259654-404b3376c02e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
+    imageUrl: '/activity-images/forest-trail-2.png',
     title: '공원 산책로의 오후',
     region: '부산',
     author: '여행자',
@@ -55,7 +56,7 @@ const initialArchiveStories: StoryItem[] = [
   },
   {
     id: 104,
-    imageUrl: 'https://images.unsplash.com/photo-1542113028-b526238297f1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
+    imageUrl: '/activity-images/forest-trail-1.png',
     title: '비자림의 고요한 산책',
     region: '제주',
     author: '여행자',
@@ -66,7 +67,7 @@ const initialArchiveStories: StoryItem[] = [
   },
   {
     id: 105,
-    imageUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
+    imageUrl: '/activity-images/beach-cleanup-3.png',
     title: '안목해변 커피 향 사이로',
     region: '강원',
     author: '여행자',
@@ -77,7 +78,7 @@ const initialArchiveStories: StoryItem[] = [
   },
   {
     id: 106,
-    imageUrl: 'https://images.unsplash.com/photo-1519046904884-53103b34b206?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
+    imageUrl: '/activity-images/festival-event-2.png',
     title: '통영 항구의 느린 오후',
     region: '경남',
     author: '여행자',
@@ -88,7 +89,7 @@ const initialArchiveStories: StoryItem[] = [
   },
   {
     id: 107,
-    imageUrl: 'https://images.unsplash.com/photo-1528181304800-259b08848526?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
+    imageUrl: '/activity-images/city-travel-3.png',
     title: '경주 골목의 오후빛',
     region: '경북',
     author: '여행자',
@@ -102,80 +103,80 @@ const initialArchiveStories: StoryItem[] = [
 const initialTravelCards: ArchiveTravelCard[] = [
   {
     id: 'gwangalli-morning',
-    photoUrl: '/home-hero-1.png',
-    title: '광안리의 부드러운 아침',
+    photoUrl: '/activity-images/beach-cleanup-1.png',
+    title: '광안리 해변 플로깅 후기',
     date: '2026.07.20',
     locationLabel: '부산 수영구',
     period: '7월 20일',
-    memo: '바다를 따라 걷고, 작은 선의를 남겼던 여행',
-    activities: ['광안리 해변 환경정화', '수영 공원 산책로 정비'],
-    locationSummary: '광안리 해변과 수영 근린공원을 따라 이어지는 부산의 조용한 하루 일정이에요.',
-    moodTags: ['바다', '아침산책', '작은실천'],
+    memo: '집결 후 장갑과 집게를 받고 모래사장 가장자리부터 천천히 걸었어요. 병뚜껑과 작은 비닐 조각이 생각보다 자주 보여서, 바다를 보는 시간이 조금 더 조심스러워졌습니다.',
+    activities: ['광안리 해변 플로깅 활동', '해변 쓰레기 분리수거 보조'],
+    locationSummary: '광안리해수욕장 모래사장과 산책로 주변을 함께 정리한 부산 해변 정화 후기예요.',
+    moodTags: ['해변정화', '플로깅', '부산바다'],
     style: 'polaroid',
   },
   {
     id: 'jeju-aewol-day',
-    photoUrl: '/home-hero-2.png',
-    title: '제주 애월의 조용한 하루',
+    photoUrl: '/activity-images/rural-village-2.png',
+    title: '제주 마을 텃밭 일손 후기',
     date: '2026.06.10',
     locationLabel: '제주 제주시',
     period: '6월 10일 ~ 6월 12일',
-    memo: '바다를 오래 바라보고, 천천히 걸으며 마음을 정리했던 시간',
-    activities: ['애월 해안 정화', '올레길 산책로 정비'],
-    locationSummary: '제주 서쪽 해안과 낮은 산책로를 중심으로 느리게 움직이는 여행 카드예요.',
-    moodTags: ['바다', '느린여행', '작은실천'],
+    memo: '마을 안쪽 텃밭에서 잡초를 정리하고 수확 바구니를 옮겼어요. 큰 농사일은 아니었지만, 여행지의 생활 리듬을 가까이에서 본 시간이었습니다.',
+    activities: ['제주 마을 텃밭 정리 활동', '농촌 일손 돕기 보조'],
+    locationSummary: '제주 마을길과 작은 텃밭 주변에서 참여한 농촌 일손 돕기 후기예요.',
+    moodTags: ['마을활동', '농촌일손', '제주여행'],
     style: 'polaroid',
   },
   {
     id: 'bijarim-walk',
-    photoUrl: '/home-hero-3.png',
-    title: '비자림의 고요한 산책',
+    photoUrl: '/activity-images/forest-trail-1.png',
+    title: '비자림 숲길 정비',
     date: '2026.06.12',
     locationLabel: '제주 제주시',
     period: '6월 12일',
-    memo: '숲의 결을 따라 걷고, 조용한 돌봄을 남겼던 오후',
-    activities: ['비자림 산책로 정비', '숲길 표지 정리'],
-    locationSummary: '비자림 안쪽 산책로를 중심으로 머무는 시간이 긴 제주 숲 여행이에요.',
-    moodTags: ['숲길', '고요함', '산책'],
+    memo: '탐방로 입구에서 구간을 나눠 숲길 주변 쓰레기를 주웠어요. 조용한 길이라 발소리와 집게 소리만 가볍게 들렸고, 활동이 끝난 뒤에도 숲 냄새가 오래 남았습니다.',
+    activities: ['비자림 숲길 환경정화', '탐방로 주변 쓰레기 줍기'],
+    locationSummary: '비자림 탐방로와 숲길 가장자리를 중심으로 진행한 제주 숲길 정비 후기예요.',
+    moodTags: ['숲길정비', '환경정화', '탐방로'],
     style: 'polaroid',
   },
   {
     id: 'anmok-coffee',
-    photoUrl: '/home-hero-1.png',
-    title: '안목해변의 이른 커피',
+    photoUrl: '/activity-images/office-campaign-1.png',
+    title: '파주 전시 안내데스크 후기',
     date: '2026.05.30',
-    locationLabel: '강원 강릉시',
+    locationLabel: '경기 파주시',
     period: '5월 30일',
-    memo: '아침 바다를 걷고 커피 향 사이로 돌아온 날',
-    activities: ['안목해변 아침 플로깅'],
-    locationSummary: '안목해변과 커피거리 주변을 천천히 걷는 강릉의 조용한 아침 기록이에요.',
-    moodTags: ['아침바다', '플로깅', '커피거리'],
+    memo: '전시 공간 입구에서 안내 책자를 정리하고 방문객 접수를 도왔어요. 조용한 실내라 말은 길지 않았지만, 필요한 정보를 건네는 일이 생각보다 차분했습니다.',
+    activities: ['지역 전시 안내데스크 운영 보조', '방문객 접수 및 안내 자료 정리'],
+    locationSummary: '파주 전시 공간의 안내데스크와 자료 비치대를 중심으로 참여한 운영 보조 후기예요.',
+    moodTags: ['안내데스크', '자료정리', '전시안내'],
     style: 'polaroid',
   },
   {
     id: 'tongyeong-harbor',
-    photoUrl: '/home-hero-2.png',
-    title: '통영 항구의 작은 인사',
+    photoUrl: '/activity-images/festival-event-2.png',
+    title: '전주 마을 문화제 안내 후기',
     date: '2026.04.26',
-    locationLabel: '경남 통영시',
+    locationLabel: '전북 전주시',
     period: '4월 26일',
-    memo: '낯선 항구에서 지역의 하루를 잠깐 도왔던 오후',
-    activities: ['통영 항구 마을 행사 도우미'],
-    locationSummary: '강구안 항구와 골목 장터를 중심으로 이어지는 통영의 느린 오후 기록이에요.',
-    moodTags: ['항구', '마을행사', '느린오후'],
+    memo: '부스 위치를 묻는 방문객에게 동선을 안내하고 체험 테이블 주변을 정리했어요. 행사는 붐볐지만 역할이 분명해서 여행 중에도 부담 없이 참여할 수 있었습니다.',
+    activities: ['전주 마을 문화제 행사 안내', '체험 부스 운영 보조'],
+    locationSummary: '마을 문화제 현장에서 방문객 안내와 체험 부스 정리를 맡은 전주 행사 보조 후기예요.',
+    moodTags: ['지역축제', '행사안내', '체험부스'],
     style: 'polaroid',
   },
   {
     id: 'gyeongju-light',
-    photoUrl: '/home-hero-3.png',
-    title: '경주 골목의 낮은 빛',
+    photoUrl: '/activity-images/care-community-1.png',
+    title: '복지관 문화 프로그램 보조 후기',
     date: '2026.03.21',
-    locationLabel: '경북 경주시',
+    locationLabel: '서울 성동구',
     period: '3월 21일 ~ 3월 22일',
-    memo: '오래된 골목을 안내하며 여행지가 생활처럼 다가온 시간',
-    activities: ['경주 황리단길 작은 문화 안내', '동궁과 월지 주변 안내 정리'],
-    locationSummary: '황리단길과 고분 주변을 천천히 걸으며 지역 이야기를 만난 경주 여행 카드예요.',
-    moodTags: ['골목', '문화안내', '오후빛'],
+    memo: '복지관 프로그램실에서 재료를 나누고 어르신들의 만들기 활동을 옆에서 도왔어요. 손을 맞잡거나 도구를 건네는 짧은 순간들이 조용히 남았습니다.',
+    activities: ['복지관 문화 프로그램 보조', '어르신 만들기 활동 지원'],
+    locationSummary: '지역 복지관 프로그램실에서 문화 체험 준비와 진행을 도운 커뮤니티 활동 후기예요.',
+    moodTags: ['복지관', '문화체험', '돌봄지원'],
     style: 'polaroid',
   },
 ];
@@ -211,6 +212,7 @@ export function SavedArchive({
   const [travelCards, setTravelCards] = useState<ArchiveTravelCard[]>(initialTravelCards);
   const travelCardToastTimerRef = useRef<number | null>(null);
   const travelCardRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const resolvedSavedActivities = avoidConsecutiveActivityImages(savedActivities);
 
   useEffect(() => {
     setActiveTab(activeArchiveTab);
@@ -320,15 +322,15 @@ export function SavedArchive({
           {/* Saved Activities */}
           {activeTab === 0 && (
             <div className="px-5">
-              {savedActivities.length > 0 ? (
+              {resolvedSavedActivities.length > 0 ? (
                 <>
                   <div className="mb-3.5">
                     <p className="text-[12px] text-[#aaa]">
-                      {savedActivities.length}개의 활동
+                      {resolvedSavedActivities.length}개의 활동
                     </p>
                   </div>
                   <div className="space-y-2.5">
-                    {savedActivities.map((activity) => (
+                    {resolvedSavedActivities.map((activity) => (
                       <CompactActivityCard
                         key={getActivitySaveKey(activity)}
                         imageUrl={activity.imageUrl}

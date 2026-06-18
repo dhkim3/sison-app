@@ -76,21 +76,6 @@ const ACTIVITY_IMAGE_SETS: Record<ActivityImageType, string[]> = {
   ],
 };
 
-const FALLBACK_IMAGE_MARKERS = [
-  'photo-1565803974275-dccd2f933cbb',
-  'photo-1491438590914-bc09fcaaf77a',
-  'photo-1523906834658-6e24ef2386f9',
-  'photo-1584515933487-779824d29309',
-  'photo-1533174072545-7a4b6ad7a6c3',
-  'photo-1507525428034-b723cf961d3e',
-  'photo-1448375240586-882707db888b',
-  'photo-1519010470956-6d877008eaa4',
-  'photo-1500530855697-b586d89ba3ee',
-  'photo-1775116259654-404b3376c02e',
-  'photo-1610093674388-cee0337f2684',
-  'photo-1636625093308-e29128dbbc08',
-];
-
 const IMAGE_RULES: Array<{ type: ActivityImageType; keywords: string[]; reason: string }> = [
   {
     type: 'beach-cleanup',
@@ -145,13 +130,6 @@ const stableHash = (value: string) => {
   return Math.abs(hash);
 };
 
-const isFallbackImage = (imageUrl?: string | null) => {
-  if (!imageUrl) return true;
-  if (imageUrl.startsWith('/home-hero-')) return true;
-
-  return FALLBACK_IMAGE_MARKERS.some((marker) => imageUrl.includes(marker));
-};
-
 const buildActivityText = (activity: ActivityImageInput) =>
   [
     activity.title,
@@ -195,14 +173,6 @@ const pickAlternativeImage = (
 };
 
 export const resolveActivityImage = (activity: ActivityImageInput): ResolvedActivityImage => {
-  if (!isFallbackImage(activity.imageUrl)) {
-    return {
-      imageUrl: activity.imageUrl!,
-      imageType: 'default-travel',
-      imageReason: '기존 imageUrl 유지',
-    };
-  }
-
   const text = buildActivityText(activity);
   const matchedRule = IMAGE_RULES.find((rule) => rule.keywords.some((keyword) => text.includes(keyword)));
   const imageType = matchedRule?.type ?? 'default-travel';
@@ -228,9 +198,7 @@ export const avoidConsecutiveActivityImages = <T extends ActivityImageInput>(act
   let previousImageUrl = '';
 
   return activities.map((activity, index) => {
-    const resolvedActivity = activity.imageType && activity.imageReason && activity.imageUrl
-      ? activity
-      : withResolvedActivityImage(activity);
+    const resolvedActivity = withResolvedActivityImage(activity);
     const imageUrl = resolvedActivity.imageUrl ?? '';
     const imageType = isActivityImageType(resolvedActivity.imageType)
       ? resolvedActivity.imageType

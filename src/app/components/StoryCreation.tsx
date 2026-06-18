@@ -59,7 +59,7 @@ export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationPr
       time: '09:00 - 11:00',
       status: '참여 완료',
       participants: '15명',
-      imageUrl: 'https://images.unsplash.com/photo-1565803974275-dccd2f933cbb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
+      imageUrl: '/activity-images/beach-cleanup-1.png',
     },
     {
       id: 2,
@@ -72,7 +72,7 @@ export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationPr
       time: '10:00 - 12:00',
       status: '참여 완료',
       participants: '20명',
-      imageUrl: 'https://images.unsplash.com/photo-1612977512598-3b8d6a498bbb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
+      imageUrl: '/activity-images/beach-cleanup-3.png',
     },
     {
       id: 3,
@@ -85,7 +85,7 @@ export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationPr
       time: '14:00 - 16:00',
       status: '종료됨',
       participants: '8명',
-      imageUrl: 'https://images.unsplash.com/photo-1775116259654-404b3376c02e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
+      imageUrl: '/activity-images/forest-trail-2.png',
     },
     {
       id: 4,
@@ -98,7 +98,7 @@ export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationPr
       time: '08:00 - 10:00',
       status: '참여 예정',
       participants: '12명',
-      imageUrl: 'https://images.unsplash.com/photo-1621478763597-11fb71047890?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
+      imageUrl: '/activity-images/beach-cleanup-2.png',
     },
     {
       id: 5,
@@ -111,7 +111,7 @@ export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationPr
       time: '16:00 - 18:00',
       status: '참여 완료',
       participants: '14명',
-      imageUrl: 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
+      imageUrl: '/activity-images/festival-event-1.png',
     },
     {
       id: 6,
@@ -124,7 +124,7 @@ export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationPr
       time: '13:00 - 16:00',
       status: '참여 완료',
       participants: '9명',
-      imageUrl: 'https://images.unsplash.com/photo-1519046904884-53103b34b206?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
+      imageUrl: '/activity-images/festival-event-2.png',
     },
     {
       id: 7,
@@ -137,7 +137,7 @@ export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationPr
       time: '09:30 - 11:30',
       status: '참여 완료',
       participants: '11명',
-      imageUrl: 'https://images.unsplash.com/photo-1476610182048-b716b8518aae?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
+      imageUrl: '/activity-images/default-travel-2.png',
     },
   ];
 
@@ -212,12 +212,21 @@ export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationPr
       id: Date.now(),
       title: storyTitle.trim(),
       region: selectedActivity?.region ?? '여행',
+      city: selectedActivity?.location?.split(' ')[1] ?? selectedActivity?.region ?? '여행',
+      location: selectedActivity?.location ?? selectedActivity?.region ?? '여행지',
       author: '여행자',
+      authorName: '여행자',
       likes: 0,
+      likeCount: 0,
       comments: 0,
       imageUrl: uploadedPhotos[0] ?? selectedActivity?.imageUrl ?? '',
       body: storyText.trim(),
+      content: storyText.trim(),
       relatedActivity: selectedActivity?.title,
+      activityTitle: selectedActivity?.title,
+      activityDate: selectedActivity?.date,
+      createdAt: '방금 전',
+      tags: [selectedActivity?.region, '나의기록'].filter(Boolean),
     };
 
     console.log('story uploaded', nextStory);
