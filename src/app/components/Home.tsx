@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Bell, Bookmark, Calendar, Clock, MapPin } from 'lucide-react';
-import { formatActivityDate, getActivityStatus, getRecruitmentDday } from '../activityFormatters';
+import { getActivityDisplayDate, getActivityStatus, getRecruitmentDday } from '../activityFormatters';
 import { normalizeCapacity } from '../activityCapacity';
 import { avoidConsecutiveActivityImages, logActivityImageMappings, withResolvedActivityImage } from '../utils/activityImage';
 import { EnhancedSearchCard } from './EnhancedSearchCard';
@@ -204,7 +204,7 @@ function HiddenPlaceActivityCard({
   onBookmarkClick,
   onClick,
 }: HiddenPlaceActivityCardProps) {
-  const dateTime = [formatActivityDate(activity.date), activity.time].filter(Boolean).join(' · ');
+  const dateTime = [getActivityDisplayDate(activity, { compact: true }), activity.time].filter(Boolean).join(' · ');
   const recruitmentMetadata = getRecruitmentDday(activity);
 
   return (
@@ -223,7 +223,11 @@ function HiddenPlaceActivityCard({
       <img
         src={activity.imageUrl}
         alt={activity.title}
-        className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.025]"
+        width={640}
+        height={360}
+        loading="eager"
+        decoding="async"
+        className="absolute inset-0 block h-full w-full object-cover object-center transition-transform duration-500 ease-out group-hover:scale-[1.025]"
       />
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(21,25,23,0.72)_0%,rgba(21,25,23,0.46)_44%,rgba(21,25,23,0.10)_78%,rgba(21,25,23,0.04)_100%)]" />
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(18,22,20,0.16)_0%,rgba(18,22,20,0.02)_42%,rgba(18,22,20,0.20)_100%)]" />
@@ -292,7 +296,7 @@ function RecentTimelineActivityCard({
   const registeredTextColors = ['text-[#6fa985]', 'text-[#5f9fc9]', 'text-[#8270bd]'];
   const registeredLabel = activity.recentLabel || '새로 열린 일정';
   const registeredTextColor = registeredTextColors[index % registeredTextColors.length];
-  const dateTime = [formatActivityDate(activity.date), activity.time].filter(Boolean).join(' · ');
+  const dateTime = [getActivityDisplayDate(activity, { compact: true }), activity.time].filter(Boolean).join(' · ');
   const recruitmentMetadata = getRecruitmentDday(activity);
 
   return (
@@ -362,11 +366,15 @@ function RecentTimelineActivityCard({
             </div>
           </div>
 
-          <div className="h-[82px] overflow-hidden rounded-xl bg-[#f3f0ea]">
+          <div className="relative h-[82px] overflow-hidden rounded-xl bg-[#f3f0ea]">
             <img
               src={activity.imageUrl}
               alt={activity.title}
-              className="h-full w-full object-cover"
+              width={164}
+              height={164}
+              loading="eager"
+              decoding="async"
+              className="absolute inset-0 block h-full w-full object-cover object-center"
             />
           </div>
         </div>

@@ -1,3 +1,4 @@
+import { get, list } from '@vercel/blob';
 import {
   normalizeCapacity as normalizeApiCapacity,
   pickCurrentParticipants,
@@ -20,6 +21,14 @@ type VercelResponse = {
 };
 
 type VolunteerStatus = '모집중' | '지난 활동';
+type SearchRegionCacheStatus =
+  | 'region_cache_hit'
+  | 'region_cache_miss'
+  | 'region_cache_stale'
+  | 'popular_region_cache_hit'
+  | 'popular_region_cache_miss'
+  | 'popular_region_cache_stale'
+  | 'live';
 
 export interface VolunteerActivity {
   id: string;
@@ -51,6 +60,57 @@ const VOLUNTEER_SEARCH_URL =
   'http://openapi.1365.go.kr/openapi/service/rest/VolunteerPartcptnService/getVltrSearchWordList';
 const VOLUNTEER_DETAIL_URL =
   'http://openapi.1365.go.kr/openapi/service/rest/VolunteerPartcptnService/getVltrPartcptnItem';
+export const SEARCH_REGION_CACHE_PATH = 'volunteers-search-regions.json';
+export const POPULAR_REGION_CACHE_PATH = 'volunteers-popular-regions.json';
+const SEARCH_REGION_CACHE_VERSION = 1;
+const SEARCH_REGION_CACHE_SOURCE = '1365';
+const SEARCH_REGION_CACHE_PAGE_SIZE = 15;
+const SEARCH_REGION_CACHE_MAX_PAGES = 5;
+
+const searchRegionCacheConfigs = [
+  { query: '서울', sidoCd: '11', fallbackKeyword: '서울' },
+  { query: '부산', sidoCd: '26', fallbackKeyword: '부산' },
+  { query: '강릉', sidoCd: '42', gugunCd: '42150', fallbackKeyword: '강원' },
+  { query: '제주', sidoCd: '50', fallbackKeyword: '서귀포' },
+  { query: '여수', fallbackKeyword: '전남' },
+  { query: '경주', fallbackKeyword: '경북' },
+  { query: '전주', fallbackKeyword: '전북' },
+  { query: '속초', fallbackKeyword: '강원' },
+  { query: '인천', fallbackKeyword: '인천광역시' },
+  { query: '대구', fallbackKeyword: '대구광역시' },
+] as const;
+
+const popularRegionCacheConfigs = [
+  { query: '부산 수영구', fallbackKeyword: '부산' },
+  { query: '제주', fallbackKeyword: '제주' },
+  { query: '서울 마포구', fallbackKeyword: '서울' },
+] as const;
+
+type SearchRegionName = typeof searchRegionCacheConfigs[number]['query'];
+type PopularRegionName = typeof popularRegionCacheConfigs[number]['query'];
+type CachedRegionName = SearchRegionName | PopularRegionName;
+
+export type SearchRegionCachePayload = {
+  cacheVersion: number;
+  generatedAt: string;
+  source: '1365';
+  capacityEnrichment?: CapacityEnrichmentStats;
+  regions: Partial<Record<CachedRegionName, {
+    query: CachedRegionName;
+    count: number;
+    items: VolunteerActivity[];
+    capacityEnrichment?: CapacityEnrichmentStats;
+  }>>;
+};
+
+export type CapacityEnrichmentStats = {
+  attempted: number;
+  alreadyHadCapacity: number;
+  enriched: number;
+  detailCapacityFound: number;
+  missingAfterEnrichment: number;
+  skipped: number;
+};
 
 const fallbackImages: Record<string, string> = {
   '환경': 'https://images.unsplash.com/photo-1565803974275-dccd2f933cbb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
@@ -78,7 +138,13 @@ const getSingleQueryValue = (value: string | string[] | undefined, fallback = ''
 
 const sendSuccess = (
   res: VercelResponse,
-  body: { items: VolunteerActivity[]; totalCount: number; page: number; size: number },
+  body: {
+    items: VolunteerActivity[];
+    totalCount: number;
+    page: number;
+    size: number;
+    cacheStatus?: SearchRegionCacheStatus;
+  },
 ) => {
   res.status(200).json({
     ok: true,
@@ -86,6 +152,7 @@ const sendSuccess = (
     totalCount: body.totalCount,
     page: body.page,
     size: body.size,
+    ...(body.cacheStatus ? { cacheStatus: body.cacheStatus } : {}),
   });
 };
 
@@ -386,6 +453,7 @@ const buildVolunteerDetailUrl = (progrmRegistNo: string) => {
 
 const normalizeVolunteerUrl = (url: string, progrmRegistNo: string) => {
   const trimmedUrl = url.trim();
+  if (progrmRegistNo) return buildVolunteerDetailUrl(progrmRegistNo);
   if (trimmedUrl) return trimmedUrl.startsWith('http') ? trimmedUrl : `https://${trimmedUrl.replace(/^\/+/, '')}`;
 
   return buildVolunteerDetailUrl(progrmRegistNo);
@@ -498,6 +566,9 @@ const getRecruitmentEndDate = (item: ReturnType<typeof parseVolunteerItems>[numb
     item.reqstEndde,
     item.reqstEndDate,
   );
+
+const hasFutureRecruitmentDeadline = (item: ReturnType<typeof parseVolunteerItems>[number]) =>
+  isApiDateAfterToday(getRecruitmentEndDate(item));
 
 const getActivityStartDate = (item: ReturnType<typeof parseVolunteerItems>[number]) =>
   firstPresentValue(item.progrmBgnde, item.actBeginDate, item.srvcStartDate);
@@ -999,7 +1070,7 @@ const getMonthlyActivityScore = (item: ParsedVolunteerItem, index: number) => {
 
   if (!isRecruitingItem(item)) return null;
   if (isActivityEnded(item)) return null;
-  if (!recruitmentEndDate || recruitmentEndValue < todayValue) return null;
+  if (!recruitmentEndDate || recruitmentEndValue <= todayValue) return null;
   if (!activityStartDate) return null;
   if (!activityEndValue || activityEndValue < todayValue) return null;
   if (!activityStartValue || activityStartValue > monthEnd) return null;
@@ -1064,6 +1135,7 @@ const getMonthlyActivityRejectReason = (item: ParsedVolunteerItem) => {
   if (!isRecruitingItem(item)) return 'not_recruiting';
   if (isActivityEnded(item)) return 'activity_ended';
   if (!recruitmentEndDate || recruitmentEndValue < todayValue) return 'recruitment_ended';
+  if (recruitmentEndValue === todayValue) return 'recruitment_deadline_today';
   if (!activityStartDate) return 'missing_activity_start';
   if (!activityEndValue || activityEndValue < todayValue) return 'activity_end_before_today';
   if (!activityStartValue || activityStartValue > monthEnd) return 'activity_start_after_month_end';
@@ -1278,7 +1350,7 @@ const getFestivalActivityScore = (
 
   if (!isRecruitingItem(item)) return null;
   if (isActivityEnded(item)) return null;
-  if (!isApiDateTodayOrLater(recruitmentEndDate)) return null;
+  if (!isApiDateAfterToday(recruitmentEndDate)) return null;
   if (daysUntilActivity === null || daysUntilActivity < 0 || daysUntilActivity > profile.maxDaysUntilActivity) return null;
   if (festivalForceExcludePattern.test(searchableText)) return null;
   if (!hasPreferredSignal) return null;
@@ -1580,6 +1652,68 @@ const fetchVolunteerDetailItem = async (serviceKey: string, progrmRegistNo: stri
   }
 };
 
+const emptyCapacityEnrichmentStats = (): CapacityEnrichmentStats => ({
+  attempted: 0,
+  alreadyHadCapacity: 0,
+  enriched: 0,
+  detailCapacityFound: 0,
+  missingAfterEnrichment: 0,
+  skipped: 0,
+});
+
+const mergeCapacityEnrichmentStats = (statsList: CapacityEnrichmentStats[]) =>
+  statsList.reduce((acc, stats) => ({
+    attempted: acc.attempted + stats.attempted,
+    alreadyHadCapacity: acc.alreadyHadCapacity + stats.alreadyHadCapacity,
+    enriched: acc.enriched + stats.enriched,
+    detailCapacityFound: acc.detailCapacityFound + stats.detailCapacityFound,
+    missingAfterEnrichment: acc.missingAfterEnrichment + stats.missingAfterEnrichment,
+    skipped: acc.skipped + stats.skipped,
+  }), emptyCapacityEnrichmentStats());
+
+const hasKnownCapacity = (value: string | number | null | undefined) =>
+  Boolean(normalizeApiCapacity(value));
+
+export const enrichVolunteerActivitiesWithCapacity = async (
+  serviceKey: string,
+  activities: VolunteerActivity[],
+  limit = activities.length,
+) => {
+  const stats = emptyCapacityEnrichmentStats();
+  const enrichedActivities = [...activities];
+
+  for (let index = 0; index < enrichedActivities.length; index += 1) {
+    if (index >= limit) {
+      stats.skipped += 1;
+      continue;
+    }
+
+    const activity = enrichedActivities[index];
+    stats.attempted += 1;
+
+    const hadCapacity = hasKnownCapacity(activity.capacity);
+    if (hadCapacity) stats.alreadyHadCapacity += 1;
+
+    const detailItem = await fetchVolunteerDetailItem(serviceKey, activity.progrmRegistNo);
+    const detailCapacity = detailItem ? normalizeApiCapacity(pickRecruitCapacity(detailItem)) : null;
+
+    if (detailCapacity) {
+      stats.detailCapacityFound += 1;
+      enrichedActivities[index] = {
+        ...activity,
+        capacity: detailCapacity,
+      };
+
+      if (!hadCapacity) stats.enriched += 1;
+      continue;
+    }
+
+    if (!hadCapacity) stats.missingAfterEnrichment += 1;
+  }
+
+  return { items: enrichedActivities, stats };
+};
+
 const mapVolunteerActivity = (
   item: ReturnType<typeof parseVolunteerItems>[number],
   options: { compactLocation?: boolean; keywordImage?: boolean; omitImageUrl?: boolean } = {},
@@ -1743,7 +1877,7 @@ const buildFestivalHomeSection = async (serviceKey: string) => {
   }
 
   const finalFestivalItems = limitTodayDeadlineActivities(
-    festivalItems.filter((item) => isApiDateTodayOrLater(getRecruitmentEndDate(item)))
+    festivalItems.filter(hasFutureRecruitmentDeadline)
   );
 
   return finalFestivalItems.map((item) =>
@@ -1759,6 +1893,448 @@ export const buildHomeVolunteerSections = async (serviceKey: string): Promise<Ho
   ]);
 
   return { lightweight, monthly, festival };
+};
+
+export const enrichHomeVolunteerSectionsWithCapacity = async (
+  serviceKey: string,
+  sections: HomeVolunteerSections,
+) => {
+  const lightweight = await enrichVolunteerActivitiesWithCapacity(serviceKey, sections.lightweight);
+  const monthly = await enrichVolunteerActivitiesWithCapacity(serviceKey, sections.monthly);
+  const festival = await enrichVolunteerActivitiesWithCapacity(serviceKey, sections.festival);
+
+  return {
+    sections: {
+      lightweight: lightweight.items,
+      monthly: monthly.items,
+      festival: festival.items,
+    },
+    stats: mergeCapacityEnrichmentStats([lightweight.stats, monthly.stats, festival.stats]),
+    sectionStats: {
+      lightweight: lightweight.stats,
+      monthly: monthly.stats,
+      festival: festival.stats,
+    },
+  };
+};
+
+const getBlobReadWriteToken = () => process.env.BLOB_READ_WRITE_TOKEN?.trim();
+
+type CachedRegionConfig =
+  | typeof searchRegionCacheConfigs[number]
+  | typeof popularRegionCacheConfigs[number];
+
+const getSearchRegionConfig = (keyword: string) =>
+  searchRegionCacheConfigs.find((config) => config.query === keyword.trim()) ?? null;
+
+const getPopularRegionConfig = (keyword: string) =>
+  popularRegionCacheConfigs.find((config) => config.query === keyword.trim()) ?? null;
+
+const isSameKstDate = (isoDate: string) => {
+  const generatedAt = new Date(isoDate);
+  if (Number.isNaN(generatedAt.getTime())) return false;
+
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const toKstDateKey = (date: Date) => {
+    const parts = formatter.formatToParts(date);
+    const year = parts.find((part) => part.type === 'year')?.value ?? '';
+    const month = parts.find((part) => part.type === 'month')?.value ?? '';
+    const day = parts.find((part) => part.type === 'day')?.value ?? '';
+    return `${year}${month}${day}`;
+  };
+
+  return toKstDateKey(generatedAt) === toKstDateKey(new Date());
+};
+
+const hasOnlyFutureRecruitmentDeadlines = (items: VolunteerActivity[]) =>
+  items.every((item) => isApiDateAfterToday(item.recruitmentEndDate));
+
+const normalizeRegionCachePayload = (
+  value: unknown,
+  configs: readonly CachedRegionConfig[],
+): SearchRegionCachePayload | null => {
+  if (!value || typeof value !== 'object') return null;
+
+  const candidate = value as Partial<SearchRegionCachePayload>;
+  if (
+    candidate.cacheVersion !== SEARCH_REGION_CACHE_VERSION ||
+    candidate.source !== SEARCH_REGION_CACHE_SOURCE ||
+    typeof candidate.generatedAt !== 'string' ||
+    !candidate.regions ||
+    typeof candidate.regions !== 'object'
+  ) {
+    return null;
+  }
+
+  const normalizedRegions: SearchRegionCachePayload['regions'] = {};
+
+  for (const config of configs) {
+    const region = candidate.regions[config.query as CachedRegionName];
+    if (!region || typeof region !== 'object' || !Array.isArray(region.items)) continue;
+
+    normalizedRegions[config.query as CachedRegionName] = {
+      query: config.query as CachedRegionName,
+      count: Number.isFinite(region.count) ? region.count : region.items.length,
+      items: region.items,
+      capacityEnrichment: region.capacityEnrichment,
+    };
+  }
+
+  return {
+    cacheVersion: SEARCH_REGION_CACHE_VERSION,
+    generatedAt: candidate.generatedAt,
+    source: SEARCH_REGION_CACHE_SOURCE,
+    capacityEnrichment: candidate.capacityEnrichment,
+    regions: normalizedRegions,
+  };
+};
+
+const readTextFromBlob = async (urlOrPathname: string, blobToken: string) => {
+  const cachedBlob = await get(urlOrPathname, { access: 'private', token: blobToken, useCache: false });
+  if (!cachedBlob || cachedBlob.statusCode !== 200 || !cachedBlob.stream) return null;
+
+  return new Response(cachedBlob.stream).text();
+};
+
+const readRegionCache = async (cachePath: string, configs: readonly CachedRegionConfig[]) => {
+  const blobToken = getBlobReadWriteToken();
+  if (!blobToken) return null;
+
+  const listed = await list({
+    prefix: cachePath,
+    limit: 1,
+    token: blobToken,
+  });
+  const matchedBlob = listed.blobs.find((blob) => blob.pathname === cachePath) ?? listed.blobs[0];
+  if (!matchedBlob) return null;
+
+  const blobText =
+    await readTextFromBlob(cachePath, blobToken) ??
+    await readTextFromBlob(matchedBlob.url, blobToken);
+  if (!blobText) return null;
+
+  return normalizeRegionCachePayload(JSON.parse(blobText), configs);
+};
+
+const readSearchRegionCache = async () =>
+  readRegionCache(SEARCH_REGION_CACHE_PATH, searchRegionCacheConfigs);
+
+const readPopularRegionCache = async () =>
+  readRegionCache(POPULAR_REGION_CACHE_PATH, popularRegionCacheConfigs);
+
+const isDefaultCachedRegionSearch = (params: {
+  keyword: string;
+  pageNo: number;
+  numOfRows: number;
+  startDate: string;
+  endDate: string;
+  sort: string;
+  sidoCd: string;
+  gugunCd: string;
+  fallbackKeyword: string;
+}, config: CachedRegionConfig | null) => {
+  if (!config) return null;
+  if (params.sort || params.startDate || params.endDate) return null;
+  if (params.numOfRows !== SEARCH_REGION_CACHE_PAGE_SIZE) return null;
+  if (params.pageNo < 1 || params.pageNo > SEARCH_REGION_CACHE_MAX_PAGES) return null;
+  if (params.sidoCd && params.sidoCd !== (config.sidoCd ?? '')) return null;
+  if (params.gugunCd && params.gugunCd !== (config.gugunCd ?? '')) return null;
+  if (
+    params.fallbackKeyword &&
+    params.fallbackKeyword !== config.query &&
+    params.fallbackKeyword !== config.fallbackKeyword
+  ) {
+    return null;
+  }
+
+  return config;
+};
+
+const getSearchRegionCacheResponse = async (params: {
+  keyword: string;
+  pageNo: number;
+  numOfRows: number;
+  startDate: string;
+  endDate: string;
+  sort: string;
+  sidoCd: string;
+  gugunCd: string;
+  fallbackKeyword: string;
+}): Promise<
+  | { cacheStatus: 'region_cache_hit'; items: VolunteerActivity[]; totalCount: number }
+  | { cacheStatus: 'region_cache_miss' | 'region_cache_stale' | 'live' }
+> => {
+  const config = isDefaultCachedRegionSearch(params, getSearchRegionConfig(params.keyword));
+  if (!config) return { cacheStatus: 'live' };
+
+  try {
+    const payload = await readSearchRegionCache();
+    if (!payload) return { cacheStatus: 'region_cache_miss' };
+    if (!isSameKstDate(payload.generatedAt)) return { cacheStatus: 'region_cache_stale' };
+
+    const region = payload.regions[config.query];
+    if (!region || !Array.isArray(region.items)) return { cacheStatus: 'region_cache_miss' };
+    if (!hasOnlyFutureRecruitmentDeadlines(region.items)) return { cacheStatus: 'region_cache_stale' };
+
+    const startIndex = (params.pageNo - 1) * params.numOfRows;
+    const items = region.items.slice(startIndex, startIndex + params.numOfRows);
+
+    return {
+      cacheStatus: 'region_cache_hit',
+      items,
+      totalCount: region.count,
+    };
+  } catch (error) {
+    console.error('volunteer search region cache read failed:', {
+      keyword: params.keyword,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+    return { cacheStatus: 'region_cache_miss' };
+  }
+};
+
+const getPopularRegionCacheResponse = async (params: {
+  keyword: string;
+  pageNo: number;
+  numOfRows: number;
+  startDate: string;
+  endDate: string;
+  sort: string;
+  sidoCd: string;
+  gugunCd: string;
+  fallbackKeyword: string;
+}): Promise<
+  | { cacheStatus: 'popular_region_cache_hit'; items: VolunteerActivity[]; totalCount: number }
+  | { cacheStatus: 'popular_region_cache_miss' | 'popular_region_cache_stale' | 'live' }
+> => {
+  const config = isDefaultCachedRegionSearch(params, getPopularRegionConfig(params.keyword));
+  if (!config) return { cacheStatus: 'live' };
+
+  try {
+    const payload = await readPopularRegionCache();
+    if (!payload) return { cacheStatus: 'popular_region_cache_miss' };
+    if (!isSameKstDate(payload.generatedAt)) return { cacheStatus: 'popular_region_cache_stale' };
+
+    const region = payload.regions[config.query as CachedRegionName];
+    if (!region || !Array.isArray(region.items)) return { cacheStatus: 'popular_region_cache_miss' };
+    if (!hasOnlyFutureRecruitmentDeadlines(region.items)) return { cacheStatus: 'popular_region_cache_stale' };
+
+    const startIndex = (params.pageNo - 1) * params.numOfRows;
+    const items = region.items.slice(startIndex, startIndex + params.numOfRows);
+
+    return {
+      cacheStatus: 'popular_region_cache_hit',
+      items,
+      totalCount: region.count,
+    };
+  } catch (error) {
+    console.error('volunteer popular region cache read failed:', {
+      keyword: params.keyword,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+    return { cacheStatus: 'popular_region_cache_miss' };
+  }
+};
+
+const fetchDefaultVolunteerSearchPage = async (params: {
+  serviceKey: string;
+  pageNo: number;
+  numOfRows: number;
+  keyword: string;
+  startDate?: string;
+  endDate?: string;
+  sidoCd?: string;
+  gugunCd?: string;
+  fallbackKeyword?: string;
+  logContext: string;
+}) => {
+  const startDate = params.startDate ?? '';
+  const endDate = params.endDate ?? '';
+  const useRegionCodes = Boolean(params.sidoCd);
+  const upstreamUrl = buildVolunteerSearchUrl({
+    serviceKey: params.serviceKey,
+    pageNo: params.pageNo,
+    numOfRows: params.numOfRows,
+    keyword: params.keyword,
+    startDate,
+    endDate,
+    sidoCd: params.sidoCd,
+    gugunCd: params.gugunCd,
+  });
+
+  const response = await fetch(upstreamUrl);
+  const xmlText = await response.text();
+
+  if (!response.ok) {
+    console.error('1365 cached region upstream request failed:', {
+      context: params.logContext,
+      requestUrl: upstreamUrl.replace(params.serviceKey, '[REDACTED_SERVICE_KEY]'),
+      status: response.status,
+      responseText: xmlText.slice(0, 1000),
+    });
+    throw new Error(`1365 ${params.logContext} 검색 결과를 불러오지 못했어요.`);
+  }
+
+  const resultCode = getTagValue(xmlText, 'resultCode');
+  const resultMsg = getTagValue(xmlText, 'resultMsg');
+  let totalCount = Number.parseInt(getTagValue(xmlText, 'totalCount'), 10) || 0;
+  let rawItems = parseVolunteerItems(xmlText);
+
+  if (resultCode && resultCode !== '00') {
+    if (!useRegionCodes) {
+      throw new Error(resultMsg || `1365 ${params.logContext} 검색 결과를 불러오지 못했어요.`);
+    }
+    rawItems = [];
+  }
+
+  if (useRegionCodes && (rawItems.length === 0 || (!params.gugunCd && rawItems.length < params.numOfRows))) {
+    const tryKeywordFallback = async (kw: string): Promise<boolean> => {
+      if (!kw) return false;
+      try {
+        const kwUrl = buildVolunteerSearchUrl({
+          serviceKey: params.serviceKey,
+          pageNo: params.pageNo,
+          numOfRows: params.numOfRows,
+          keyword: kw,
+          startDate,
+          endDate,
+          sidoCd: params.sidoCd,
+          gugunCd: params.gugunCd,
+        });
+        const kwRes = await fetch(kwUrl);
+        if (!kwRes.ok) return false;
+        const kwXml = await kwRes.text();
+        const kwCode = getTagValue(kwXml, 'resultCode');
+        if (kwCode && kwCode !== '00') return false;
+        const kwItems = parseVolunteerItems(kwXml);
+        rawItems = mergeVolunteerItems([...rawItems, ...kwItems]);
+        totalCount = Math.max(totalCount, Number.parseInt(getTagValue(kwXml, 'totalCount'), 10) || kwItems.length);
+        return kwItems.length > 0;
+      } catch {
+        return false;
+      }
+    };
+
+    const resolvedByKeyword = await tryKeywordFallback(params.keyword);
+    if (!resolvedByKeyword && params.fallbackKeyword && params.fallbackKeyword !== params.keyword) {
+      await tryKeywordFallback(params.fallbackKeyword);
+    }
+  }
+
+  const items = rawItems
+    .filter(hasFutureRecruitmentDeadline)
+    .filter(isAdultEligibleItem)
+    .sort((a, b) => getTravelFriendlyScore(b) - getTravelFriendlyScore(a));
+
+  return { totalCount, items };
+};
+
+const fetchSearchRegionCacheItems = async (
+  serviceKey: string,
+  config: CachedRegionConfig,
+) => {
+  let mergedItems: ParsedVolunteerItem[] = [];
+  let totalCount = 0;
+
+  for (let pageNo = 1; pageNo <= SEARCH_REGION_CACHE_MAX_PAGES; pageNo += 1) {
+    const page = await fetchDefaultVolunteerSearchPage({
+      serviceKey,
+      pageNo,
+      numOfRows: SEARCH_REGION_CACHE_PAGE_SIZE,
+      keyword: config.query,
+      sidoCd: config.sidoCd,
+      gugunCd: config.gugunCd,
+      fallbackKeyword: config.fallbackKeyword,
+      logContext: `region-cache:${config.query}:page-${pageNo}`,
+    });
+
+    totalCount = Math.max(totalCount, page.totalCount);
+    mergedItems = mergeVolunteerItems([...mergedItems, ...page.items]);
+
+    if (pageNo * SEARCH_REGION_CACHE_PAGE_SIZE >= totalCount) break;
+  }
+
+  return mergedItems
+    .filter(hasFutureRecruitmentDeadline)
+    .filter(isAdultEligibleItem)
+    .sort((a, b) => getTravelFriendlyScore(b) - getTravelFriendlyScore(a))
+    .slice(0, SEARCH_REGION_CACHE_PAGE_SIZE * SEARCH_REGION_CACHE_MAX_PAGES)
+    .map(mapDefaultVolunteerActivity);
+};
+
+export const getSearchRegionCacheTargetRegions = () =>
+  searchRegionCacheConfigs.map((config) => config.query);
+
+export const getPopularRegionCacheTargetRegions = () =>
+  popularRegionCacheConfigs.map((config) => config.query);
+
+export const buildSearchRegionCache = async (serviceKey: string): Promise<SearchRegionCachePayload> => {
+  const regions: SearchRegionCachePayload['regions'] = {};
+  const enrichmentStats: CapacityEnrichmentStats[] = [];
+
+  for (const config of searchRegionCacheConfigs) {
+    try {
+      const items = await fetchSearchRegionCacheItems(serviceKey, config);
+      const enriched = await enrichVolunteerActivitiesWithCapacity(serviceKey, items, 20);
+      enrichmentStats.push(enriched.stats);
+      regions[config.query] = {
+        query: config.query,
+        count: enriched.items.length,
+        items: enriched.items,
+        capacityEnrichment: enriched.stats,
+      };
+    } catch (error) {
+      console.error('volunteer search region cache build failed:', {
+        region: config.query,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return {
+    cacheVersion: SEARCH_REGION_CACHE_VERSION,
+    generatedAt: new Date().toISOString(),
+    source: SEARCH_REGION_CACHE_SOURCE,
+    capacityEnrichment: mergeCapacityEnrichmentStats(enrichmentStats),
+    regions,
+  };
+};
+
+export const buildPopularRegionCache = async (serviceKey: string): Promise<SearchRegionCachePayload> => {
+  const regions: SearchRegionCachePayload['regions'] = {};
+  const enrichmentStats: CapacityEnrichmentStats[] = [];
+
+  for (const config of popularRegionCacheConfigs) {
+    try {
+      const items = await fetchSearchRegionCacheItems(serviceKey, config);
+      const enriched = await enrichVolunteerActivitiesWithCapacity(serviceKey, items, 20);
+      enrichmentStats.push(enriched.stats);
+      regions[config.query] = {
+        query: config.query,
+        count: enriched.items.length,
+        items: enriched.items,
+        capacityEnrichment: enriched.stats,
+      };
+    } catch (error) {
+      console.error('volunteer popular region cache build failed:', {
+        region: config.query,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return {
+    cacheVersion: SEARCH_REGION_CACHE_VERSION,
+    generatedAt: new Date().toISOString(),
+    source: SEARCH_REGION_CACHE_SOURCE,
+    capacityEnrichment: mergeCapacityEnrichmentStats(enrichmentStats),
+    regions,
+  };
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -1788,6 +2364,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const gugunCd = !sort ? getSingleQueryValue(req.query.gugunCd).trim() : '';
   const fallbackKeyword = !sort ? getSingleQueryValue(req.query.fallbackKeyword).trim() : '';
   const useRegionCodes = Boolean(sidoCd);
+
+  const cacheRequestParams = {
+    keyword,
+    pageNo,
+    numOfRows,
+    startDate,
+    endDate,
+    sort,
+    sidoCd,
+    gugunCd,
+    fallbackKeyword,
+  };
+  const popularRegionCacheResponse = await getPopularRegionCacheResponse(cacheRequestParams);
+  const regionCacheResponse = popularRegionCacheResponse.cacheStatus === 'live'
+    ? await getSearchRegionCacheResponse(cacheRequestParams)
+    : popularRegionCacheResponse;
+
+  if (
+    regionCacheResponse.cacheStatus === 'region_cache_hit' ||
+    regionCacheResponse.cacheStatus === 'popular_region_cache_hit'
+  ) {
+    sendSuccess(res, {
+      items: regionCacheResponse.items,
+      totalCount: regionCacheResponse.totalCount,
+      page: pageNo,
+      size: numOfRows,
+      cacheStatus: regionCacheResponse.cacheStatus,
+    });
+    return;
+  }
 
   const upstreamUrl = buildVolunteerSearchUrl({
     serviceKey,
@@ -1972,7 +2578,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const finalFestivalItems = limitTodayDeadlineActivities(
-        festivalItems.filter((item) => isApiDateTodayOrLater(getRecruitmentEndDate(item)))
+        festivalItems.filter(hasFutureRecruitmentDeadline)
       );
 
       const mappedFestivalItems = finalFestivalItems.map((item) =>
@@ -2017,6 +2623,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!sort) {
       const processedItems = parsedItems
+        .filter(hasFutureRecruitmentDeadline)
         .filter(isAdultEligibleItem)
         .sort((a, b) => getTravelFriendlyScore(b) - getTravelFriendlyScore(a));
       const items = processedItems.map(mapDefaultVolunteerActivity);
@@ -2026,6 +2633,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         totalCount,
         page: pageNo,
         size: numOfRows,
+        cacheStatus: regionCacheResponse.cacheStatus,
       });
       return;
     }

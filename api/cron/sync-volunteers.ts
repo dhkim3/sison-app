@@ -1,5 +1,14 @@
 import { put } from '@vercel/blob';
-import { buildHomeVolunteerSections } from '../volunteer/search.js';
+import {
+  POPULAR_REGION_CACHE_PATH,
+  SEARCH_REGION_CACHE_PATH,
+  buildPopularRegionCache,
+  buildHomeVolunteerSections,
+  buildSearchRegionCache,
+  enrichHomeVolunteerSectionsWithCapacity,
+  getPopularRegionCacheTargetRegions,
+  getSearchRegionCacheTargetRegions,
+} from '../volunteer/search.js';
 
 type VercelRequest = {
   method?: string;
@@ -43,10 +52,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const generatedAt = new Date().toISOString();
     const sections = await buildHomeVolunteerSections(serviceKey);
+    const homeCapacityEnrichment = await enrichHomeVolunteerSectionsWithCapacity(serviceKey, sections);
     const normalizedSections = {
-      lightweight: Array.isArray(sections.lightweight) ? sections.lightweight : [],
-      monthly: Array.isArray(sections.monthly) ? sections.monthly : [],
-      festival: Array.isArray(sections.festival) ? sections.festival : [],
+      lightweight: Array.isArray(homeCapacityEnrichment.sections.lightweight) ? homeCapacityEnrichment.sections.lightweight : [],
+      monthly: Array.isArray(homeCapacityEnrichment.sections.monthly) ? homeCapacityEnrichment.sections.monthly : [],
+      festival: Array.isArray(homeCapacityEnrichment.sections.festival) ? homeCapacityEnrichment.sections.festival : [],
     };
     const counts = {
       lightweight: normalizedSections.lightweight.length,
@@ -59,6 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       source: '1365',
       counts,
       sections: normalizedSections,
+      capacityEnrichment: homeCapacityEnrichment.stats,
     };
     const blob = await put(HOME_CACHE_PATH, JSON.stringify(cachePayload), {
       access: 'private',
@@ -67,12 +78,148 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       token: blobToken,
     });
 
+    let searchRegionCache:
+      | {
+        ok: true;
+        generatedAt: string;
+        targetRegions: string[];
+        counts: Record<string, number>;
+        capacityEnrichment: {
+          attempted: number;
+          alreadyHadCapacity: number;
+          enriched: number;
+          detailCapacityFound: number;
+          missingAfterEnrichment: number;
+          skipped: number;
+        };
+        regionCapacityEnrichment: Record<string, unknown>;
+        blobUrl: string;
+        pathname: string;
+      }
+      | {
+        ok: false;
+        targetRegions: string[];
+        error: string;
+      };
+    let popularRegionCache:
+      | {
+        ok: true;
+        generatedAt: string;
+        targetRegions: string[];
+        counts: Record<string, number>;
+        capacityEnrichment: {
+          attempted: number;
+          alreadyHadCapacity: number;
+          enriched: number;
+          detailCapacityFound: number;
+          missingAfterEnrichment: number;
+          skipped: number;
+        };
+        regionCapacityEnrichment: Record<string, unknown>;
+        blobUrl: string;
+        pathname: string;
+      }
+      | {
+        ok: false;
+        targetRegions: string[];
+        error: string;
+      };
+
+    try {
+      const searchCachePayload = await buildSearchRegionCache(serviceKey);
+      const searchBlob = await put(SEARCH_REGION_CACHE_PATH, JSON.stringify(searchCachePayload), {
+        access: 'private',
+        allowOverwrite: true,
+        contentType: 'application/json; charset=utf-8',
+        token: blobToken,
+      });
+      searchRegionCache = {
+        ok: true,
+        generatedAt: searchCachePayload.generatedAt,
+        targetRegions: getSearchRegionCacheTargetRegions(),
+        counts: Object.fromEntries(
+          Object.entries(searchCachePayload.regions).map(([region, entry]) => [region, entry?.count ?? 0])
+        ),
+        capacityEnrichment: searchCachePayload.capacityEnrichment ?? {
+          attempted: 0,
+          alreadyHadCapacity: 0,
+          enriched: 0,
+          detailCapacityFound: 0,
+          missingAfterEnrichment: 0,
+          skipped: 0,
+        },
+        regionCapacityEnrichment: Object.fromEntries(
+          Object.entries(searchCachePayload.regions).map(([region, entry]) => [
+            region,
+            entry?.capacityEnrichment ?? null,
+          ])
+        ),
+        blobUrl: searchBlob.url,
+        pathname: searchBlob.pathname,
+      };
+    } catch (error) {
+      console.error('volunteer search region cache sync failed:', {
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      searchRegionCache = {
+        ok: false,
+        targetRegions: getSearchRegionCacheTargetRegions(),
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+
+    try {
+      const popularCachePayload = await buildPopularRegionCache(serviceKey);
+      const popularBlob = await put(POPULAR_REGION_CACHE_PATH, JSON.stringify(popularCachePayload), {
+        access: 'private',
+        allowOverwrite: true,
+        contentType: 'application/json; charset=utf-8',
+        token: blobToken,
+      });
+      popularRegionCache = {
+        ok: true,
+        generatedAt: popularCachePayload.generatedAt,
+        targetRegions: getPopularRegionCacheTargetRegions(),
+        counts: Object.fromEntries(
+          Object.entries(popularCachePayload.regions).map(([region, entry]) => [region, entry?.count ?? 0])
+        ),
+        capacityEnrichment: popularCachePayload.capacityEnrichment ?? {
+          attempted: 0,
+          alreadyHadCapacity: 0,
+          enriched: 0,
+          detailCapacityFound: 0,
+          missingAfterEnrichment: 0,
+          skipped: 0,
+        },
+        regionCapacityEnrichment: Object.fromEntries(
+          Object.entries(popularCachePayload.regions).map(([region, entry]) => [
+            region,
+            entry?.capacityEnrichment ?? null,
+          ])
+        ),
+        blobUrl: popularBlob.url,
+        pathname: popularBlob.pathname,
+      };
+    } catch (error) {
+      console.error('volunteer popular region cache sync failed:', {
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      popularRegionCache = {
+        ok: false,
+        targetRegions: getPopularRegionCacheTargetRegions(),
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+
     res.status(200).json({
       ok: true,
       generatedAt,
       counts,
+      capacityEnrichment: homeCapacityEnrichment.stats,
       blobUrl: blob.url,
       pathname: blob.pathname,
+      searchRegionCache,
+      popularRegionCache,
     });
   } catch (error) {
     console.error('volunteer home cache sync failed:', {

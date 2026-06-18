@@ -298,6 +298,27 @@ const adminRegionAliases: readonly TravelPlaceAlias[] = [
 
 export const travelPlaceAliases: readonly TravelPlaceAlias[] = [
   {
+    keywords: ['부산 수영구', '수영구'],
+    sido: '부산광역시',
+    sigungu: '수영구',
+    dong: '',
+    searchKeywords: ['부산 수영구', '수영구', '부산'],
+  },
+  {
+    keywords: ['제주 제주시', '제주시'],
+    sido: '제주특별자치도',
+    sigungu: '제주시',
+    dong: '',
+    searchKeywords: ['제주 제주시', '제주시', '제주'],
+  },
+  {
+    keywords: ['서울 마포구', '마포구'],
+    sido: '서울특별시',
+    sigungu: '마포구',
+    dong: '',
+    searchKeywords: ['서울 마포구', '마포구', '서울'],
+  },
+  {
     keywords: ['광안리', '광안리해수욕장'],
     sido: '부산광역시',
     sigungu: '수영구',

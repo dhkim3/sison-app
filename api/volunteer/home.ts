@@ -34,7 +34,8 @@ type CacheErrorStage =
   | 'blob_read_pathname'
   | 'blob_read_url'
   | 'json_parse'
-  | 'cache_shape';
+  | 'cache_shape'
+  | 'cache_policy';
 
 type CacheErrorSummary = {
   stage: CacheErrorStage;
@@ -122,6 +123,38 @@ const getHomeSectionCounts = (sections: HomeVolunteerSections) => ({
   monthly: sections.monthly.length,
   festival: sections.festival.length,
 });
+
+const getTodayApiDate = () => {
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const parts = formatter.formatToParts(now);
+  const year = parts.find((part) => part.type === 'year')?.value ?? '';
+  const month = parts.find((part) => part.type === 'month')?.value ?? '';
+  const day = parts.find((part) => part.type === 'day')?.value ?? '';
+
+  return Number(`${year}${month}${day}`);
+};
+
+const toSortableDate = (value?: string | null) => {
+  const digits = String(value ?? '').replace(/\D/g, '');
+  if (digits.length < 8) return 0;
+
+  return Number(digits.slice(0, 8));
+};
+
+const hasFutureRecruitmentDeadline = (activity: { recruitmentEndDate?: string | null }) => {
+  const recruitmentEndDate = toSortableDate(activity.recruitmentEndDate);
+  return recruitmentEndDate > 0 && recruitmentEndDate > getTodayApiDate();
+};
+
+const hasOnlyFutureRecruitmentDeadlines = (sections: HomeVolunteerSections) =>
+  [...sections.lightweight, ...sections.monthly, ...sections.festival]
+    .every(hasFutureRecruitmentDeadline);
 
 const normalizeHomeCachePayload = (value: unknown): HomeCachePayload | null => {
   if (!value || typeof value !== 'object') return null;
@@ -265,6 +298,16 @@ const readHomeCache = async () => {
 
   if (!normalizedPayload || !isHomeCachePayload(normalizedPayload)) {
     throw createCacheError('cache_shape', new Error('volunteers-home.json 캐시 형식이 올바르지 않아요.'), {
+      blobToken,
+      blobTokenExists,
+      blobTokenLength,
+      blobFound: true,
+      listedCount,
+    });
+  }
+
+  if (!hasOnlyFutureRecruitmentDeadlines(normalizedPayload.sections)) {
+    throw createCacheError('cache_policy', new Error('홈 캐시에 오늘 마감 또는 지난 모집 활동이 포함되어 있어요.'), {
       blobToken,
       blobTokenExists,
       blobTokenLength,

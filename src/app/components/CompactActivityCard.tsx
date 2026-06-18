@@ -55,6 +55,7 @@ export function CompactActivityCard({
     ? 'flex-1 px-3.5 py-3 flex flex-col justify-center text-left min-w-0'
     : 'flex-1 px-3.5 py-3 flex flex-col justify-center text-left min-w-0';
   const metadataClassName = isAIRecommendation ? 'mt-2.5 space-y-1.5' : 'mt-2 space-y-1';
+  const cardHeight = isAIRecommendation ? cardMinHeight : '126px';
 
   return (
     <div
@@ -73,15 +74,19 @@ export function CompactActivityCard({
           ? 'rounded-[1.35rem] border border-[#e1e6f7] shadow-[0_12px_26px_rgba(80,96,145,0.08)] hover:shadow-[0_14px_30px_rgba(80,96,145,0.11)] hover:border-[#d8def3]'
           : 'rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.04)] border border-black/5 hover:shadow-[0_2px_6px_rgba(0,0,0,0.08)] hover:border-transparent'
       }`}
-      style={isAIRecommendation ? { height: cardMinHeight } : undefined}
+      style={{ height: cardHeight }}
     >
-      <div className={`flex items-stretch ${isAIRecommendation ? 'h-full' : ''}`}>
+      <div className="flex h-full items-stretch">
         {/* Image - Left Side */}
-        <div className="relative min-h-[112px] flex-shrink-0 self-stretch bg-[#f5f5f5]" style={{ width: imageWidth }}>
+        <div className="relative h-full min-h-0 flex-shrink-0 self-stretch overflow-hidden bg-[#f5f5f5]" style={{ width: imageWidth }}>
           <img
             src={imageUrl}
             alt={title}
-            className="absolute inset-0 w-full h-full object-cover"
+            width={320}
+            height={252}
+            loading="eager"
+            decoding="async"
+            className="absolute inset-0 block h-full w-full object-cover object-center"
           />
           {isPast && (
             <div

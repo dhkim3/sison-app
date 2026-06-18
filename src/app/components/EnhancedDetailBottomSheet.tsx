@@ -138,7 +138,25 @@ export function EnhancedDetailBottomSheet({
     activityStatus === 'recruiting' ||
     activityStatus === 'todayDeadline' ||
     activityStatus === 'periodActive';
-  const externalApplyUrl = activity.applyUrl || activity.sourceUrl;
+  const buildVolunteerApplyUrl = () => {
+    const rawUrl = activity.applyUrl || activity.sourceUrl;
+    const trimmedUrl = rawUrl?.trim();
+
+    if (trimmedUrl) {
+      if (/^https?:\/\//i.test(trimmedUrl)) return trimmedUrl;
+      return `https://${trimmedUrl.replace(/^\/+/, '')}`;
+    }
+
+    if (!activity.progrmRegistNo) return '';
+
+    const query = new URLSearchParams({
+      type: 'show',
+      progrmRegistNo: activity.progrmRegistNo,
+    });
+
+    return `https://www.1365.go.kr/vols/P9210/partcptn/timeCptn.do?${query.toString()}`;
+  };
+  const externalApplyUrl = buildVolunteerApplyUrl();
 
   const currentParticipantsRaw = normalizeCapacity(detailCurrentParticipants ?? activity.currentParticipants);
   const currentParticipantsNum = currentParticipantsRaw
@@ -251,12 +269,6 @@ export function EnhancedDetailBottomSheet({
     }
 
     window.open(kakaoMapUrl, '_blank', 'noopener,noreferrer');
-  };
-
-  const handleSourceOpen = () => {
-    if (!externalApplyUrl) return;
-
-    window.open(externalApplyUrl, '_blank', 'noopener,noreferrer');
   };
 
   if (!isOpen) return null;
@@ -432,14 +444,24 @@ export function EnhancedDetailBottomSheet({
             {/* Action Buttons */}
             <div className="space-y-3 pt-4 pb-6">
               {/* Primary CTA */}
-              <button
-                type="button"
-                onClick={handleSourceOpen}
-                disabled={!externalApplyUrl}
-                className="w-full bg-[#2a2a2a] text-white py-4 rounded-2xl transition-all hover:bg-[#1a1a1a] disabled:cursor-not-allowed disabled:bg-[#d7d3cc]"
-              >
-                {externalApplyUrl ? '1365에서 신청하기' : '1365 링크 확인 필요'}
-              </button>
+              {externalApplyUrl ? (
+                <a
+                  href={externalApplyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full rounded-2xl bg-[#2a2a2a] py-4 text-center text-white transition-all hover:bg-[#1a1a1a]"
+                >
+                  1365에서 신청하기
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="w-full cursor-not-allowed rounded-2xl bg-[#d7d3cc] py-4 text-white"
+                >
+                  1365 링크 확인 필요
+                </button>
+              )}
 
               {/* Secondary CTA */}
               <button

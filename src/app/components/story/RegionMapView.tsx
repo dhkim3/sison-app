@@ -26,17 +26,17 @@ interface RegionMarker {
 }
 
 const regions: RegionMarker[] = [
-  { name: '서울', count: 24, x: 282, y: 194 },
-  { name: '경기', count: 18, x: 205, y: 246 },
+  { name: '서울', count: 24, x: 295, y: 168 },
+  { name: '경기', count: 18, x: 318, y: 238 },
   { name: '강원', count: 12, x: 426, y: 184 },
-  { name: '충남', count: 10, x: 230, y: 342 },
+  { name: '충남', count: 10, x: 252, y: 316 },
   { name: '충북', count: 9, x: 390, y: 316 },
   { name: '대전', count: 8, x: 330, y: 372 },
-  { name: '전북', count: 11, x: 240, y: 402 },
+  { name: '전북', count: 11, x: 324, y: 438 },
   { name: '전남', count: 8, x: 200, y: 558 },
-  { name: '광주', count: 7, x: 172, y: 480 },
+  { name: '광주', count: 7, x: 238, y: 476 },
   { name: '경북', count: 9, x: 478, y: 358 },
-  { name: '대구', count: 13, x: 506, y: 392 },
+  { name: '대구', count: 13, x: 432, y: 405 },
   { name: '경남', count: 15, x: 420, y: 500 },
   { name: '울산', count: 10, x: 548, y: 444 },
   { name: '부산', count: 18, x: 512, y: 514 },

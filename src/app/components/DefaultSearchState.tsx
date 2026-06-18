@@ -59,19 +59,22 @@ export function DefaultSearchState({
     {
       name: '부산 수영구',
       description: '바다 산책과 함께하는 가벼운 활동',
+      searchKeyword: '부산 수영구',
     },
     {
-      name: '강릉 안목',
-      description: '주말 여행에 어울리는 해변 활동',
-    },
-    {
-      name: '제주 서쪽',
+      name: '제주',
       description: '느린 일정 사이에 머무는 활동',
+      searchKeyword: '제주',
+    },
+    {
+      name: '서울 마포구',
+      description: '공원과 도심을 잇는 가벼운 활동',
+      searchKeyword: '서울 마포구',
     },
   ];
 
   const topRecentSearches = recentSearches.slice(0, 3);
-  const popularRegionNames = ['부산 수영구', '강릉 안목', '제주 서쪽'];
+  const popularRegionNames = recommendedRegions.map((region) => region.searchKeyword);
 
   const handleSearchSubmit = () => {
     onSearch(destination, dateRange, peopleCount);
@@ -271,7 +274,7 @@ export function DefaultSearchState({
             <button
               key={region.name}
               type="button"
-              onClick={() => onSearch(region.name, '', 0)}
+              onClick={() => onSearch(region.searchKeyword, '', 0)}
               className="w-full rounded-2xl bg-white border border-black/5 px-4 py-3.5 text-left shadow-sm hover:bg-[#fbfbf8] transition-colors"
             >
               <div className="flex items-center gap-3">
