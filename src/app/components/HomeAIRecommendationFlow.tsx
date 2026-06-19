@@ -18,9 +18,9 @@ const timeSuggestions = ['1~2시간', '3~4시간', '4시간 이상'];
 const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
 const activityMoodSuggestions = [
   '조용히 걸으며 할 수 있는',
-  '바다 근처에서 할 수 있는',
+  '바다·공원 근처에서 할 수 있는',
   '혼자 참여해도 부담 없는',
-  '아이와 함께할 수 있는',
+  '지역 행사나 축제를 도울 수 있는',
 ];
 const loadingMessages = [
   '여행 일정을 살펴보고 있어요',
@@ -91,6 +91,134 @@ const isWeekendActivity = (activity: ActivitySaveRecord) => {
 
   const day = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])).getDay();
   return day === 0 || day === 6;
+};
+
+const hasAnyKeyword = (sourceText: string, keywords: RegExp[]) =>
+  keywords.some((keyword) => keyword.test(sourceText));
+
+const getNumberValue = (value?: string) => {
+  const match = value?.match(/(\d+)/);
+  return match ? Number(match[1]) : 0;
+};
+
+const isSingleDayActivity = (activity: ActivitySaveRecord) => {
+  if (activity.activityStartDate && activity.activityEndDate) {
+    return activity.activityStartDate === activity.activityEndDate;
+  }
+
+  if (activity.activityDate || activity.date) return true;
+
+  return false;
+};
+
+const buildActivityConditionText = (activity: ActivitySaveRecord) =>
+  [
+    activity.title,
+    activity.location,
+    activity.description,
+    activity.recommendation,
+    activity.category,
+    activity.volunteerField,
+    activity.volunteerTarget,
+    activity.volunteerType,
+    activity.volunteerPlace,
+    activity.recruitingOrganization,
+    activity.registrationOrganization,
+    activity.materials,
+    activity.difficulty,
+    activity.indoorOutdoor,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+const getActivityMoodScore = (activity: ActivitySaveRecord, moodValue: string) => {
+  const normalizedMood = moodValue.trim().toLowerCase();
+  if (!normalizedMood) return 0;
+
+  const sourceText = buildActivityConditionText(activity);
+  let score = 0;
+
+  if (normalizedMood.includes('조용') || normalizedMood.includes('걷')) {
+    if (
+      hasAnyKeyword(sourceText, [
+        /플로깅/,
+        /산책로\s*정비/,
+        /공원\s*정화/,
+        /숲길/,
+        /둘레길/,
+        /걷기/,
+        /환경\s*정화|환경정화/,
+      ])
+    ) {
+      score += 4;
+    }
+  }
+
+  if (normalizedMood.includes('바다') || normalizedMood.includes('공원')) {
+    if (
+      hasAnyKeyword(sourceText, [
+        /바다/,
+        /해변/,
+        /해수욕장/,
+        /공원/,
+        /숲/,
+        /산책로/,
+        /강변/,
+        /하천/,
+        /해안/,
+        /수목원/,
+      ])
+    ) {
+      score += 4;
+    }
+  }
+
+  if (normalizedMood.includes('혼자') || normalizedMood.includes('부담')) {
+    if (
+      hasAnyKeyword(sourceText, [
+        /단기/,
+        /소규모/,
+        /준비물\s*(없|적|미지참|불필요)/,
+        /(교육|경력|자격)\s*(없|무관|불필요)/,
+        /누구나/,
+        /초보/,
+        /플로깅/,
+        /캠페인/,
+        /환경\s*정화|환경정화/,
+        /안내\s*보조|안내보조/,
+      ])
+    ) {
+      score += 3;
+    }
+
+    if (isSingleDayActivity(activity)) score += 1;
+    if (getActivityHours(activity) <= 2) score += 1;
+
+    const capacity = getNumberValue(activity.capacity);
+    if (capacity > 0 && capacity <= 20) score += 1;
+  }
+
+  if (normalizedMood.includes('행사') || normalizedMood.includes('축제')) {
+    if (
+      hasAnyKeyword(sourceText, [
+        /행사/,
+        /축제/,
+        /문화제/,
+        /공연/,
+        /체험\s*부스|체험부스/,
+        /안내/,
+        /운영\s*보조|운영보조/,
+        /진행\s*보조|진행보조/,
+        /질서\s*안내|질서안내/,
+        /안전\s*관리|안전관리/,
+      ])
+    ) {
+      score += 4;
+    }
+  }
+
+  return score;
 };
 
 export function HomeAIRecommendationFlow({
@@ -245,12 +373,11 @@ export function HomeAIRecommendationFlow({
 
   const recommendedActivities = useMemo(() => {
     const normalizedRegion = region.trim().toLowerCase();
-    const normalizedMood = mood.trim().toLowerCase();
     const desiredHours = getDurationHours(timeLabel);
 
     return activities
       .map((activity, index) => {
-        const sourceText = `${activity.title} ${activity.location} ${activity.description} ${activity.recommendation} ${activity.category ?? ''}`.toLowerCase();
+        const sourceText = buildActivityConditionText(activity);
         const activityMonthDay = getMonthDay(activity.date);
         const activityDate = getDateFromActivity(activity.date);
         const activityHours = getActivityHours(activity);
@@ -266,13 +393,7 @@ export function HomeAIRecommendationFlow({
         if (selectedStartDate && selectedEndDate && isWeekendActivity(activity)) score += 1;
         if (activityHours <= desiredHours) score += 3;
         if (Math.abs(activityHours - desiredHours) <= 1) score += 1;
-
-        if (normalizedMood) {
-          if (normalizedMood.includes('바다') && /바다|해변|해안|방파제/.test(sourceText)) score += 4;
-          if (normalizedMood.includes('조용') && /조용|숲|산책|작은|아침/.test(sourceText)) score += 4;
-          if (normalizedMood.includes('혼자') && /가볍|부담|산책|쉬움/.test(sourceText)) score += 3;
-          if (normalizedMood.includes('아이') && /공원|마을|행사|안내|쉬움/.test(sourceText)) score += 3;
-        }
+        score += getActivityMoodScore(activity, mood);
 
         return { activity, score, index };
       })

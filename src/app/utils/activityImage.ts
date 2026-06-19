@@ -1,6 +1,7 @@
 export type ActivityImageType =
   | 'beach-cleanup'
   | 'forest-trail'
+  | 'public-safety'
   | 'festival-event'
   | 'city-travel'
   | 'education-culture'
@@ -43,6 +44,10 @@ const ACTIVITY_IMAGE_SETS: Record<ActivityImageType, string[]> = {
     '/activity-images/forest-trail-2.png',
     '/activity-images/forest-trail-3.png',
   ],
+  'public-safety': [
+    '/activity-images/public-safety-1.png',
+    '/activity-images/public-safety-2.png',
+  ],
   'festival-event': [
     '/activity-images/festival-event-1.png',
     '/activity-images/festival-event-2.png',
@@ -56,18 +61,25 @@ const ACTIVITY_IMAGE_SETS: Record<ActivityImageType, string[]> = {
   'education-culture': [
     '/activity-images/education-culture-1.png',
     '/activity-images/education-culture-2.png',
+    '/activity-images/education-culture-3.png',
+    '/activity-images/education-culture-4.png',
   ],
   'rural-village': [
-    '/activity-images/default-travel-1.png',
+    '/activity-images/rural-village-1.png',
     '/activity-images/rural-village-2.png',
+    '/activity-images/rural-village-3.png',
   ],
   'care-community': [
     '/activity-images/care-community-1.png',
     '/activity-images/care-community-2.png',
+    '/activity-images/care-community-3.png',
+    '/activity-images/care-community-4.png',
   ],
   'office-campaign': [
     '/activity-images/office-campaign-1.png',
     '/activity-images/office-campaign-2.png',
+    '/activity-images/office-campaign-3.png',
+    '/activity-images/office-campaign-4.png',
   ],
   'default-travel': [
     '/activity-images/default-travel-1.png',
@@ -78,14 +90,50 @@ const ACTIVITY_IMAGE_SETS: Record<ActivityImageType, string[]> = {
 
 const IMAGE_RULES: Array<{ type: ActivityImageType; keywords: string[]; reason: string }> = [
   {
+    type: 'public-safety',
+    reason: '행사 안전/질서/동선 안내 키워드',
+    keywords: [
+      '안전관리',
+      '질서',
+      '동선',
+      '진행보조',
+      '진행 보조',
+      '안내봉사',
+      '안내 봉사',
+      '행사보조',
+      '행사 보조',
+      '운영보조',
+      '운영 보조',
+      '교통안내',
+      '교통 안내',
+      '체험부스 안전',
+      '관람객 안전',
+    ],
+  },
+  {
     type: 'beach-cleanup',
     reason: '해변/바다/환경정화 키워드',
     keywords: ['해변', '바다', '해수욕장', '플로깅', '쓰레기', '정화', '환경정화', '해양', '연안', '방파제'],
   },
   {
+    type: 'care-community',
+    reason: '복지/돌봄/커뮤니티 키워드',
+    keywords: ['노인복지관', '종합복지관', '복지관', '보호센터', '복지', '돌봄', '어르신', '노인', '장애', '요양', '치매'],
+  },
+  {
+    type: 'rural-village',
+    reason: '농어촌/마을/일손 키워드',
+    keywords: ['농어촌', '농촌', '어촌', '일손', '수확', '텃밭', '농장', '마을정리', '마을 정리', '마을길', '봉사단'],
+  },
+  {
+    type: 'office-campaign',
+    reason: '사무/행정/캠페인 키워드',
+    keywords: ['사무', '행정', '캠페인', '홍보', '접수', '분류', '자료', '안내데스크'],
+  },
+  {
     type: 'festival-event',
     reason: '축제/행사/공연 키워드',
-    keywords: ['축제', '행사', '페스티벌', '공연', '문화제', '마을축제', '지역축제', '운영지원', '행사운영', '무대', '관람', '안내'],
+    keywords: ['축제', '행사', '페스티벌', '공연', '문화제', '마을축제', '지역축제', '운영지원', '행사운영', '무대', '관람'],
   },
   {
     type: 'forest-trail',
@@ -98,24 +146,9 @@ const IMAGE_RULES: Array<{ type: ActivityImageType; keywords: string[]; reason: 
     keywords: ['관광', '안내', '투어', '거리', '골목', '시장', '전통시장', '광장', '도시', '마을', '플리마켓', '마켓'],
   },
   {
-    type: 'rural-village',
-    reason: '농어촌/마을/정리 키워드',
-    keywords: ['농촌', '어촌', '농어촌', '마을', '농장', '텃밭', '수확', '정리', '일손', '봉사단'],
-  },
-  {
     type: 'education-culture',
     reason: '교육/도서관/체험 키워드',
     keywords: ['도서관', '리딩', '독서', '교육', '체험', '체험부스', '수업', '프로그램', '어린이', '아동'],
-  },
-  {
-    type: 'care-community',
-    reason: '복지/돌봄/센터 키워드',
-    keywords: ['복지', '돌봄', '어르신', '노인', '장애', '센터', '요양', '치매', '보호센터'],
-  },
-  {
-    type: 'office-campaign',
-    reason: '사무/행정/캠페인 키워드',
-    keywords: ['사무', '행정', '캠페인', '홍보', '접수', '분류', '자료', '안내데스크'],
   },
 ];
 

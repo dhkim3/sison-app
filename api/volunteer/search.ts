@@ -113,22 +113,25 @@ export type CapacityEnrichmentStats = {
 };
 
 const fallbackImages: Record<string, string> = {
-  '환경': 'https://images.unsplash.com/photo-1565803974275-dccd2f933cbb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
-  '교육': 'https://images.unsplash.com/photo-1491438590914-bc09fcaaf77a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
-  '문화': 'https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
-  '보건': 'https://images.unsplash.com/photo-1584515933487-779824d29309?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
-  festival: 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
-  beach: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
-  forest: 'https://images.unsplash.com/photo-1448375240586-882707db888b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
-  city: 'https://images.unsplash.com/photo-1519010470956-6d877008eaa4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
-  default: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800',
+  '환경': '/activity-images/forest-trail-1.png',
+  '교육': '/activity-images/education-culture-1.png',
+  '문화': '/activity-images/education-culture-3.png',
+  '보건': '/activity-images/care-community-1.png',
+  safety: '/activity-images/public-safety-1.png',
+  campaign: '/activity-images/office-campaign-1.png',
+  rural: '/activity-images/rural-village-1.png',
+  festival: '/activity-images/festival-event-1.png',
+  beach: '/activity-images/beach-cleanup-1.png',
+  forest: '/activity-images/forest-trail-1.png',
+  city: '/activity-images/city-travel-1.png',
+  default: '/activity-images/default-travel-1.png',
 };
 
 const festivalImageRotation = [
   fallbackImages.festival,
-  fallbackImages.city,
   fallbackImages.beach,
   fallbackImages.forest,
+  fallbackImages.city,
 ];
 
 const getSingleQueryValue = (value: string | string[] | undefined, fallback = '') => {
@@ -366,6 +369,12 @@ const getRecruitmentDdayLabelFromApiDate = (value: string) => {
 };
 
 const getImageUrl = (category: string, text = '') => {
+  if (/안전관리|질서|동선|진행\s*보조|안내\s*봉사|행사\s*보조|운영\s*보조|교통\s*안내|체험부스\s*안전|관람객\s*안전/.test(text)) {
+    return fallbackImages.safety;
+  }
+  if (/복지관|보호센터|돌봄|어르신|노인|요양|치매/.test(text)) return fallbackImages['보건'];
+  if (/농촌|어촌|농어촌|일손|수확|텃밭|농장/.test(text)) return fallbackImages.rural;
+  if (/캠페인|홍보|접수|자료|안내데스크/.test(text)) return fallbackImages.campaign;
   if (/축제|행사|페스티벌|마켓|플리마켓|부스|박람회/.test(text)) return fallbackImages.festival;
   if (/해변|바다|해수욕장|플로깅/.test(text)) return fallbackImages.beach;
   if (/숲|숲길|산|공원/.test(text)) return fallbackImages.forest;
@@ -1035,6 +1044,11 @@ const monthlySecondaryPenaltyPattern = /교육|센터|어르신|프로그램/;
 const monthlyInstitutionalPenaltyPattern = /기관|복지관|요양원|병동|재가|무료 급식|급식|조리|돌봄/;
 const monthlyRepeatPenaltyPattern = /매주|주\s*\d+회|월\s*\d+회|반복|장기|기간\s*내|수시/;
 const monthlySupplementKeywords = ['플로깅', '환경정화', '캠페인', '공원', '문화', '체험', '축제', '행사'];
+const monthlyHomeStrongExcludePattern = new RegExp(
+  `${monthlyRemoteActivityPattern.source}|${monthlyCareFacilityPattern.source}`,
+);
+
+type MonthlyHomeFallbackLevel = 'strict_monthly' | 'relaxed_monthly' | 'upcoming_traveler';
 
 const getMonthBoundsFromApiDate = (today: string) => {
   const year = Number(today.slice(0, 4));
@@ -1051,10 +1065,25 @@ const getMonthBoundsFromApiDate = (today: string) => {
 
 const clampApiDate = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
-const getMonthlyActivityScore = (item: ParsedVolunteerItem, index: number) => {
+const addApiDateDays = (value: string, days: number) => {
+  const date = toApiDateObject(value);
+  if (!date) return value;
+
+  date.setDate(date.getDate() + days);
+  return `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
+};
+
+const getMonthlySearchableText = (item: ParsedVolunteerItem) => {
   const title = item.progrmSj;
   const categoryAndTitle = `${item.srvcClCode} ${title}`;
-  const searchableText = `${categoryAndTitle} ${item.actPlace} ${item.nanmmbyNm} ${item.progrmCn}`;
+  return {
+    categoryAndTitle,
+    searchableText: `${categoryAndTitle} ${item.actPlace} ${item.nanmmbyNm} ${item.progrmCn}`,
+  };
+};
+
+const getMonthlyActivityScore = (item: ParsedVolunteerItem, index: number) => {
+  const { categoryAndTitle, searchableText } = getMonthlySearchableText(item);
   const activityStartDate = getActivityStartDate(item);
   const activityEndDate = getLightweightActivityEndDate(item);
   const recruitmentEndDate = getRecruitmentEndDate(item);
@@ -1116,10 +1145,89 @@ const getMonthlyActivityScore = (item: ParsedVolunteerItem, index: number) => {
   };
 };
 
+const getMonthlyHomeFallbackScore = (
+  item: ParsedVolunteerItem,
+  index: number,
+  sourceLevel: Exclude<MonthlyHomeFallbackLevel, 'strict_monthly'>,
+) => {
+  const { categoryAndTitle, searchableText } = getMonthlySearchableText(item);
+  const activityStartDate = getActivityStartDate(item);
+  const activityEndDate = getLightweightActivityEndDate(item);
+  const recruitmentEndDate = getRecruitmentEndDate(item);
+  const durationMinutes = getActivityDurationMinutes(item);
+  const today = getTodayApiDate();
+  const todayValue = Number(today);
+  const { monthStart, monthEnd } = getMonthBoundsFromApiDate(today);
+  const activityStartValue = toSortableDate(activityStartDate);
+  const activityEndValue = toSortableDate(activityEndDate || activityStartDate);
+  const recruitmentEndValue = toSortableDate(recruitmentEndDate);
+  const activitySpanDays = getApiDateSpanDays(activityStartDate, activityEndDate || activityStartDate);
+  const daysUntilActivity = getDaysAfterToday(activityStartDate);
+  const hasTravelerFriendlyKeyword = monthlyTravelerFriendlyPattern.test(searchableText);
+  const isInThisMonth = Boolean(activityStartValue && activityStartValue <= monthEnd && activityEndValue >= monthStart);
+
+  if (!isRecruitingItem(item)) return null;
+  if (isActivityEnded(item)) return null;
+  if (!recruitmentEndDate || recruitmentEndValue <= todayValue) return null;
+  if (!activityStartDate) return null;
+  if (!activityEndValue || activityEndValue < todayValue) return null;
+  if (!isYesFlag(item.adultPosblAt)) return null;
+  if (monthlyHomeStrongExcludePattern.test(searchableText)) return null;
+
+  if (sourceLevel === 'relaxed_monthly') {
+    if (!isInThisMonth) return null;
+    if (!hasTravelerFriendlyKeyword && !weeklyPreferredCategoryKeywords.some((kw) => categoryAndTitle.includes(kw))) return null;
+    if (activitySpanDays !== null && activitySpanDays >= 90 && !hasTravelerFriendlyKeyword) return null;
+  } else {
+    const maxUpcomingDate = Number(addApiDateDays(today, 45));
+    if (activityStartValue > maxUpcomingDate) return null;
+    if (!hasTravelerFriendlyKeyword) return null;
+    if (activitySpanDays !== null && activitySpanDays >= 45) return null;
+  }
+
+  let score = sourceLevel === 'relaxed_monthly' ? 15 : 0;
+  const availableStartDate = clampApiDate(activityStartValue, todayValue, sourceLevel === 'relaxed_monthly' ? monthEnd : Number(addApiDateDays(today, 45)));
+  const availableEndDate = sourceLevel === 'relaxed_monthly'
+    ? clampApiDate(activityEndValue, monthStart, monthEnd)
+    : activityEndValue;
+
+  if (hasTravelerFriendlyKeyword) score += 35;
+  if (weeklyPreferredCategoryKeywords.some((kw) => categoryAndTitle.includes(kw))) score += 22;
+
+  const priorityCount = weeklyPriorityTitleKeywords.filter((kw) => searchableText.includes(kw)).length;
+  score += Math.min(priorityCount * 8, 32);
+
+  if (durationMinutes !== null && durationMinutes >= 60 && durationMinutes <= 300) score += 22;
+  else if (durationMinutes !== null && durationMinutes <= 420) score += 8;
+
+  if (activitySpanDays !== null && activitySpanDays <= 14) score += 14;
+  else if (activitySpanDays !== null && activitySpanDays >= 30) score -= 16;
+
+  if (monthlySecondaryPenaltyPattern.test(searchableText)) score -= 10;
+  if (monthlyInstitutionalPenaltyPattern.test(searchableText)) score -= 18;
+  if (monthlyRepeatPenaltyPattern.test(searchableText)) score -= 18;
+  if (monthlyOperationalPattern.test(searchableText)) score -= sourceLevel === 'relaxed_monthly' ? 14 : 24;
+
+  if (daysUntilActivity !== null && daysUntilActivity >= 0) {
+    score += Math.max(0, sourceLevel === 'relaxed_monthly' ? 20 - Math.min(daysUntilActivity, 20) : 18 - Math.min(daysUntilActivity, 18));
+  }
+
+  return {
+    item,
+    index,
+    score,
+    sourceLevel,
+    availableStartDate,
+    availableEndDate,
+    recruitmentEndDate: recruitmentEndValue,
+    durationMinutes: durationMinutes ?? Infinity,
+    hasTravelerFriendlyKeyword,
+    activitySpanDays: activitySpanDays ?? Infinity,
+  };
+};
+
 const getMonthlyActivityRejectReason = (item: ParsedVolunteerItem) => {
-  const title = item.progrmSj;
-  const categoryAndTitle = `${item.srvcClCode} ${title}`;
-  const searchableText = `${categoryAndTitle} ${item.actPlace} ${item.nanmmbyNm} ${item.progrmCn}`;
+  const { searchableText } = getMonthlySearchableText(item);
   const activityStartDate = getActivityStartDate(item);
   const activityEndDate = getLightweightActivityEndDate(item);
   const recruitmentEndDate = getRecruitmentEndDate(item);
@@ -1167,6 +1275,91 @@ const filterMonthlyActivities = (items: ParsedVolunteerItem[]) => {
     });
 
   return candidates.slice(0, 3).map(({ item }) => item);
+};
+
+const getVolunteerItemKey = (item: ParsedVolunteerItem) =>
+  item.progrmRegistNo || `${item.progrmSj}-${item.noticeEndde}-${item.progrmBgnde}`;
+
+const sortMonthlyHomeCandidates = <T extends {
+  availableStartDate: number;
+  recruitmentEndDate: number;
+  durationMinutes: number;
+  hasTravelerFriendlyKeyword: boolean;
+  score: number;
+  activitySpanDays: number;
+  availableEndDate: number;
+  index: number;
+}>(candidates: T[]) =>
+  candidates.sort((a, b) => {
+    if (a.availableStartDate !== b.availableStartDate) return a.availableStartDate - b.availableStartDate;
+    if (a.recruitmentEndDate !== b.recruitmentEndDate) return a.recruitmentEndDate - b.recruitmentEndDate;
+    if (a.durationMinutes !== b.durationMinutes) return a.durationMinutes - b.durationMinutes;
+    if (a.hasTravelerFriendlyKeyword !== b.hasTravelerFriendlyKeyword) return a.hasTravelerFriendlyKeyword ? -1 : 1;
+    if (b.score !== a.score) return b.score - a.score;
+    if (a.activitySpanDays !== b.activitySpanDays) return a.activitySpanDays - b.activitySpanDays;
+    if (a.availableEndDate !== b.availableEndDate) return a.availableEndDate - b.availableEndDate;
+    return a.index - b.index;
+  });
+
+const appendMonthlyHomeCandidates = (
+  selected: ParsedVolunteerItem[],
+  selectedKeys: Set<string>,
+  candidates: Array<{ item: ParsedVolunteerItem }>,
+) => {
+  for (const candidate of candidates) {
+    if (selected.length >= 3) break;
+
+    const key = getVolunteerItemKey(candidate.item);
+    if (selectedKeys.has(key)) continue;
+
+    selected.push(candidate.item);
+    selectedKeys.add(key);
+  }
+};
+
+const selectMonthlyHomeItems = (items: ParsedVolunteerItem[]) => {
+  const selected: ParsedVolunteerItem[] = [];
+  const selectedKeys = new Set<string>();
+  const sourceLevelCounts: Record<MonthlyHomeFallbackLevel, number> = {
+    strict_monthly: 0,
+    relaxed_monthly: 0,
+    upcoming_traveler: 0,
+  };
+
+  const strictCandidates = sortMonthlyHomeCandidates(
+    items
+      .map((item, index) => getMonthlyActivityScore(item, index))
+      .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== null),
+  );
+  appendMonthlyHomeCandidates(selected, selectedKeys, strictCandidates);
+  sourceLevelCounts.strict_monthly = selected.length;
+
+  if (selected.length < 3) {
+    const relaxedCandidates = sortMonthlyHomeCandidates(
+      items
+        .map((item, index) => getMonthlyHomeFallbackScore(item, index, 'relaxed_monthly'))
+        .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== null),
+    );
+    const beforeCount = selected.length;
+    appendMonthlyHomeCandidates(selected, selectedKeys, relaxedCandidates);
+    sourceLevelCounts.relaxed_monthly = selected.length - beforeCount;
+  }
+
+  if (selected.length < 3) {
+    const upcomingCandidates = sortMonthlyHomeCandidates(
+      items
+        .map((item, index) => getMonthlyHomeFallbackScore(item, index, 'upcoming_traveler'))
+        .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== null),
+    );
+    const beforeCount = selected.length;
+    appendMonthlyHomeCandidates(selected, selectedKeys, upcomingCandidates);
+    sourceLevelCounts.upcoming_traveler = selected.length - beforeCount;
+  }
+
+  return {
+    items: selected,
+    sourceLevelCounts,
+  };
 };
 
 const getMonthlyRejectReasonCounts = (items: ParsedVolunteerItem[]) =>
@@ -1841,20 +2034,37 @@ const buildMonthlyHomeSection = async (serviceKey: string) => {
     startDate: '',
     endDate: '',
   });
-  const sourceItems = mergeVolunteerItems([...items, ...supplementalItems]);
-  const monthlyFilteredItems = filterMonthlyActivities(sourceItems);
-  const monthlyItems = monthlyFilteredItems
+  let sourceItems = mergeVolunteerItems([...items, ...supplementalItems]);
+  let monthlySelection = selectMonthlyHomeItems(sourceItems);
+
+  if (monthlySelection.items.length < 3) {
+    const upcomingSupplementalItems = await fetchMonthlySupplementItems({
+      serviceKey,
+      startDate: getTodayApiDate(),
+      endDate: addApiDateDays(getTodayApiDate(), 45),
+    });
+    sourceItems = mergeVolunteerItems([...sourceItems, ...upcomingSupplementalItems]);
+    monthlySelection = selectMonthlyHomeItems(sourceItems);
+  }
+
+  const monthlyItems = monthlySelection.items
     .map(mapHomeVolunteerActivity)
     .filter((activity) => activity.status !== '지난 활동');
 
-  if (monthlyItems.length === 0) {
-    console.warn('1365 monthly home candidates filtered to zero:', {
+  if (monthlyItems.length < 3) {
+    console.warn('1365 monthly home candidates below target:', {
       baseCandidateCount: items.length,
       supplementCandidateCount: supplementalItems.length,
       mergedCandidateCount: sourceItems.length,
-      filterPassedCount: monthlyFilteredItems.length,
+      selectedBeforeStatusFilterCount: monthlySelection.items.length,
       finalMonthlyCount: monthlyItems.length,
+      sourceLevelCounts: monthlySelection.sourceLevelCounts,
       rejectReasonCounts: getMonthlyRejectReasonCounts(sourceItems),
+    });
+  } else if (monthlySelection.sourceLevelCounts.relaxed_monthly > 0 || monthlySelection.sourceLevelCounts.upcoming_traveler > 0) {
+    console.info('1365 monthly home candidates filled with fallback:', {
+      finalMonthlyCount: monthlyItems.length,
+      sourceLevelCounts: monthlySelection.sourceLevelCounts,
     });
   }
 

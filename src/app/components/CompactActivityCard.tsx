@@ -48,14 +48,25 @@ export function CompactActivityCard({
   const recruitmentMetadata = getRecruitmentDday(activityDateInput);
   const isAIRecommendation = variant === 'aiRecommendation';
   const isSearchResult = variant === 'searchResult';
-  // AI 추천 카드는 별도 영역 안에서 고정 높이를 유지하고, 일반 카드는 콘텐츠 높이에 맞춘다.
+  // AI 추천 카드는 제목이 두 줄로 늘어날 때 이미지와 카드 높이가 함께 커진다.
   const cardMinHeight = isAIRecommendation ? '122px' : '126px';
   const imageWidth = isSearchResult ? '37%' : '38%';
   const contentClassName = isAIRecommendation
     ? 'flex-1 px-3.5 py-3 flex flex-col justify-center text-left min-w-0'
     : 'flex-1 px-3.5 py-3 flex flex-col justify-center text-left min-w-0';
   const metadataClassName = isAIRecommendation ? 'mt-2.5 space-y-1.5' : 'mt-2 space-y-1';
-  const cardHeight = isAIRecommendation ? cardMinHeight : '126px';
+  const cardStyle = isAIRecommendation
+    ? { minHeight: cardMinHeight }
+    : { height: '126px' };
+  const cardBodyStyle = isAIRecommendation
+    ? { minHeight: cardMinHeight }
+    : undefined;
+  const cardBodyClassName = isAIRecommendation
+    ? 'flex items-stretch'
+    : 'flex h-full items-stretch';
+  const imageClassName = isAIRecommendation
+    ? 'relative min-h-0 flex-shrink-0 self-stretch overflow-hidden bg-[#f5f5f5]'
+    : 'relative h-full min-h-0 flex-shrink-0 self-stretch overflow-hidden bg-[#f5f5f5]';
 
   return (
     <div
@@ -74,11 +85,11 @@ export function CompactActivityCard({
           ? 'rounded-[1.35rem] border border-[#e1e6f7] shadow-[0_12px_26px_rgba(80,96,145,0.08)] hover:shadow-[0_14px_30px_rgba(80,96,145,0.11)] hover:border-[#d8def3]'
           : 'rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.04)] border border-black/5 hover:shadow-[0_2px_6px_rgba(0,0,0,0.08)] hover:border-transparent'
       }`}
-      style={{ height: cardHeight }}
+      style={cardStyle}
     >
-      <div className="flex h-full items-stretch">
+      <div className={cardBodyClassName} style={cardBodyStyle}>
         {/* Image - Left Side */}
-        <div className="relative h-full min-h-0 flex-shrink-0 self-stretch overflow-hidden bg-[#f5f5f5]" style={{ width: imageWidth }}>
+        <div className={imageClassName} style={{ width: imageWidth }}>
           <img
             src={imageUrl}
             alt={title}

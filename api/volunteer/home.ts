@@ -156,6 +156,9 @@ const hasOnlyFutureRecruitmentDeadlines = (sections: HomeVolunteerSections) =>
   [...sections.lightweight, ...sections.monthly, ...sections.festival]
     .every(hasFutureRecruitmentDeadline);
 
+const hasUsableMonthlySection = (sections: HomeVolunteerSections) =>
+  sections.monthly.length > 0;
+
 const normalizeHomeCachePayload = (value: unknown): HomeCachePayload | null => {
   if (!value || typeof value !== 'object') return null;
 
@@ -308,6 +311,16 @@ const readHomeCache = async () => {
 
   if (!hasOnlyFutureRecruitmentDeadlines(normalizedPayload.sections)) {
     throw createCacheError('cache_policy', new Error('홈 캐시에 오늘 마감 또는 지난 모집 활동이 포함되어 있어요.'), {
+      blobToken,
+      blobTokenExists,
+      blobTokenLength,
+      blobFound: true,
+      listedCount,
+    });
+  }
+
+  if (!hasUsableMonthlySection(normalizedPayload.sections)) {
+    throw createCacheError('cache_policy', new Error('홈 캐시의 이달의 활동 섹션이 비어 있어요.'), {
       blobToken,
       blobTokenExists,
       blobTokenLength,

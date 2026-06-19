@@ -229,8 +229,8 @@ function HiddenPlaceActivityCard({
         decoding="async"
         className="absolute inset-0 block h-full w-full object-cover object-center transition-transform duration-500 ease-out group-hover:scale-[1.025]"
       />
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(21,25,23,0.72)_0%,rgba(21,25,23,0.46)_44%,rgba(21,25,23,0.10)_78%,rgba(21,25,23,0.04)_100%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(18,22,20,0.16)_0%,rgba(18,22,20,0.02)_42%,rgba(18,22,20,0.20)_100%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(21,25,23,0.72)_0%,rgba(21,25,23,0.46)_44%,rgba(21,25,23,0.10)_78%,rgba(21,25,23,0.04)_100%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(18,22,20,0.16)_0%,rgba(18,22,20,0.02)_42%,rgba(18,22,20,0.20)_100%)]" />
 
       <button
         type="button"
@@ -239,7 +239,7 @@ function HiddenPlaceActivityCard({
           onBookmarkClick();
         }}
         aria-label={isSaved ? '저장 취소' : '활동 저장'}
-        className="absolute right-3.5 top-3.5 flex h-9 w-9 items-center justify-center rounded-full bg-white/92 text-[#5a5a5a] shadow-[0_6px_16px_rgba(0,0,0,0.12)] backdrop-blur-sm transition-all hover:bg-white active:scale-95"
+        className="absolute right-3.5 top-3.5 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/92 text-[#5a5a5a] shadow-[0_6px_16px_rgba(0,0,0,0.12)] backdrop-blur-sm transition-all hover:bg-white active:scale-95"
       >
         <Bookmark
           className={`h-4 w-4 ${isSaved ? 'fill-[#a8d5ba] text-[#7fb894]' : 'text-[#5a5a5a]'}`}
@@ -247,7 +247,7 @@ function HiddenPlaceActivityCard({
         />
       </button>
 
-      <div className="absolute inset-y-0 left-0 flex w-full flex-col justify-center px-4 py-4 text-white">
+      <div className="pointer-events-none absolute inset-y-0 left-0 flex w-full flex-col justify-center px-4 py-4 text-white">
         <h4 className="line-clamp-2 pr-[52px] text-[15px] font-medium leading-[1.3] text-white drop-shadow-sm">
           {activity.title}
         </h4>
