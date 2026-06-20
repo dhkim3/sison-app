@@ -413,7 +413,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) {
-    res.status(500).json({ ok: false, error: 'OPENAI_API_KEY가 설정되지 않았어요.' });
+    console.error('[travel-plan] OPENAI_API_KEY 미설정');
+    res.status(500).json({ ok: false, error: '일정을 만들지 못했어요.' });
     return;
   }
 
@@ -454,16 +455,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  console.log('[travel-plan] start', { address, region, destination, date, timePreference, activityTitle: activity.title });
+
   try {
     // Step 1: 주소 → 좌표 (VWorld)
+    console.log('[travel-plan] normalize address', { address, region });
     let geoLat: number;
     let geoLng: number;
     try {
       const geo = await geocodeAddress(address, region);
       geoLat = geo.lat;
       geoLng = geo.lng;
+      console.log('[travel-plan] geocode success', { lat: geoLat, lng: geoLng });
     } catch (err) {
-      console.error('[travel-plan] geocode 실패:', err instanceof Error ? err.message : String(err));
+      console.error('[travel-plan] geocode 실패', {
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+      });
       res.status(200).json({ ok: false, error: '일정을 만들지 못했어요.' });
       return;
     }
@@ -472,11 +480,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let nearby: Awaited<ReturnType<typeof findNearbyPlaces>> = [];
     try {
       nearby = await findNearbyPlaces(geoLat, geoLng);
+      console.log('[travel-plan] nearby places fetched', { count: nearby.length });
     } catch (err) {
-      console.error('[travel-plan] 주변 관광지 조회 실패:', err instanceof Error ? err.message : String(err));
+      console.error('[travel-plan] 주변 관광지 조회 실패', {
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+      });
     }
 
     if (nearby.length === 0) {
+      console.error('[travel-plan] 주변 관광지 없음 — 종료');
       res.status(200).json({ ok: false, error: '일정을 만들지 못했어요.' });
       return;
     }
@@ -506,14 +519,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let plans = raw ? validatePlans(raw.plans ?? [], metaMap) : [];
 
     if (plans.length === 0) {
+      console.log('[travel-plan] 첫 번째 OpenAI 시도 실패 — 재시도');
       raw = await callOpenAI(apiKey, destination, date, timePreference, activity, inputPlaces);
       plans = raw ? validatePlans(raw.plans ?? [], metaMap) : [];
     }
 
     if (plans.length === 0) {
+      console.error('[travel-plan] itinerary generation failed — 재시도 후에도 0건');
       res.status(200).json({ ok: false, error: '일정을 만들지 못했어요.' });
       return;
     }
+
+    console.log('[travel-plan] itinerary generated', { planCount: plans.length });
 
     // Step 5: overview 조회 (실패해도 기본 설명으로 대체)
     const tourKey = process.env.TOUR_API_SERVICE_KEY?.trim() ?? '';
@@ -521,9 +538,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       plans = await enrichPlansWithOverviews(plans, tourKey);
     }
 
+    console.log('[travel-plan] complete');
     res.status(200).json({ ok: true, plans });
   } catch (err) {
-    console.error('[travel-plan]', err);
+    console.error('[travel-plan]', {
+      message: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ ok: false, error: '일정을 만들지 못했어요.' });
   }
 }
