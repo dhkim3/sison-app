@@ -1,4 +1,10 @@
-import { geocodeAddress, findNearbyPlaces, normalizeVolunteerAddress } from '../../lib/server/travelService';
+// Self-contained Serverless Function — no external imports outside Node built-ins / fetch / process.env
+
+declare const process: {
+  env: Record<string, string | undefined>;
+};
+
+// ─── Vercel Types ─────────────────────────────────────────────────────────────
 
 type VercelRequest = {
   method?: string;
@@ -11,11 +17,409 @@ type VercelResponse = {
   setHeader: (name: string, value: string) => void;
 };
 
-declare const process: {
-  env: Record<string, string | undefined>;
+// ─── VWorld / TourAPI Internal Types ─────────────────────────────────────────
+
+type VWorldItem = {
+  address?: { road?: string; parcel?: string };
+  point?: { x?: string; y?: string };
 };
 
-// ─── Input Types ─────────────────────────────────────────────────────────────
+type VWorldResponse = {
+  response?: {
+    status?: string;
+    result?: { total?: string; items?: VWorldItem[] };
+    error?: { code?: string; text?: string };
+  };
+};
+
+type TourApiItem = {
+  contentid?: string;
+  title?: string;
+  addr1?: string;
+  addr2?: string;
+  firstimage?: string;
+  firstimage2?: string;
+  mapy?: string;
+  mapx?: string;
+  dist?: string;
+  contenttypeid?: string;
+};
+
+type TourApiResponse = {
+  response?: {
+    header?: { resultCode?: string; resultMsg?: string };
+    body?: { totalCount?: number; items?: { item?: TourApiItem[] } | '' };
+  };
+};
+
+// ─── Public Service Types ─────────────────────────────────────────────────────
+
+type TravelPlace = {
+  id: string;
+  title: string;
+  address: string;
+  image: string | null;
+  lat: number;
+  lng: number;
+  distance: number;
+  contentTypeId: string;
+};
+
+type GeocodeResult = {
+  lat: number;
+  lng: number;
+  roadAddress: string | null;
+  parcelAddress: string | null;
+};
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
+
+function parseNum(value: string | undefined): number | null {
+  if (!value) return null;
+  const n = parseFloat(value);
+  return isNaN(n) ? null : n;
+}
+
+// ─── VWorld Geocoding ─────────────────────────────────────────────────────────
+
+const VWORLD_BASE = 'https://api.vworld.kr/req/search';
+const VWORLD_BASE_PARAMS = {
+  service: 'search',
+  request: 'search',
+  version: '2.0',
+  format: 'json',
+  crs: 'EPSG:4326',
+  size: '5',
+} as const;
+
+async function vworldFetch(apiKey: string, extra: Record<string, string>): Promise<VWorldItem | null> {
+  const params = new URLSearchParams({ ...VWORLD_BASE_PARAMS, ...extra, key: apiKey });
+  let response: Response;
+  try {
+    response = await fetch(`${VWORLD_BASE}?${params.toString()}`);
+  } catch {
+    return null;
+  }
+  if (!response.ok) return null;
+  let data: VWorldResponse;
+  try {
+    data = (await response.json()) as VWorldResponse;
+  } catch {
+    return null;
+  }
+  if (data?.response?.status !== 'OK') return null;
+  const items = data.response?.result?.items;
+  return items && items.length > 0 ? items[0] : null;
+}
+
+function searchVWorld(apiKey: string, query: string, category: 'ROAD' | 'PARCEL'): Promise<VWorldItem | null> {
+  return vworldFetch(apiKey, { type: 'address', category, query });
+}
+
+function searchVWorldPlace(apiKey: string, query: string): Promise<VWorldItem | null> {
+  return vworldFetch(apiKey, { type: 'place', query });
+}
+
+function searchVWorldDistrict(apiKey: string, query: string, category: 'L4' | 'L2'): Promise<VWorldItem | null> {
+  return vworldFetch(apiKey, { type: 'district', category, query });
+}
+
+// ─── Address Normalization Engine ─────────────────────────────────────────────
+
+const ADDRESS_PREFIX_RE =
+  /^(집결지|집합장소|모임장소|장소명?|집결|출발지|집합)\s*[:：\-·\s]\s*/;
+
+const NOISE_TOKEN_SET = new Set([
+  '입구', '출구', '앞', '뒤', '옆', '안쪽', '바깥쪽',
+  '정문', '후문', '측문',
+  '주차장', '주차', '광장', '공터', '화장실', '쉼터',
+  '캐노피', '텐트', '부스', '컨테이너', '막구조물', '안내판', '현수막',
+  '인근', '일원', '일대', '주변', '부근', '근처',
+  '집결지', '집합장소', '만남의광장',
+  '선착장', '중간선착장', '공원입구', '해변입구',
+  '내', '홀', '로비',
+]);
+
+function hasAdminDivision(address: string): boolean {
+  return /[시군구](\s|$)|[동읍면리](\s|$)/.test(address);
+}
+
+function extractUpToDong(address: string): string | null {
+  const tokens = address.trim().split(/\s+/);
+  let lastIdx = -1;
+  for (let i = 0; i < tokens.length; i++) {
+    if (/동$|읍$|면$|리$/.test(tokens[i])) lastIdx = i;
+  }
+  return lastIdx >= 0 ? tokens.slice(0, lastIdx + 1).join(' ') : null;
+}
+
+function extractSigungu(address: string): string | null {
+  const tokens = address.trim().split(/\s+/);
+  let lastIdx = -1;
+  for (let i = 0; i < tokens.length; i++) {
+    if (/시$|군$|구$/.test(tokens[i])) lastIdx = i;
+  }
+  return lastIdx >= 0 ? tokens.slice(0, lastIdx + 1).join(' ') : null;
+}
+
+function stripProvince(address: string): string | null {
+  const tokens = address.trim().split(/\s+/);
+  if (tokens.length < 2) return null;
+  const first = tokens[0];
+  if (
+    /도$|광역시$|특별시$|특별자치시$|특별자치도$/.test(first) ||
+    /^(경남|경북|전남|전북|충남|충북|강원|경기|제주|인천|대전|대구|부산|울산|광주|세종)$/.test(first)
+  ) {
+    const rest = tokens.slice(1).join(' ');
+    return rest.length > 0 ? rest : null;
+  }
+  return null;
+}
+
+function trimNoiseTokens(address: string): string {
+  const tokens = address.trim().split(/\s+/);
+  let end = tokens.length;
+  while (end > 0 && NOISE_TOKEN_SET.has(tokens[end - 1])) end--;
+  return tokens.slice(0, end).join(' ');
+}
+
+const INDOOR_SUFFIX_RE = /\s+(?:[A-Z]?\d+[층호실]|\d+번[호지]|강당|홀|로비|내)$/;
+function stripIndoorSuffix(text: string): string {
+  return text.replace(INDOOR_SUFFIX_RE, '').trim();
+}
+
+function buildShrinkCandidates(address: string): string[] {
+  const tokens = address.trim().split(/\s+/);
+  const results: string[] = [];
+  for (let end = tokens.length - 1; end >= 1; end--) {
+    results.push(tokens.slice(0, end).join(' '));
+    if (/시$|군$|구$|동$|읍$|면$|리$/.test(tokens[end - 1])) break;
+  }
+  return results;
+}
+
+function normalizeVolunteerAddress(rawAddress: string, region = ''): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  const push = (addr: string) => {
+    const q = addr.replace(/\s{2,}/g, ' ').trim();
+    if (q.length > 1 && !seen.has(q)) {
+      seen.add(q);
+      result.push(q);
+    }
+  };
+
+  let base = rawAddress.trim().replace(ADDRESS_PREFIX_RE, '');
+
+  {
+    const bracketMatch = base.match(/\(([^)]{2,60})\)/);
+    if (bracketMatch) {
+      const inner = bracketMatch[1].replace(/[\r\n\t]+/g, ' ').trim();
+      if (/\d+(?:길|로|번길|번지)|[시군구동읍면리]\s/.test(inner)) {
+        push(inner);
+        const r =
+          extractSigungu(region) ??
+          (region.trim() ? region.trim().split(/\s+/).slice(0, 2).join(' ') : '');
+        if (r && !inner.startsWith(r)) push(`${r} ${inner}`);
+      }
+    }
+  }
+
+  base = base
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/【[^】]*】/g, ' ')
+    .replace(/\[[^\]]*\]/g, ' ')
+    .replace(/['"'"]/g, '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
+  base = stripIndoorSuffix(base);
+
+  push(base);
+
+  const dashIdx = base.indexOf('-');
+  let addrBase = base;
+  if (dashIdx > 0) {
+    const afterDash = base.slice(dashIdx + 1).trim();
+    if (afterDash.length > 0) {
+      push(afterDash);
+      addrBase = afterDash;
+    }
+  }
+
+  const denoised = trimNoiseTokens(addrBase);
+  if (denoised !== addrBase && denoised.length > 0) {
+    push(denoised);
+    addrBase = denoised;
+  }
+
+  if (!hasAdminDivision(addrBase) && region.trim()) {
+    const regionPart =
+      extractSigungu(region) ??
+      region.trim().split(/\s+/).slice(0, 2).join(' ');
+    if (regionPart) push(`${regionPart} ${addrBase}`);
+    push(addrBase);
+  }
+
+  for (const candidate of buildShrinkCandidates(addrBase)) {
+    push(candidate);
+    const stripped = stripProvince(candidate);
+    if (stripped) push(stripped);
+  }
+
+  const dong = extractUpToDong(addrBase);
+  if (dong) {
+    push(dong);
+    const stripped = stripProvince(dong);
+    if (stripped) push(stripped);
+  }
+
+  const sigungu = extractSigungu(addrBase);
+  if (sigungu) {
+    push(sigungu);
+    const stripped = stripProvince(sigungu);
+    if (stripped) push(stripped);
+  }
+
+  return result;
+}
+
+function toGeocodeResult(item: VWorldItem): GeocodeResult | null {
+  const lng = parseNum(item.point?.x);
+  const lat = parseNum(item.point?.y);
+  if (lat === null || lng === null) return null;
+  return {
+    lat,
+    lng,
+    roadAddress: item.address?.road ?? null,
+    parcelAddress: item.address?.parcel ?? null,
+  };
+}
+
+async function geocodeAddress(address: string, region = ''): Promise<GeocodeResult> {
+  const apiKey = process.env.VWORLD_API_KEY?.trim();
+  if (!apiKey) throw new Error('VWORLD_API_KEY가 설정되지 않았습니다.');
+
+  const candidates = normalizeVolunteerAddress(address, region);
+  const regionStr = region.trim();
+
+  for (const query of candidates) {
+    const road = await searchVWorld(apiKey, query, 'ROAD');
+    if (road) { const r = toGeocodeResult(road); if (r) return r; }
+
+    const parcel = await searchVWorld(apiKey, query, 'PARCEL');
+    if (parcel) { const r = toGeocodeResult(parcel); if (r) return r; }
+
+    const place = await searchVWorldPlace(apiKey, query);
+    if (place) { const r = toGeocodeResult(place); if (r) return r; }
+
+    if (regionStr) {
+      const rq = `${regionStr} ${query}`.replace(/\s{2,}/g, ' ').trim();
+      if (rq !== query) {
+        const regionPlace = await searchVWorldPlace(apiKey, rq);
+        if (regionPlace) { const r = toGeocodeResult(regionPlace); if (r) return r; }
+      }
+    }
+  }
+
+  const lastTok = (s: string) => s.trim().split(/\s+/).pop() ?? '';
+  const districtCandidates = candidates.filter(c => /[동읍면리시군구]$/.test(lastTok(c)));
+  if (regionStr && !districtCandidates.includes(regionStr)) districtCandidates.push(regionStr);
+
+  for (const query of districtCandidates) {
+    for (const cat of ['L4', 'L2'] as const) {
+      const district = await searchVWorldDistrict(apiKey, query, cat);
+      if (district) { const r = toGeocodeResult(district); if (r) return r; }
+    }
+  }
+
+  throw new Error('주소 좌표를 찾지 못했어요.');
+}
+
+// ─── TourAPI ──────────────────────────────────────────────────────────────────
+
+function normalizeTourItems(items: TourApiItem[]): TravelPlace[] {
+  const seen = new Set<string>();
+  const result: TravelPlace[] = [];
+
+  for (const item of items) {
+    const id = item.contentid?.trim();
+    const title = item.title?.trim();
+    if (!id || !title) continue;
+    if (seen.has(id)) continue;
+    seen.add(id);
+
+    const lat = parseNum(item.mapy);
+    const lng = parseNum(item.mapx);
+    if (lat === null || lng === null) continue;
+
+    const addr1 = item.addr1?.trim() ?? '';
+    const addr2 = item.addr2?.trim() ?? '';
+
+    result.push({
+      id,
+      title,
+      address: addr2 ? `${addr1} ${addr2}`.trim() : addr1,
+      image: item.firstimage?.trim() || item.firstimage2?.trim() || null,
+      lat,
+      lng,
+      distance: parseInt(item.dist ?? '0', 10),
+      contentTypeId: item.contenttypeid ?? '12',
+    });
+  }
+
+  return result;
+}
+
+async function findNearbyPlaces(lat: number, lng: number): Promise<TravelPlace[]> {
+  const serviceKey = process.env.TOUR_API_SERVICE_KEY?.trim();
+  if (!serviceKey) throw new Error('TOUR_API_SERVICE_KEY가 설정되지 않았습니다.');
+
+  const params = new URLSearchParams({
+    MobileOS: 'ETC',
+    MobileApp: 'sison',
+    _type: 'json',
+    mapX: String(lng),
+    mapY: String(lat),
+    radius: '10000',
+    contentTypeId: '12',
+    numOfRows: '20',
+    pageNo: '1',
+    arrange: 'E',
+  });
+
+  const base = 'https://apis.data.go.kr/B551011/KorService2/locationBasedList2';
+  const url = `${base}?serviceKey=${serviceKey}&${params.toString()}`;
+
+  const response = await fetch(url);
+  const responseText = await response.text();
+
+  if (!response.ok) {
+    throw new Error(`TourAPI HTTP ${response.status}: ${responseText.slice(0, 200)}`);
+  }
+
+  let data: TourApiResponse;
+  try {
+    data = JSON.parse(responseText) as TourApiResponse;
+  } catch {
+    throw new Error(`TourAPI 응답 파싱 실패: ${responseText.slice(0, 200)}`);
+  }
+
+  const resultCode = data.response?.header?.resultCode;
+  if (resultCode && resultCode !== '0000') {
+    throw new Error(data.response?.header?.resultMsg ?? `TourAPI 오류 (${resultCode})`);
+  }
+
+  const rawItems = data.response?.body?.items;
+  const itemList: TourApiItem[] =
+    rawItems && rawItems !== '' && Array.isArray(rawItems.item) ? rawItems.item : [];
+
+  return normalizeTourItems(itemList);
+}
+
+// ─── Travel Plan Input Types ──────────────────────────────────────────────────
 
 type InputPlace = {
   id: string;
@@ -32,9 +436,6 @@ type ActivityInfo = {
 };
 
 // ─── GPT Raw Output Types ─────────────────────────────────────────────────────
-
-// GPT가 반환하는 것은 duration과 stop id 배열뿐
-// title/summary는 코드에서 생성
 
 type RawStop = {
   id: string;
@@ -166,7 +567,6 @@ const PLAN_META: Record<string, { title: string; summary: string }> = {
   },
 };
 
-// 같은 카테고리가 겹칠 때 사용할 대체 레이블 순서
 const FALLBACK_LABELS = ['탐방 코스', '여행 코스', '관광 코스'];
 
 // ─── Validation ───────────────────────────────────────────────────────────────
@@ -241,7 +641,6 @@ function validatePlans(rawPlans: RawPlan[], metaMap: Map<string, PlaceMeta>): Tr
     }
     usedCategories.push(category);
 
-    // 활동 장소에서 각 관광지까지 거리 중 최대값 (= 최대 이동 반경)
     const maxDistanceM = Math.max(0, ...placeStops.map((s) => s.distance));
 
     result.push({ title, summary, duration, maxDistanceM, stops: placeStops });
@@ -376,9 +775,7 @@ async function callOpenAI(
 
   try {
     const parsed = JSON.parse(content) as RawResponse;
-    console.log('[travel-plan] openai success', {
-      rawPlansCount: parsed.plans?.length ?? 0,
-    });
+    console.log('[travel-plan] openai success', { rawPlansCount: parsed.plans?.length ?? 0 });
     return parsed;
   } catch (err) {
     console.error('[travel-plan] openai content json parse fail', {
@@ -438,7 +835,6 @@ async function fetchPlaceOverview(contentId: string, serviceKey: string): Promis
     if (!items || items === '') return null;
     const raw = items.item?.[0]?.overview?.trim() ?? null;
     if (!raw) return null;
-    // HTML 태그 제거 후 공백 정규화, 최대 100자
     const clean = raw.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
     return clean.length > 100 ? clean.slice(0, 97) + '...' : clean;
   } catch {
@@ -523,7 +919,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  // 정규화 후보 미리 계산 — geocode 실패 시 로그에 포함
   const normalizedCandidates = normalizeVolunteerAddress(address, region);
 
   console.log('[travel-plan] start', {
@@ -559,7 +954,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Step 2: 좌표 → 주변 관광지 (TourAPI)
-    let nearby: Awaited<ReturnType<typeof findNearbyPlaces>> = [];
+    let nearby: TravelPlace[] = [];
     try {
       nearby = await findNearbyPlaces(geoLat, geoLng);
       console.log('[travel-plan] nearby places success', { count: nearby.length, titles: nearby.map((p) => p.title).slice(0, 5) });
