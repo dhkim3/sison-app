@@ -34,17 +34,6 @@ type TravelPlan = {
   stops: Stop[];
 };
 
-type TravelPlace = {
-  id: string;
-  title: string;
-  address: string;
-  image: string | null;
-  lat: number;
-  lng: number;
-  distance: number;
-  contentTypeId: string;
-};
-
 // ─── Cache ────────────────────────────────────────────────────────────────────
 
 const travelPlanCache = new Map<string, { plans: TravelPlan[]; expiresAt: number }>();
@@ -101,65 +90,33 @@ async function fetchTravelPlans(
   const cached = readCache(cacheKey);
   if (cached) return cached;
 
-  // Step 1: 주소 → 좌표 (VWorld)
-  const geocodeRes = await fetch('/api/travel?action=geocode', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ address, region: destination }),
-    signal,
-  });
-  const geocodeData = await geocodeRes.json() as {
-    ok: boolean;
-    lat?: number;
-    lng?: number;
-    error?: string;
-  };
-  if (!geocodeData.ok || geocodeData.lat == null || geocodeData.lng == null) {
-    throw new Error(geocodeData.error ?? '주소 좌표를 찾지 못했어요.');
-  }
-
-  // Step 2: 좌표 → 주변 관광지 (TourAPI)
-  const nearbyRes = await fetch('/api/travel?action=nearby-places', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ lat: geocodeData.lat, lng: geocodeData.lng }),
-    signal,
-  });
-  const nearbyData = await nearbyRes.json() as {
-    ok: boolean;
-    places?: TravelPlace[];
-    error?: string;
-  };
-  if (!nearbyData.ok) {
-    throw new Error(nearbyData.error ?? '주변 관광지를 찾지 못했어요.');
-  }
-
-  const places = nearbyData.places ?? [];
-
-  // Step 3: 관광지 + 활동 → 여행 일정 (OpenAI)
-  const planRes = await fetch('/api/ai/travel-plan', {
+  const res = await fetch('/api/ai/travel-plan', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      address,
+      region: destination,
       destination,
       date,
       timePreference,
-      activity: { title: activity.title, address },
-      places,
+      activity: { title: activity.title },
     }),
     signal,
   });
-  const planData = await planRes.json() as {
-    ok: boolean;
-    plans?: TravelPlan[];
-    error?: string;
-  };
-  if (!planData.ok || !planData.plans || planData.plans.length === 0) {
-    throw new Error(planData.error ?? '일정을 생성하지 못했어요.');
+
+  if (!res.ok || !res.headers.get('content-type')?.includes('application/json')) {
+    const text = await res.text().catch(() => '');
+    console.error('[travel-plan] 예상치 못한 응답:', res.status, text.slice(0, 300));
+    throw new Error('일정을 만들지 못했어요.');
   }
 
-  writeCache(cacheKey, planData.plans);
-  return planData.plans;
+  const data = await res.json() as { ok: boolean; plans?: TravelPlan[]; error?: string };
+  if (!data.ok || !data.plans?.length) {
+    throw new Error('일정을 만들지 못했어요.');
+  }
+
+  writeCache(cacheKey, data.plans);
+  return data.plans;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

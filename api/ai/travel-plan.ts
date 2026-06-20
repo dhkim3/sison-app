@@ -1,3 +1,5 @@
+import { geocodeAddress, findNearbyPlaces } from '../travel/_service';
+
 type VercelRequest = {
   method?: string;
   body?: unknown;
@@ -296,13 +298,16 @@ async function callOpenAI(
     }),
   });
 
-  const payload = (await response.json()) as OpenAIPayload;
+  let payload: OpenAIPayload;
+  try {
+    payload = (await response.json()) as OpenAIPayload;
+  } catch {
+    console.error('[travel-plan] OpenAI 응답 파싱 실패, status:', response.status);
+    return null;
+  }
 
   if (!response.ok) {
-    console.error('OpenAI travel-plan failed:', {
-      status: response.status,
-      error: payload.error?.message,
-    });
+    console.error('[travel-plan] OpenAI 오류:', response.status, payload.error?.message);
     return null;
   }
 
@@ -333,33 +338,6 @@ function parseBody(raw: unknown): Record<string, unknown> | null {
 
 function getString(v: unknown): string {
   return typeof v === 'string' ? v.trim() : '';
-}
-
-function normalizePlaces(raw: unknown): InputPlace[] {
-  if (!Array.isArray(raw)) return [];
-  const seen = new Set<string>();
-  const result: InputPlace[] = [];
-
-  for (const item of raw) {
-    if (!item || typeof item !== 'object') continue;
-    const p = item as Record<string, unknown>;
-    const id = getString(p.id);
-    const title = getString(p.title);
-    if (!id || !title || seen.has(id)) continue;
-    seen.add(id);
-    const addr = getString(p.address);
-    const imgRaw = p.image;
-    result.push({
-      id,
-      title,
-      address: addr,
-      distance: typeof p.distance === 'number' ? p.distance : 0,
-      contentTypeId: getString(p.contentTypeId) || '12',
-      image: typeof imgRaw === 'string' && imgRaw.trim() ? imgRaw.trim() : null,
-    });
-  }
-
-  return result.slice(0, 20);
 }
 
 // ─── TourAPI Detail Common (overview 조회) ────────────────────────────────────
@@ -445,12 +423,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const destination = getString(body.destination);
+  const address = getString(body.address);
+  const region = getString(body.region);
+  const destination = getString(body.destination) || region;
   const date = getString(body.date);
   const timePreference = getString(body.timePreference);
 
-  if (!destination) {
-    res.status(400).json({ ok: false, error: '여행지를 입력해주세요.' });
+  if (!address) {
+    res.status(400).json({ ok: false, error: '봉사활동 주소가 없어요.' });
     return;
   }
 
@@ -466,7 +446,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const activity: ActivityInfo = {
     title: getString(activityRaw.title),
-    address: getString(activityRaw.address),
+    address,
   };
 
   if (!activity.title) {
@@ -474,40 +454,68 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const places = normalizePlaces(body.places);
-  if (places.length === 0) {
-    res.status(400).json({ ok: false, error: '관광지 후보가 없어요.' });
-    return;
-  }
-
-  const metaMap = new Map<string, PlaceMeta>(
-    places.map((p) => [
-      p.id,
-      {
-        title: p.title,
-        address: p.address ?? '',
-        contentTypeId: p.contentTypeId ?? '12',
-        distance: p.distance ?? 0,
-        image: p.image ?? null,
-      },
-    ]),
-  );
-
   try {
-    let raw = await callOpenAI(apiKey, destination, date, timePreference, activity, places);
+    // Step 1: 주소 → 좌표 (VWorld)
+    let geoLat: number;
+    let geoLng: number;
+    try {
+      const geo = await geocodeAddress(address, region);
+      geoLat = geo.lat;
+      geoLng = geo.lng;
+    } catch (err) {
+      console.error('[travel-plan] geocode 실패:', err instanceof Error ? err.message : String(err));
+      res.status(200).json({ ok: false, error: '일정을 만들지 못했어요.' });
+      return;
+    }
+
+    // Step 2: 좌표 → 주변 관광지 (TourAPI)
+    let nearby: Awaited<ReturnType<typeof findNearbyPlaces>> = [];
+    try {
+      nearby = await findNearbyPlaces(geoLat, geoLng);
+    } catch (err) {
+      console.error('[travel-plan] 주변 관광지 조회 실패:', err instanceof Error ? err.message : String(err));
+    }
+
+    if (nearby.length === 0) {
+      res.status(200).json({ ok: false, error: '일정을 만들지 못했어요.' });
+      return;
+    }
+
+    // Step 3: 메타맵 + InputPlace 구성
+    const metaMap = new Map<string, PlaceMeta>(
+      nearby.map((p) => [p.id, {
+        title: p.title,
+        address: p.address,
+        contentTypeId: p.contentTypeId,
+        distance: p.distance,
+        image: p.image,
+      }]),
+    );
+
+    const inputPlaces: InputPlace[] = nearby.map((p) => ({
+      id: p.id,
+      title: p.title,
+      address: p.address,
+      distance: p.distance,
+      contentTypeId: p.contentTypeId,
+      image: p.image,
+    }));
+
+    // Step 4: OpenAI 일정 생성 (실패 시 1회 재시도)
+    let raw = await callOpenAI(apiKey, destination, date, timePreference, activity, inputPlaces);
     let plans = raw ? validatePlans(raw.plans ?? [], metaMap) : [];
 
     if (plans.length === 0) {
-      raw = await callOpenAI(apiKey, destination, date, timePreference, activity, places);
+      raw = await callOpenAI(apiKey, destination, date, timePreference, activity, inputPlaces);
       plans = raw ? validatePlans(raw.plans ?? [], metaMap) : [];
     }
 
     if (plans.length === 0) {
-      res.status(200).json({ ok: false, error: '일정을 생성하지 못했어요.' });
+      res.status(200).json({ ok: false, error: '일정을 만들지 못했어요.' });
       return;
     }
 
-    // overview 조회 (실패해도 기본 설명으로 대체)
+    // Step 5: overview 조회 (실패해도 기본 설명으로 대체)
     const tourKey = process.env.TOUR_API_SERVICE_KEY?.trim() ?? '';
     if (tourKey) {
       plans = await enrichPlansWithOverviews(plans, tourKey);
@@ -515,7 +523,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     res.status(200).json({ ok: true, plans });
   } catch (err) {
-    console.error('travel-plan error:', err instanceof Error ? err.message : String(err));
-    res.status(500).json({ ok: false, error: '일정을 생성하지 못했어요.' });
+    console.error('[travel-plan]', err);
+    res.status(500).json({ ok: false, error: '일정을 만들지 못했어요.' });
   }
 }
