@@ -14,6 +14,80 @@ interface HomeAIRecommendationFlowProps {
   onToggleSavedActivity: (activity: ActivitySaveRecord) => void;
 }
 
+type ParsedActivityPreference = {
+  intentSummary: string;
+  keywords: string[];
+  categories: string[];
+  preferredConditions: {
+    intensity: 'low' | 'medium' | 'high' | 'unknown';
+    indoorOutdoor: 'indoor' | 'outdoor' | 'both' | 'unknown';
+    soloFriendly: boolean | null;
+    crowdLevel: 'low' | 'medium' | 'high' | 'unknown';
+  };
+  excludeKeywords: string[];
+};
+
+type ParsePreferenceApiResponse = {
+  ok: boolean;
+  parsed?: ParsedActivityPreference;
+  error?: string;
+};
+
+type VolunteerApiActivity = {
+  id: string;
+  title: string;
+  location: string;
+  region: string;
+  recruitmentStartDate: string;
+  recruitmentEndDate: string;
+  activityStartDate: string;
+  activityEndDate: string;
+  time: string;
+  category: string;
+  organization: string;
+  capacity: string | number | null;
+  currentParticipants: string | number | null;
+  volunteerTarget?: string | null;
+  volunteerType?: string | null;
+  status: '모집중' | '지난 활동';
+  imageUrl: string;
+  applyUrl?: string;
+  sourceUrl?: string;
+  progrmRegistNo: string;
+};
+
+type VolunteerApiResponse = {
+  ok: boolean;
+  items: VolunteerApiActivity[];
+  error?: string;
+};
+
+type ActivityRecommendation = {
+  activityId: string;
+  reason: string;
+  fitTags: string[];
+};
+
+type RecommendActivitiesApiResponse = {
+  ok: boolean;
+  recommendations?: ActivityRecommendation[];
+  error?: string;
+};
+
+type AIRecommendedActivity = {
+  activity: ActivitySaveRecord;
+  reason?: string;
+  fitTags?: string[];
+};
+
+type ScoredVolunteerCandidate = {
+  source: VolunteerApiActivity;
+  activity: ActivitySaveRecord;
+  baseScore: number;
+  matchReasons: string[];
+  diversityKey: string;
+};
+
 const timeSuggestions = ['1~2시간', '3~4시간', '4시간 이상'];
 const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
 const activityMoodSuggestions = [
@@ -23,10 +97,18 @@ const activityMoodSuggestions = [
   '지역 행사나 축제를 도울 수 있는',
 ];
 const loadingMessages = [
-  '여행 일정을 살펴보고 있어요',
-  '주변 활동을 찾고 있어요',
-  '가볍게 이어갈 수 있는 일정을 정리하고 있어요',
+  '조건에 맞는 활동을 살펴보고 있어요',
+  '가까운 활동을 찾고 있어요',
+  '추천 결과를 정리하고 있어요',
 ];
+const defaultActivityPreferenceText = '여행 중 부담 없이 참여할 수 있는 조용하고 가벼운 활동';
+const maxPreferenceTextLength = 200;
+const maxRecommendationCacheEntries = 20;
+
+const recommendationResultCache = new Map<string, {
+  recommendations: AIRecommendedActivity[];
+  notice: string;
+}>();
 
 const aiInputClassName =
   'mb-4 w-full rounded-2xl border border-[#c9d5ff] bg-white/86 px-4 py-4 text-[16px] text-[#28324a] outline-none shadow-[0_8px_22px_rgba(96,124,210,0.08),inset_0_1px_0_rgba(255,255,255,0.75)] transition-all placeholder:text-[#9aa4bd] focus:border-[#9c8cff] focus:bg-white focus:shadow-[0_0_0_4px_rgba(118,107,255,0.10),0_10px_26px_rgba(96,124,210,0.10)]';
@@ -55,6 +137,69 @@ const formatDateRangeLabel = (startDate: Date, endDate: Date) => {
   if (startDate.toDateString() === endDate.toDateString()) return formatDateLabel(startDate);
 
   return `${formatDateLabel(startDate)} - ${formatDateLabel(endDate)}`;
+};
+
+const formatApiDate = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+const normalizeCapacityText = (value: string | number | null | undefined) =>
+  value == null ? '' : String(value);
+
+const toSortableDateNumber = (value?: string) => {
+  const digits = value?.replace(/\D/g, '').slice(0, 8) ?? '';
+  return digits.length === 8 ? Number(digits) : 0;
+};
+
+const getTodaySortableDate = () => {
+  const now = new Date();
+  return Number(`${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`);
+};
+
+const normalizeText = (value?: string | null) => String(value ?? '').trim().toLowerCase();
+
+const createDefaultParsedPreference = (preferenceText = defaultActivityPreferenceText): ParsedActivityPreference => ({
+  intentSummary: `${preferenceText}을 선호합니다.`,
+  keywords: ['가벼운 활동', '환경정화', '산책', '공원'],
+  categories: ['여행친화 활동', '산책형 활동'],
+  preferredConditions: {
+    intensity: 'low',
+    indoorOutdoor: 'both',
+    soloFriendly: null,
+    crowdLevel: 'unknown',
+  },
+  excludeKeywords: ['교육', '멘토링', '상담', '요양', '정기', '장기'],
+});
+
+const getRecommendationCacheKey = (value: {
+  location: string;
+  dateRange: string;
+  duration: string;
+  preferenceText: string;
+}) => JSON.stringify({
+  location: value.location.trim(),
+  dateRange: value.dateRange.trim(),
+  duration: value.duration.trim(),
+  preferenceText: value.preferenceText.trim(),
+});
+
+const rememberRecommendationResult = (
+  cacheKey: string,
+  value: {
+    recommendations: AIRecommendedActivity[];
+    notice: string;
+  },
+) => {
+  if (recommendationResultCache.has(cacheKey)) {
+    recommendationResultCache.delete(cacheKey);
+  }
+
+  recommendationResultCache.set(cacheKey, value);
+
+  while (recommendationResultCache.size > maxRecommendationCacheEntries) {
+    const oldestKey = recommendationResultCache.keys().next().value;
+    if (!oldestKey) break;
+    recommendationResultCache.delete(oldestKey);
+  }
 };
 
 const getDateFromActivity = (value?: string) => {
@@ -131,6 +276,212 @@ const buildActivityConditionText = (activity: ActivitySaveRecord) =>
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
+
+const mapVolunteerApiActivityToSaveRecord = (activity: VolunteerApiActivity): ActivitySaveRecord => ({
+  id: activity.id || activity.progrmRegistNo,
+  imageUrl: activity.imageUrl,
+  title: activity.title || '제목 확인 필요',
+  location: activity.location || activity.region || '장소 확인 필요',
+  recruitmentStartDate: activity.recruitmentStartDate,
+  recruitmentEndDate: activity.recruitmentEndDate,
+  date: activity.activityStartDate,
+  activityDate: activity.activityStartDate,
+  activityStartDate: activity.activityStartDate,
+  activityEndDate: activity.activityEndDate,
+  time: activity.time || '시간 확인 필요',
+  status: activity.status,
+  isRecruiting: activity.status !== '지난 활동',
+  description: activity.organization
+    ? `${activity.organization}에서 모집하는 1365 봉사활동입니다.`
+    : '1365에서 제공한 봉사활동입니다.',
+  materials: '1365 상세 페이지에서 확인해주세요.',
+  capacity: normalizeCapacityText(activity.capacity),
+  currentParticipants: normalizeCapacityText(activity.currentParticipants),
+  volunteerTarget: activity.volunteerTarget || undefined,
+  volunteerType: activity.volunteerType || undefined,
+  recommendation: 'AI가 사용자의 조건과 실제 1365 후보를 비교해 고른 활동입니다.',
+  category: activity.category,
+  volunteerPeriod:
+    activity.activityStartDate && activity.activityEndDate
+      ? `${activity.activityStartDate} - ${activity.activityEndDate}`
+      : activity.activityStartDate,
+  volunteerTime: activity.time || '시간 확인 필요',
+  volunteerField: activity.category || '봉사분야 확인 필요',
+  recruitingOrganization: activity.organization || '모집기관 확인 필요',
+  volunteerPlace: activity.location || activity.region || '장소 확인 필요',
+  applyUrl: activity.applyUrl || activity.sourceUrl,
+  sourceUrl: activity.sourceUrl,
+  progrmRegistNo: activity.progrmRegistNo,
+});
+
+const buildVolunteerApiConditionText = (activity: VolunteerApiActivity) =>
+  [
+    activity.title,
+    activity.location,
+    activity.region,
+    activity.category,
+    activity.organization,
+    activity.volunteerTarget,
+    activity.volunteerType,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+const getVolunteerApiActivityHours = (activity: VolunteerApiActivity) => {
+  const timeMatch = activity.time.match(/^(\d{1,2}):\d{2}\s*[-~]\s*(\d{1,2}):\d{2}$/);
+  if (!timeMatch) return null;
+
+  const startHour = Number(timeMatch[1]);
+  const endHour = Number(timeMatch[2]);
+  if (!Number.isFinite(startHour) || !Number.isFinite(endHour)) return null;
+
+  return Math.max(1, endHour - startHour);
+};
+
+const getActivityTrait = (activity: VolunteerApiActivity) => {
+  const sourceText = buildVolunteerApiConditionText(activity);
+  if (/플로깅|환경\s*정화|환경정화|정화|공원|해변|산책|숲길|둘레길|하천|해안/.test(sourceText)) return 'environment';
+  if (/축제|행사|문화제|공연|체험|부스|안내/.test(sourceText)) return 'event';
+  if (/문화|관광|마을|거리/.test(sourceText)) return 'local';
+
+  return 'general';
+};
+
+const getCandidateDiversityKey = (activity: VolunteerApiActivity) =>
+  [
+    normalizeText(activity.organization),
+    normalizeText(activity.title),
+    activity.activityStartDate,
+  ].join('|');
+
+const scoreVolunteerCandidate = (
+  activity: VolunteerApiActivity,
+  preference: ParsedActivityPreference,
+  options: {
+    region: string;
+    timeLabel: string;
+    mood: string;
+    selectedStartDate: Date | null;
+    selectedEndDate: Date | null;
+  },
+): ScoredVolunteerCandidate | null => {
+  const today = getTodaySortableDate();
+  const activityStart = toSortableDateNumber(activity.activityStartDate);
+  const activityEnd = toSortableDateNumber(activity.activityEndDate || activity.activityStartDate);
+  const recruitmentEnd = toSortableDateNumber(activity.recruitmentEndDate);
+
+  if (activity.status === '지난 활동') return null;
+  if (activityEnd > 0 && activityEnd < today) return null;
+
+  const sourceText = buildVolunteerApiConditionText(activity);
+  const matchReasons: string[] = [];
+  let baseScore = 0;
+
+  const normalizedRegion = normalizeText(options.region);
+  if (normalizedRegion && sourceText.includes(normalizedRegion)) {
+    baseScore += 28;
+    matchReasons.push('지역 일치');
+  }
+
+  const rangeStart = options.selectedStartDate ? toSortableDateNumber(formatApiDate(options.selectedStartDate)) : 0;
+  const rangeEnd = options.selectedEndDate ? toSortableDateNumber(formatApiDate(options.selectedEndDate)) : 0;
+  if (rangeStart && rangeEnd && activityStart && activityEnd && activityStart <= rangeEnd && activityEnd >= rangeStart) {
+    baseScore += 24;
+    matchReasons.push('선택 일정 안에 있음');
+  }
+
+  const desiredHours = getDurationHours(options.timeLabel);
+  const activityHours = getVolunteerApiActivityHours(activity);
+  if (activityHours !== null) {
+    if (options.timeLabel.includes('4시간 이상') ? activityHours >= 4 : activityHours <= desiredHours) {
+      baseScore += 14;
+      matchReasons.push('선택한 시간 조건과 가까움');
+    } else if (Math.abs(activityHours - desiredHours) <= 1) {
+      baseScore += 7;
+    }
+  }
+
+  const preferenceWords = [
+    ...preference.keywords,
+    ...preference.categories,
+    preference.intentSummary,
+    options.mood,
+  ]
+    .map(normalizeText)
+    .filter(Boolean);
+  const preferenceMatchCount = preferenceWords.filter((word) => sourceText.includes(word)).length;
+  if (preferenceMatchCount > 0) {
+    baseScore += Math.min(preferenceMatchCount * 8, 24);
+    matchReasons.push('선호 문구와 관련 있음');
+  }
+
+  if (/환경\s*정화|환경정화|플로깅|공원|산책|해변|해안|숲길|둘레길/.test(sourceText)) {
+    baseScore += 16;
+    matchReasons.push('여행친화적인 야외 활동');
+  }
+
+  if (/지역\s*행사|지역행사|축제|행사|문화제|체험|안내/.test(sourceText)) {
+    baseScore += 9;
+    matchReasons.push('지역 분위기를 느끼기 좋음');
+  }
+
+  if (recruitmentEnd >= today) {
+    baseScore += 8;
+    matchReasons.push('모집 중');
+  }
+
+  if (/교육|멘토링|상담|요양|치매|병원|정기|장기|상시|학습지도|사무/.test(sourceText)) {
+    baseScore -= 24;
+  }
+
+  if (preference.excludeKeywords.some((keyword) => sourceText.includes(normalizeText(keyword)))) {
+    baseScore -= 30;
+  }
+
+  if (preference.preferredConditions.intensity === 'low' && /걷|산책|플로깅|정화|안내/.test(sourceText)) {
+    baseScore += 8;
+  }
+
+  return {
+    source: activity,
+    activity: mapVolunteerApiActivityToSaveRecord(activity),
+    baseScore,
+    matchReasons: matchReasons.slice(0, 5),
+    diversityKey: getCandidateDiversityKey(activity),
+  };
+};
+
+const selectDiverseCandidates = (candidates: ScoredVolunteerCandidate[], limit: number) => {
+  const selected: ScoredVolunteerCandidate[] = [];
+  const seenKeys = new Set<string>();
+  const seenTraits = new Set<string>();
+
+  for (const candidate of candidates) {
+    if (selected.length >= limit) break;
+    if (seenKeys.has(candidate.diversityKey)) continue;
+
+    const trait = getActivityTrait(candidate.source);
+    const isTooSimilar = seenTraits.has(trait) && selected.length < Math.min(limit, 3);
+    if (isTooSimilar && candidates.some((item) => !seenTraits.has(getActivityTrait(item.source)))) continue;
+
+    selected.push(candidate);
+    seenKeys.add(candidate.diversityKey);
+    seenTraits.add(trait);
+  }
+
+  if (selected.length < limit) {
+    for (const candidate of candidates) {
+      if (selected.length >= limit) break;
+      if (selected.some((item) => (item.activity.id || item.activity.progrmRegistNo) === (candidate.activity.id || candidate.activity.progrmRegistNo))) {
+        continue;
+      }
+      selected.push(candidate);
+    }
+  }
+
+  return selected;
+};
 
 const getActivityMoodScore = (activity: ActivitySaveRecord, moodValue: string) => {
   const normalizedMood = moodValue.trim().toLowerCase();
@@ -243,11 +594,18 @@ export function HomeAIRecommendationFlow({
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [timeLabel, setTimeLabel] = useState('');
   const [mood, setMood] = useState('');
+  const [isParsingPreference, setIsParsingPreference] = useState(false);
+  const [parsePreferenceError, setParsePreferenceError] = useState('');
+  const [aiRecommendedActivities, setAiRecommendedActivities] = useState<AIRecommendedActivity[]>([]);
+  const [aiRecommendationNotice, setAiRecommendationNotice] = useState('');
+  const [aiLoadingMessage, setAiLoadingMessage] = useState(loadingMessages[0]);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const calendarAdvanceTimerRef = useRef<number | null>(null);
   const loadingMessageTimerRef = useRef<number | null>(null);
   const loadingCompleteTimerRef = useRef<number | null>(null);
   const sheetScrollRef = useRef<HTMLDivElement | null>(null);
+  const recommendationRequestInFlightRef = useRef(false);
+  const recommendationRequestIdRef = useRef(0);
 
   const clearLoadingTimers = () => {
     if (loadingMessageTimerRef.current) {
@@ -267,7 +625,17 @@ export function HomeAIRecommendationFlow({
     }
   };
 
+  const cancelActiveRecommendationRequest = () => {
+    recommendationRequestIdRef.current += 1;
+    recommendationRequestInFlightRef.current = false;
+    clearLoadingTimers();
+    setIsParsingPreference(false);
+    setAiLoadingMessage(loadingMessages[0]);
+    setLoadingMessageIndex(0);
+  };
+
   const resetRecommendationSession = () => {
+    cancelActiveRecommendationRequest();
     clearLoadingTimers();
     clearCalendarAdvanceTimer();
 
@@ -280,6 +648,11 @@ export function HomeAIRecommendationFlow({
     setCurrentMonth(new Date());
     setTimeLabel('');
     setMood('');
+    setIsParsingPreference(false);
+    setParsePreferenceError('');
+    setAiRecommendedActivities([]);
+    setAiRecommendationNotice('');
+    setAiLoadingMessage(loadingMessages[0]);
     setLoadingMessageIndex(0);
   };
 
@@ -362,7 +735,12 @@ export function HomeAIRecommendationFlow({
     }
 
     if (targetStep <= 3) {
+      cancelActiveRecommendationRequest();
       setMood('');
+      setParsePreferenceError('');
+      setAiRecommendedActivities([]);
+      setAiRecommendationNotice('');
+      setAiLoadingMessage(loadingMessages[0]);
     }
   };
 
@@ -370,37 +748,6 @@ export function HomeAIRecommendationFlow({
     resetAfterStep(targetStep);
     setStep(targetStep);
   };
-
-  const recommendedActivities = useMemo(() => {
-    const normalizedRegion = region.trim().toLowerCase();
-    const desiredHours = getDurationHours(timeLabel);
-
-    return activities
-      .map((activity, index) => {
-        const sourceText = buildActivityConditionText(activity);
-        const activityMonthDay = getMonthDay(activity.date);
-        const activityDate = getDateFromActivity(activity.date);
-        const activityHours = getActivityHours(activity);
-        let score = 0;
-
-        if (normalizedRegion && sourceText.includes(normalizedRegion)) score += 8;
-        if (selectedStartDate && selectedEndDate && activityDate) {
-          const dateInRange = activityDate >= selectedStartDate && activityDate <= selectedEndDate;
-          if (dateInRange) score += 5;
-        } else if (dateValue && activityMonthDay === dateValue) {
-          score += 5;
-        }
-        if (selectedStartDate && selectedEndDate && isWeekendActivity(activity)) score += 1;
-        if (activityHours <= desiredHours) score += 3;
-        if (Math.abs(activityHours - desiredHours) <= 1) score += 1;
-        score += getActivityMoodScore(activity, mood);
-
-        return { activity, score, index };
-      })
-      .sort((a, b) => b.score - a.score || a.index - b.index)
-      .slice(0, 3)
-      .map(({ activity }) => activity);
-  }, [activities, dateValue, mood, region, selectedEndDate, selectedStartDate, timeLabel]);
 
   const confirmRegion = (value = draftRegion) => {
     const nextRegion = value.trim();
@@ -506,21 +853,262 @@ export function HomeAIRecommendationFlow({
     goToStep(targetStep);
   };
 
-  const startRecommendationLoading = (nextMood = mood) => {
-    const trimmedMood = nextMood.trim();
-    if (!trimmedMood) return;
+  const getPreferenceDateRange = () => {
+    if (selectedStartDate && selectedEndDate) {
+      return `${formatApiDate(selectedStartDate)} - ${formatApiDate(selectedEndDate)}`;
+    }
 
+    return dateLabel;
+  };
+
+  const getVolunteerSearchDateParams = () => {
+    if (!selectedStartDate || !selectedEndDate) return {};
+
+    return {
+      startDate: formatApiDate(selectedStartDate),
+      endDate: formatApiDate(selectedEndDate),
+    };
+  };
+
+  const startRecommendationLoadingState = () => {
     clearLoadingTimers();
-    setMood(trimmedMood);
     setLoadingMessageIndex(0);
+    setAiLoadingMessage(loadingMessages[0]);
     setStep(4);
     loadingMessageTimerRef.current = window.setInterval(() => {
       setLoadingMessageIndex((currentIndex) => Math.min(currentIndex + 1, loadingMessages.length - 1));
     }, 700);
-    loadingCompleteTimerRef.current = window.setTimeout(() => {
-      clearLoadingTimers();
+  };
+
+  const fetchVolunteerCandidates = async () => {
+    const params = new URLSearchParams({
+      keyword: region,
+      page: '1',
+      size: '40',
+    });
+    const dateParams = getVolunteerSearchDateParams();
+    if (dateParams.startDate) params.set('startDate', dateParams.startDate);
+    if (dateParams.endDate) params.set('endDate', dateParams.endDate);
+
+    const response = await fetch(`/api/volunteer/search?${params.toString()}`);
+    const payload = await response.json() as VolunteerApiResponse;
+
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload.error || '1365 후보 활동을 불러오지 못했어요.');
+    }
+
+    return Array.isArray(payload.items) ? payload.items : [];
+  };
+
+  const requestAIRecommendations = async (
+    preference: ParsedActivityPreference,
+    candidates: ScoredVolunteerCandidate[],
+  ) => {
+    const response = await fetch('/api/ai/recommend-activities', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        preference,
+        candidates: candidates.map((activity) => ({
+          id: activity.activity.id || activity.activity.progrmRegistNo,
+          title: activity.activity.title,
+          location: activity.activity.location,
+          date: activity.activity.activityStartDate || activity.activity.date,
+          time: activity.activity.time,
+          category: activity.activity.category,
+          description: activity.activity.description,
+          baseScore: activity.baseScore,
+          matchReasons: activity.matchReasons,
+        })),
+      }),
+    });
+    const payload = await response.json() as RecommendActivitiesApiResponse;
+
+    if (!response.ok || !payload.ok || !Array.isArray(payload.recommendations)) {
+      throw new Error(payload.error || 'AI가 활동을 고르지 못했어요.');
+    }
+
+    return payload.recommendations;
+  };
+
+  const parseActivityPreference = async (nextMood = mood) => {
+    if (isParsingPreference || recommendationRequestInFlightRef.current) return;
+
+    const trimmedRegion = region.trim();
+    if (!trimmedRegion) {
+      setParsePreferenceError('여행지를 먼저 입력해 주세요.');
+      return;
+    }
+
+    const rawPreferenceText = nextMood.trim();
+    const effectivePreferenceText = rawPreferenceText || defaultActivityPreferenceText;
+    if (effectivePreferenceText.length > maxPreferenceTextLength) {
+      setParsePreferenceError('200자 이내로 입력해 주세요.');
+      return;
+    }
+
+    const dateRange = getPreferenceDateRange();
+    const cacheKey = getRecommendationCacheKey({
+      location: trimmedRegion,
+      dateRange,
+      duration: timeLabel,
+      preferenceText: effectivePreferenceText,
+    });
+    const cachedResult = recommendationResultCache.get(cacheKey);
+    if (cachedResult) {
+      setMood(effectivePreferenceText);
+      setParsePreferenceError('');
+      setAiRecommendedActivities(cachedResult.recommendations);
+      setAiRecommendationNotice(cachedResult.notice);
       setStep(5);
-    }, 1900);
+      return;
+    }
+
+    const requestId = recommendationRequestIdRef.current + 1;
+    recommendationRequestIdRef.current = requestId;
+    recommendationRequestInFlightRef.current = true;
+    const isLatestRequest = () => recommendationRequestIdRef.current === requestId;
+
+    setMood(effectivePreferenceText);
+    setParsePreferenceError('');
+    setAiRecommendedActivities([]);
+    setAiRecommendationNotice('');
+    setIsParsingPreference(true);
+    startRecommendationLoadingState();
+
+    try {
+      let parsedPreference = createDefaultParsedPreference(effectivePreferenceText);
+      try {
+        const response = await fetch('/api/ai/parse-preference', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            location: trimmedRegion,
+            dateRange,
+            duration: timeLabel,
+            preferenceText: effectivePreferenceText,
+          }),
+        });
+        const payload = await response.json() as ParsePreferenceApiResponse;
+
+        if (!response.ok || !payload.ok || !payload.parsed) {
+          throw new Error(payload.error || 'AI가 조건을 해석하지 못했어요.');
+        }
+
+        parsedPreference = payload.parsed;
+      } catch (error) {
+        console.warn('AI preference parse failed, using default preference', error);
+      }
+
+      if (!isLatestRequest()) return;
+
+      console.log('AI preference parse result', parsedPreference);
+      setAiLoadingMessage('가까운 활동을 찾고 있어요');
+      setLoadingMessageIndex(1);
+      const candidates = await fetchVolunteerCandidates();
+      if (!isLatestRequest()) return;
+
+      const scoredCandidates = candidates
+        .map((activity) => scoreVolunteerCandidate(activity, parsedPreference, {
+          region: trimmedRegion,
+          timeLabel,
+          mood: effectivePreferenceText,
+          selectedStartDate,
+          selectedEndDate,
+        }))
+        .filter((candidate): candidate is ScoredVolunteerCandidate => candidate !== null)
+        .sort((a, b) => b.baseScore - a.baseScore);
+      const rankedCandidates = selectDiverseCandidates(scoredCandidates, 20);
+      const fallbackCandidates = selectDiverseCandidates(scoredCandidates, 3);
+
+      if (rankedCandidates.length === 0) {
+        if (!isLatestRequest()) return;
+        rememberRecommendationResult(cacheKey, { recommendations: [], notice: '' });
+        setAiRecommendedActivities([]);
+        setAiRecommendationNotice('');
+        setStep(5);
+        return;
+      }
+
+      if (rankedCandidates.length < 3) {
+        if (!isLatestRequest()) return;
+        const recommendations = rankedCandidates.map(({ activity }) => ({ activity }));
+        const notice = '조건에 가까운 활동을 먼저 보여드려요.';
+        rememberRecommendationResult(cacheKey, { recommendations, notice });
+        setAiRecommendedActivities(recommendations);
+        setAiRecommendationNotice(notice);
+        setStep(5);
+        return;
+      }
+
+      let nextRecommendedActivities = fallbackCandidates.map(({ activity }) => ({ activity }));
+      let nextRecommendationNotice = 'AI 추천 연결이 불안정해 검색 결과 상위 활동을 보여드려요.';
+
+      try {
+        setAiLoadingMessage('조건에 맞는 활동을 살펴보고 있어요');
+        setLoadingMessageIndex(0);
+        const recommendations = await requestAIRecommendations(parsedPreference, rankedCandidates);
+        if (!isLatestRequest()) return;
+
+        const candidateMap = new Map(rankedCandidates.map(({ activity }) => [activity.id || activity.progrmRegistNo || activity.title, activity]));
+        const selectedRecommendations = recommendations
+          .map((recommendation) => {
+            const activity = candidateMap.get(recommendation.activityId);
+            if (!activity) return null;
+
+            return {
+              activity,
+              reason: recommendation.reason,
+              fitTags: recommendation.fitTags,
+            } satisfies AIRecommendedActivity;
+          })
+          .filter((item): item is NonNullable<typeof item> => item !== null)
+          .slice(0, 3);
+
+        if (selectedRecommendations.length > 0) {
+          const selectedIds = new Set(selectedRecommendations.map((item) => item.activity.id || item.activity.progrmRegistNo || item.activity.title));
+          const filledRecommendations = [
+            ...selectedRecommendations,
+            ...fallbackCandidates
+              .filter(({ activity }) => !selectedIds.has(activity.id || activity.progrmRegistNo || activity.title))
+              .map(({ activity }) => ({ activity })),
+          ].slice(0, 3);
+
+          nextRecommendedActivities = filledRecommendations;
+          nextRecommendationNotice = '';
+        } else {
+          nextRecommendedActivities = fallbackCandidates.map(({ activity }) => ({ activity }));
+          nextRecommendationNotice = 'AI가 고른 후보를 확인하지 못해 가까운 활동을 먼저 보여드려요.';
+        }
+      } catch (error) {
+        console.error('AI activity recommendation failed, using search fallback', error);
+      }
+
+      if (!isLatestRequest()) return;
+      rememberRecommendationResult(cacheKey, {
+        recommendations: nextRecommendedActivities,
+        notice: nextRecommendationNotice,
+      });
+      setAiRecommendedActivities(nextRecommendedActivities);
+      setAiRecommendationNotice(nextRecommendationNotice);
+      setStep(5);
+    } catch (error) {
+      if (!isLatestRequest()) return;
+      console.error('AI preference parse failed', error);
+      setAiRecommendedActivities([]);
+      setAiRecommendationNotice('');
+      setStep(5);
+    } finally {
+      if (isLatestRequest()) {
+        clearLoadingTimers();
+        recommendationRequestInFlightRef.current = false;
+        setIsParsingPreference(false);
+      }
+    }
   };
 
   const restartRecommendation = () => {
@@ -819,9 +1407,16 @@ export function HomeAIRecommendationFlow({
                 </h2>
                 <input
                   value={mood}
-                  onChange={(event) => setMood(event.target.value)}
+                  onChange={(event) => {
+                    setMood(event.target.value);
+                    setParsePreferenceError(
+                      event.target.value.trim().length > maxPreferenceTextLength
+                        ? '200자 이내로 입력해 주세요.'
+                        : '',
+                    );
+                  }}
                   onKeyDown={(event) => {
-                    if (event.key === 'Enter' && mood.trim()) startRecommendationLoading();
+                    if (event.key === 'Enter') void parseActivityPreference();
                   }}
                   autoFocus
                   placeholder="어떤 활동이면 좋을까요?"
@@ -833,7 +1428,7 @@ export function HomeAIRecommendationFlow({
                       key={item}
                       type="button"
                       onClick={() => {
-                        startRecommendationLoading(item);
+                        void parseActivityPreference(item);
                       }}
                       className="block w-full rounded-2xl border border-[#e2e6fb] bg-white/84 px-4 py-3.5 text-left text-[13px] font-medium text-[#56647f] shadow-[0_8px_20px_rgba(97,111,176,0.07)] transition-all active:scale-[0.99] active:border-[#aaa2ff] active:bg-[#f4f5ff]"
                     >
@@ -843,12 +1438,17 @@ export function HomeAIRecommendationFlow({
                 </div>
                 <button
                   type="button"
-                  disabled={!mood.trim()}
-                  onClick={() => startRecommendationLoading()}
+                  disabled={isParsingPreference}
+                  onClick={() => void parseActivityPreference()}
                   className={aiPrimaryButtonClassName}
                 >
                   추천 결과 보기
                 </button>
+                {parsePreferenceError && (
+                  <p className="mt-3 text-center text-[12.5px] leading-relaxed text-[#c9897e]">
+                    {parsePreferenceError}
+                  </p>
+                )}
               </section>
             )}
 
@@ -867,11 +1467,11 @@ export function HomeAIRecommendationFlow({
                   <div className="relative">
                     <p className="mb-3 text-[12px] font-medium text-[#7ca58c]">일정을 차분히 정리하는 중</p>
                     <h2
-                      key={loadingMessageIndex}
+                      key={aiLoadingMessage}
                       className="min-h-[58px] text-[22px] font-semibold leading-snug text-[#2f3a33]"
                       style={{ animation: 'sisonAiLoadingTextIn 320ms ease-out both' }}
                     >
-                      {loadingMessages[loadingMessageIndex]}
+                      {aiLoadingMessage}
                     </h2>
                     <p className="mt-3 max-w-[280px] text-[13px] leading-6 text-[#8b9189]">
                       {region}의 일정과 {timeLabel || '가능한 시간'}에 맞춰 부담 없이 이어지는 활동을 살펴보고 있어요.
@@ -915,25 +1515,62 @@ export function HomeAIRecommendationFlow({
                 <h2 className="mb-6 text-[22px] font-semibold leading-tight text-[#303850]">
                   지금 일정에 어울리는<br />활동이에요
                 </h2>
-                <div className="space-y-3">
-                  {recommendedActivities.map((activity) => (
-                    <CompactActivityCard
-                      key={`${activity.title}-${activity.date}`}
-                      variant="aiRecommendation"
-                      imageUrl={activity.imageUrl}
-                      title={activity.title}
-                      location={activity.location}
-                      recruitmentStartDate={activity.recruitmentStartDate}
-                      recruitmentEndDate={activity.recruitmentEndDate}
-                      date={activity.date}
-                      time={activity.time}
-                      showBookmark
-                      isSaved={isActivitySaved(activity)}
-                      onBookmarkClick={() => onToggleSavedActivity(activity)}
-                      onClick={() => onOpenActivity(activity)}
-                    />
-                  ))}
-                </div>
+                {aiRecommendationNotice && (
+                  <p className="mb-4 rounded-2xl border border-[#e2e6fb] bg-white/72 px-4 py-3 text-[12.5px] leading-relaxed text-[#69718d]">
+                    {aiRecommendationNotice}
+                  </p>
+                )}
+                {aiRecommendedActivities.length > 0 ? (
+                  <div className="space-y-3">
+                    {aiRecommendedActivities.map(({ activity, reason, fitTags }) => (
+                      <div key={`${activity.id || activity.progrmRegistNo || activity.title}-${activity.date}`} className="space-y-2">
+                        {reason && (
+                          <p className="rounded-2xl bg-[#f4f5ff]/80 px-4 py-3 text-[12.5px] leading-relaxed text-[#5d6684]">
+                            {reason}
+                          </p>
+                        )}
+                        <CompactActivityCard
+                          variant="aiRecommendation"
+                          imageUrl={activity.imageUrl}
+                          title={activity.title}
+                          location={activity.location}
+                          recruitmentStartDate={activity.recruitmentStartDate}
+                          recruitmentEndDate={activity.recruitmentEndDate}
+                          date={activity.date}
+                          activityStartDate={activity.activityStartDate}
+                          activityEndDate={activity.activityEndDate}
+                          time={activity.time}
+                          showBookmark
+                          isSaved={isActivitySaved(activity)}
+                          onBookmarkClick={() => onToggleSavedActivity(activity)}
+                          onClick={() => onOpenActivity(activity)}
+                        />
+                        <p className="px-1 text-[11.5px] leading-relaxed text-[#8b94aa]">
+                          모집 {activity.capacity || '확인 필요'} · 신청 {activity.currentParticipants || '확인 필요'}
+                        </p>
+                        {fitTags && fitTags.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 px-1">
+                            {fitTags.map((tag) => (
+                              <span
+                                key={`${activity.id || activity.title}-${tag}`}
+                                className="rounded-full bg-white/78 px-2.5 py-1 text-[11px] font-medium text-[#7c82a2] shadow-[inset_0_0_0_1px_rgba(124,130,232,0.12)]"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-[#e2e6fb] bg-white/78 px-4 py-6 text-center">
+                    <p className="text-[14px] font-semibold text-[#303850]">조건에 맞는 활동이 아직 없어요</p>
+                    <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#7a8499]">
+                      다른 지역이나 일정을 선택해 다시 찾아보세요.
+                    </p>
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={restartRecommendation}

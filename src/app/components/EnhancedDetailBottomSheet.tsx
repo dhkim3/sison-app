@@ -633,31 +633,47 @@ export function EnhancedDetailBottomSheet({
             {/* Detailed Description */}
             <div ref={detailDescriptionSectionRef} className="border-t border-black/5 pt-6">
               <h3 className="mb-3">상세설명</h3>
-              <div
-                ref={detailDescriptionContentRef}
-                className="overflow-hidden transition-[max-height] duration-300 ease-out"
-                style={{
-                  maxHeight: canToggleDetailDescription && !isDetailDescriptionExpanded
-                    ? `${DETAIL_DESCRIPTION_COLLAPSED_HEIGHT}px`
-                    : undefined,
-                }}
-              >
-                <DetailDescriptionContent text={detailedDescription} />
+              <div className="relative">
+                <div
+                  ref={detailDescriptionContentRef}
+                  className="overflow-hidden transition-[max-height] duration-300 ease-out"
+                  style={{
+                    maxHeight: canToggleDetailDescription && !isDetailDescriptionExpanded
+                      ? `${DETAIL_DESCRIPTION_COLLAPSED_HEIGHT}px`
+                      : undefined,
+                  }}
+                >
+                  <DetailDescriptionContent text={detailedDescription} />
+                </div>
+                {canToggleDetailDescription && !isDetailDescriptionExpanded && detailDescriptionStatus !== 'loading' && (
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute bottom-0 left-0 right-0 h-14"
+                    style={{
+                      background: 'linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,1))',
+                    }}
+                  />
+                )}
               </div>
               {canToggleDetailDescription && detailDescriptionStatus !== 'loading' && (
                 <button
                   type="button"
                   onClick={handleDetailDescriptionToggle}
                   aria-expanded={isDetailDescriptionExpanded}
-                  className="mt-3 text-[13px] font-medium text-[#5f9f74] underline-offset-2 hover:underline"
+                  className="mt-2 inline-flex items-center gap-[4px] rounded-full bg-[#eef6f1] px-3 py-1 text-[13px] text-[#4e8f65] hover:bg-[#e2efe8] transition-colors"
                 >
-                  {isDetailDescriptionExpanded ? '접기' : '더보기'}
+                  <span>{isDetailDescriptionExpanded ? '접기' : '더보기'}</span>
+                  <svg
+                    width="10"
+                    height="10"
+                    viewBox="0 0 10 10"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={`transition-transform duration-200 ${isDetailDescriptionExpanded ? 'rotate-180' : ''}`}
+                  >
+                    <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                 </button>
-              )}
-              {detailDescriptionStatus === 'success' && detailDescription && (
-                <p className="mt-3 text-[12.5px] leading-relaxed text-[#999]">
-                  1365에서 제공한 내용을 바탕으로 보여드려요.
-                </p>
               )}
             </div>
 

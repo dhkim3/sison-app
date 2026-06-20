@@ -1,4 +1,4 @@
-import { get, list } from '@vercel/blob';
+import { get } from '@vercel/blob';
 import {
   normalizeCapacity as normalizeApiCapacity,
   pickCurrentParticipants,
@@ -2216,31 +2216,36 @@ const normalizeRegionCachePayload = (
   };
 };
 
-const readTextFromBlob = async (urlOrPathname: string, blobToken: string) => {
-  const cachedBlob = await get(urlOrPathname, { access: 'private', token: blobToken, useCache: false });
-  if (!cachedBlob || cachedBlob.statusCode !== 200 || !cachedBlob.stream) return null;
-
-  return new Response(cachedBlob.stream).text();
+// Blob get/quota/timeout/404 등 모든 실패를 null로 처리 — 절대 throw 하지 않음
+const readTextFromBlob = async (urlOrPathname: string, blobToken: string): Promise<string | null> => {
+  try {
+    const cachedBlob = await get(urlOrPathname, { access: 'private', token: blobToken, useCache: false });
+    if (!cachedBlob || cachedBlob.statusCode !== 200 || !cachedBlob.stream) return null;
+    return await new Response(cachedBlob.stream).text();
+  } catch (err) {
+    console.warn('[search] blob read failed:', err instanceof Error ? err.message : String(err));
+    return null;
+  }
 };
 
 const readRegionCache = async (cachePath: string, configs: readonly CachedRegionConfig[]) => {
   const blobToken = getBlobReadWriteToken();
   if (!blobToken) return null;
 
-  const listed = await list({
-    prefix: cachePath,
-    limit: 1,
-    token: blobToken,
-  });
-  const matchedBlob = listed.blobs.find((blob) => blob.pathname === cachePath) ?? listed.blobs[0];
-  if (!matchedBlob) return null;
-
-  const blobText =
-    await readTextFromBlob(cachePath, blobToken) ??
-    await readTextFromBlob(matchedBlob.url, blobToken);
+  let blobText: string | null = null;
+  try {
+    blobText = await readTextFromBlob(cachePath, blobToken);
+  } catch {
+    console.warn(`[search] blob read failed: ${cachePath}`);
+    return null;
+  }
   if (!blobText) return null;
 
-  return normalizeRegionCachePayload(JSON.parse(blobText), configs);
+  try {
+    return normalizeRegionCachePayload(JSON.parse(blobText), configs);
+  } catch {
+    return null;
+  }
 };
 
 const readSearchRegionCache = async () =>

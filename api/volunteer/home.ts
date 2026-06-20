@@ -1,4 +1,4 @@
-import { get, list } from '@vercel/blob';
+import { get } from '@vercel/blob';
 import { buildHomeVolunteerSections, type HomeVolunteerSections } from './search.js';
 
 type VercelRequest = {
@@ -29,10 +29,8 @@ type HomeCachePayload = {
 
 type CacheErrorStage =
   | 'env'
-  | 'blob_list'
   | 'blob_not_found'
   | 'blob_read_pathname'
-  | 'blob_read_url'
   | 'json_parse'
   | 'cache_shape'
   | 'cache_policy';
@@ -45,7 +43,6 @@ type CacheErrorSummary = {
   blobTokenLength: number;
   pathname: string;
   blobFound?: boolean;
-  listedCount?: number;
 };
 
 class HomeCacheReadError extends Error {
@@ -88,7 +85,6 @@ const createCacheError = (
     blobTokenExists: boolean;
     blobTokenLength: number;
     blobFound?: boolean;
-    listedCount?: number;
   },
 ) => new HomeCacheReadError({
   stage,
@@ -98,7 +94,6 @@ const createCacheError = (
   blobTokenLength: options.blobTokenLength,
   pathname: HOME_CACHE_PATH,
   blobFound: options.blobFound,
-  listedCount: options.listedCount,
 });
 
 const EMPTY_HOME_SECTIONS: HomeVolunteerSections = {
@@ -200,93 +195,38 @@ const isHomeCachePayload = (value: unknown): value is HomeCachePayload => {
   return normalizeHomeCachePayload(value) !== null;
 };
 
-const readTextFromBlob = async (urlOrPathname: string, blobToken: string) => {
-  const cachedBlob = await get(urlOrPathname, { access: 'private', token: blobToken, useCache: false });
-  if (!cachedBlob || cachedBlob.statusCode !== 200 || !cachedBlob.stream) {
+// Blob get/quota/timeout/404 등 모든 실패를 null로 처리 — 절대 throw 하지 않음
+const readTextFromBlob = async (urlOrPathname: string, blobToken: string): Promise<string | null> => {
+  try {
+    const cachedBlob = await get(urlOrPathname, { access: 'private', token: blobToken, useCache: false });
+    if (!cachedBlob || cachedBlob.statusCode !== 200 || !cachedBlob.stream) {
+      return null;
+    }
+    return await new Response(cachedBlob.stream).text();
+  } catch (err) {
+    console.warn('[home] blob read failed:', sanitizeCacheErrorMessage(err, blobToken));
     return null;
   }
-
-  return new Response(cachedBlob.stream).text();
 };
 
 const readHomeCache = async () => {
   const { blobToken, blobTokenExists, blobTokenLength } = getBlobTokenSummary();
   if (!blobToken) {
     throw createCacheError('env', new Error('BLOB_READ_WRITE_TOKEN이 설정되지 않았어요.'), {
-      blobToken,
       blobTokenExists,
       blobTokenLength,
     });
   }
 
-  let listedCount = 0;
-  let matchedBlobUrl = '';
-
-  try {
-    const listed = await list({
-      prefix: HOME_CACHE_PATH,
-      limit: 1,
-      token: blobToken,
-    });
-    const matchedBlob = listed.blobs.find((blob) => blob.pathname === HOME_CACHE_PATH);
-    listedCount = listed.blobs.length;
-    matchedBlobUrl = matchedBlob?.url ?? '';
-
-    if (!matchedBlobUrl) {
-      throw createCacheError('blob_not_found', new Error('volunteers-home.json Blob을 찾지 못했어요.'), {
-        blobToken,
-        blobTokenExists,
-        blobTokenLength,
-        blobFound: false,
-        listedCount,
-      });
-    }
-  } catch (error) {
-    if (error instanceof HomeCacheReadError) throw error;
-    throw createCacheError('blob_list', error, {
-      blobToken,
-      blobTokenExists,
-      blobTokenLength,
-      listedCount,
-    });
-  }
-
-  let payloadText: string | null = null;
-  let pathnameReadError: HomeCacheReadError | null = null;
-
-  try {
-    payloadText = await readTextFromBlob(HOME_CACHE_PATH, blobToken);
-  } catch (error) {
-    pathnameReadError = createCacheError('blob_read_pathname', error, {
-      blobToken,
-      blobTokenExists,
-      blobTokenLength,
-      blobFound: true,
-      listedCount,
-    });
-  }
+  // readTextFromBlob은 절대 throw하지 않음 — 실패 시 null 반환
+  const payloadText = await readTextFromBlob(HOME_CACHE_PATH, blobToken);
 
   if (!payloadText) {
-    try {
-      payloadText = await readTextFromBlob(matchedBlobUrl, blobToken);
-    } catch (error) {
-      throw createCacheError('blob_read_url', error, {
-        blobToken,
-        blobTokenExists,
-        blobTokenLength,
-        blobFound: true,
-        listedCount,
-      });
-    }
-  }
-
-  if (!payloadText) {
-    throw pathnameReadError ?? createCacheError('blob_read_pathname', new Error('Blob 응답 본문이 비어 있어요.'), {
+    throw createCacheError('blob_not_found', new Error('volunteers-home.json Blob을 찾지 못했어요.'), {
       blobToken,
       blobTokenExists,
       blobTokenLength,
-      blobFound: true,
-      listedCount,
+      blobFound: false,
     });
   }
 
@@ -299,7 +239,6 @@ const readHomeCache = async () => {
       blobTokenExists,
       blobTokenLength,
       blobFound: true,
-      listedCount,
     });
   }
 
@@ -311,7 +250,6 @@ const readHomeCache = async () => {
       blobTokenExists,
       blobTokenLength,
       blobFound: true,
-      listedCount,
     });
   }
 
@@ -321,7 +259,6 @@ const readHomeCache = async () => {
       blobTokenExists,
       blobTokenLength,
       blobFound: true,
-      listedCount,
     });
   }
 
@@ -331,7 +268,6 @@ const readHomeCache = async () => {
       blobTokenExists,
       blobTokenLength,
       blobFound: true,
-      listedCount,
     });
   }
 

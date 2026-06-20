@@ -35,6 +35,9 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     env: {
       BLOB_READ_WRITE_TOKEN: summarizeEnvValue('BLOB_READ_WRITE_TOKEN'),
       DATA_GO_KR_SERVICE_KEY: summarizeEnvValue('DATA_GO_KR_SERVICE_KEY'),
+      OPENAI_API_KEY: summarizeEnvValue('OPENAI_API_KEY'),
+      TOUR_API_SERVICE_KEY: summarizeEnvValue('TOUR_API_SERVICE_KEY'),
+      VWORLD_API_KEY: summarizeEnvValue('VWORLD_API_KEY'),
     },
     vercel: {
       env: process.env.VERCEL_ENV ?? null,
