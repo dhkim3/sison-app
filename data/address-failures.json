@@ -1,0 +1,296 @@
+[
+  {
+    "title": "아동 학습지도 및 놀이활동 등",
+    "rawAddress": "플러스그룹홈 내",
+    "region": "",
+    "normalizedCandidates": [
+      "플러스그룹홈"
+    ],
+    "triedQueries": [
+      "플러스그룹홈"
+    ],
+    "failedStage": "address+place+district"
+  },
+  {
+    "title": "2026년 6월 자료실 운영지원(도서배가.정리) 및 환경정비(13:00~17:00)",
+    "rawAddress": "교문방정환도서관",
+    "region": "",
+    "normalizedCandidates": [
+      "교문방정환도서관"
+    ],
+    "triedQueries": [
+      "교문방정환도서관"
+    ],
+    "failedStage": "address+place+district"
+  },
+  {
+    "title": "2026년 6월 자료실 운영지원(도서배가.정리) 및 환경정비(09:00~13:00)",
+    "rawAddress": "교문방정환도서관",
+    "region": "",
+    "normalizedCandidates": [
+      "교문방정환도서관"
+    ],
+    "triedQueries": [
+      "교문방정환도서관"
+    ],
+    "failedStage": "address+place+district"
+  },
+  {
+    "title": "광주광역시교육청학생교육문화회관 6월 자원봉사자를 아래와 같이 모집합니다.",
+    "rawAddress": "광주광역시교육청학생교육문화회관 모두의책뜰 3층",
+    "region": "",
+    "normalizedCandidates": [
+      "광주광역시교육청학생교육문화회관 모두의책뜰",
+      "광주광역시교육청학생교육문화회관"
+    ],
+    "triedQueries": [
+      "광주광역시교육청학생교육문화회관 모두의책뜰",
+      "광주광역시교육청학생교육문화회관"
+    ],
+    "failedStage": "address+place+district"
+  },
+  {
+    "title": "[비대면]세상아이 키트봉사: 사회적 약자를 위한 그림책 업사이클 모스액자 만들기",
+    "rawAddress": "재택봉사",
+    "region": "",
+    "normalizedCandidates": [
+      "재택봉사"
+    ],
+    "triedQueries": [
+      "재택봉사"
+    ],
+    "failedStage": "address+place+district"
+  },
+  {
+    "title": "고운동한바퀴맑고깨끗줍킹",
+    "rawAddress": "고운동남측복컴주변",
+    "region": "",
+    "normalizedCandidates": [
+      "고운동남측복컴주변"
+    ],
+    "triedQueries": [
+      "고운동남측복컴주변"
+    ],
+    "failedStage": "address+place+district"
+  },
+  {
+    "title": "[흑석꿈 우리동네키움센터] 4~6월 아동돌봄보조 및 환경정화",
+    "rawAddress": "흑석꿈 우리동네키움센터 내",
+    "region": "",
+    "normalizedCandidates": [
+      "흑석꿈 우리동네키움센터",
+      "흑석꿈"
+    ],
+    "triedQueries": [
+      "흑석꿈 우리동네키움센터",
+      "흑석꿈"
+    ],
+    "failedStage": "address+place+district"
+  },
+  {
+    "title": "[부산 일광도담도담육아센터] 개관식 행사보조 (09시~13시 / 대학생, 성인모집)",
+    "rawAddress": "일광교육행복타운 2층 일광도담도담육아센터",
+    "region": "",
+    "normalizedCandidates": [
+      "일광교육행복타운 2층 일광도담도담육아센터",
+      "일광교육행복타운 2층",
+      "일광교육행복타운"
+    ],
+    "triedQueries": [
+      "일광교육행복타운 2층 일광도담도담육아센터",
+      "일광교육행복타운 2층",
+      "일광교육행복타운"
+    ],
+    "failedStage": "address+place+district"
+  },
+  {
+    "title": "제2회 연제만화페스티벌 행사 지원 자원봉사자 모집",
+    "rawAddress": "연제만화도서관",
+    "region": "",
+    "normalizedCandidates": [
+      "연제만화도서관"
+    ],
+    "triedQueries": [
+      "연제만화도서관"
+    ],
+    "failedStage": "address+place+district"
+  },
+  {
+    "title": "[2026. 6. 20.(토) / 오후(13:00~17:00)] 강동중앙도서관 행사 홍보 보조 대학생 자원봉사자 모집",
+    "rawAddress": "강동중앙도서관",
+    "region": "",
+    "normalizedCandidates": [
+      "강동중앙도서관"
+    ],
+    "triedQueries": [
+      "강동중앙도서관"
+    ],
+    "failedStage": "address+place+district"
+  },
+  {
+    "title": "다다다 프로젝트_6월 다함께 플로깅(비대면 활동) (다문화가정, 교환학생 등 이주배경 주민 신청)",
+    "rawAddress": "개별활동장소",
+    "region": "",
+    "normalizedCandidates": [
+      "개별활동장소"
+    ],
+    "triedQueries": [
+      "개별활동장소"
+    ],
+    "failedStage": "address+place+district"
+  },
+  {
+    "title": "소외계층 아동을 위한 DIY 나눔물품 만들기(오후)",
+    "rawAddress": "오픈더퓨처 성남분당센터",
+    "region": "",
+    "normalizedCandidates": [
+      "오픈더퓨처 성남분당센터",
+      "오픈더퓨처"
+    ],
+    "triedQueries": [
+      "오픈더퓨처 성남분당센터",
+      "오픈더퓨처"
+    ],
+    "failedStage": "address+place+district"
+  },
+  {
+    "title": "소외계층 아동을 위한 DIY 나눔물품 만들기(오전)",
+    "rawAddress": "오픈더퓨처 성남분당센터",
+    "region": "",
+    "normalizedCandidates": [
+      "오픈더퓨처 성남분당센터",
+      "오픈더퓨처"
+    ],
+    "triedQueries": [
+      "오픈더퓨처 성남분당센터",
+      "오픈더퓨처"
+    ],
+    "failedStage": "address+place+district"
+  },
+  {
+    "title": "장애영아 숲체험",
+    "rawAddress": "내송숲",
+    "region": "",
+    "normalizedCandidates": [
+      "내송숲"
+    ],
+    "triedQueries": [
+      "내송숲"
+    ],
+    "failedStage": "address+place+district"
+  },
+  {
+    "title": "진주 주약동 숲속재활어르신학교 이미용봉사 모집",
+    "rawAddress": "숲속재활어르신학교",
+    "region": "",
+    "normalizedCandidates": [
+      "숲속재활어르신학교"
+    ],
+    "triedQueries": [
+      "숲속재활어르신학교"
+    ],
+    "failedStage": "address+place+district"
+  },
+  {
+    "title": "[한강생태이음봉사단]고덕수변생태공원 생태모니터링 및 환경정화활동",
+    "rawAddress": "고덕수변생태공원 일대",
+    "region": "",
+    "normalizedCandidates": [
+      "고덕수변생태공원 일대",
+      "고덕수변생태공원"
+    ],
+    "triedQueries": [
+      "고덕수변생태공원 일대",
+      "고덕수변생태공원"
+    ],
+    "failedStage": "address+place+district"
+  },
+  {
+    "title": "외국인이 자주 묻는 질문(FAQ) 및 답변 번역 봉사 활동",
+    "rawAddress": "온라인 / 비대면 재택 가능",
+    "region": "",
+    "normalizedCandidates": [
+      "온라인 / 비대면 재택 가능",
+      "온라인 / 비대면 재택",
+      "온라인 / 비대면"
+    ],
+    "triedQueries": [
+      "온라인 / 비대면 재택 가능",
+      "온라인 / 비대면 재택",
+      "온라인 / 비대면",
+      "[DISTRICT-L4] 온라인 / 비대면",
+      "[DISTRICT-L2] 온라인 / 비대면"
+    ],
+    "failedStage": "address+place+district"
+  },
+  {
+    "title": "(다국어) 다문화 민간외교 소식나눔단 봉사 활동",
+    "rawAddress": "온라인 / 비대면 재택 가능",
+    "region": "",
+    "normalizedCandidates": [
+      "온라인 / 비대면 재택 가능",
+      "온라인 / 비대면 재택",
+      "온라인 / 비대면"
+    ],
+    "triedQueries": [
+      "온라인 / 비대면 재택 가능",
+      "온라인 / 비대면 재택",
+      "온라인 / 비대면",
+      "[DISTRICT-L4] 온라인 / 비대면",
+      "[DISTRICT-L2] 온라인 / 비대면"
+    ],
+    "failedStage": "address+place+district"
+  },
+  {
+    "title": "[푸른소나무주야간보호센터]트로트공연, 음악연주, 시낭송 등 문화공연 할 자원봉사자님을 기다립니다!",
+    "rawAddress": "푸른소나무주야간보호센터 부천2호점 프로그램실",
+    "region": "",
+    "normalizedCandidates": [
+      "푸른소나무주야간보호센터 부천2호점 프로그램실",
+      "푸른소나무주야간보호센터 부천2호점",
+      "푸른소나무주야간보호센터"
+    ],
+    "triedQueries": [
+      "푸른소나무주야간보호센터 부천2호점 프로그램실",
+      "푸른소나무주야간보호센터 부천2호점",
+      "푸른소나무주야간보호센터"
+    ],
+    "failedStage": "address+place+district"
+  },
+  {
+    "title": "한국어 언어 문화 콘텐츠 시나리오 기획 봉사 활동",
+    "rawAddress": "온라인 / 비대면 재택 가능",
+    "region": "",
+    "normalizedCandidates": [
+      "온라인 / 비대면 재택 가능",
+      "온라인 / 비대면 재택",
+      "온라인 / 비대면"
+    ],
+    "triedQueries": [
+      "온라인 / 비대면 재택 가능",
+      "온라인 / 비대면 재택",
+      "온라인 / 비대면",
+      "[DISTRICT-L4] 온라인 / 비대면",
+      "[DISTRICT-L2] 온라인 / 비대면"
+    ],
+    "failedStage": "address+place+district"
+  },
+  {
+    "title": "거제시가족센터 프로그램(다문화가족 자녀 진로체험프로그램 보조) 봉사자 모집",
+    "rawAddress": "거제시가정행복지원센터 지하 1층  강의실(109호)",
+    "region": "",
+    "normalizedCandidates": [
+      "거제시가정행복지원센터 지하 1층 강의실",
+      "거제시가정행복지원센터 지하 1층",
+      "거제시가정행복지원센터 지하",
+      "거제시가정행복지원센터"
+    ],
+    "triedQueries": [
+      "거제시가정행복지원센터 지하 1층 강의실",
+      "거제시가정행복지원센터 지하 1층",
+      "거제시가정행복지원센터 지하",
+      "거제시가정행복지원센터"
+    ],
+    "failedStage": "address+place+district"
+  }
+]
