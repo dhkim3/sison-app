@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { ArrowLeft, Plus } from 'lucide-react';
 import { BottomTabBar } from '../BottomTabBar';
 import { PageShell } from '../PageShell';
@@ -7,6 +7,7 @@ import { StoryDetailSheet } from './StoryDetailSheet';
 import { StoryCommentSheet } from './StoryCommentSheet';
 import type { StoryItem } from './storyTypes';
 import type { StoryInteractionProps } from '../../storyInteractionState';
+import { scrollToTop } from '../../utils/scrollToTop';
 
 interface RegionMapViewProps {
   onNavigate: (screen: string) => void;
@@ -187,6 +188,10 @@ export function RegionMapView({
     : fullStoryList;
   const hasMoreRecentFullStories = isRecentFullStoryList && recentFullStoryCount < fullStoryList.length;
   const fullStoryListTitle = activeStoryList === 'current-location' ? '현재 위치 스토리' : '최근 올라온 스토리';
+
+  useLayoutEffect(() => {
+    scrollToTop();
+  }, [activeStoryList]);
 
   const renderStoryCard = (story: StoryItem) => (
     <StoryCard

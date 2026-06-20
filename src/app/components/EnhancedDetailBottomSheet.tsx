@@ -1,21 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { X, Bookmark, Share2, MapPin, Clock, Sparkles } from 'lucide-react';
 import { useBottomSheetScrollLock } from './useBottomSheetScrollLock';
 import { getActivityDisplayDate, getActivityPeriod, getActivityStatus, getActivityStatusLabel } from '../activityFormatters';
-import { hasKnownCapacity, normalizeCapacity } from '../activityCapacity';
+import { normalizeCapacity } from '../activityCapacity';
 
 const volunteerTargetFallback = '1365 상세 페이지에서 확인해주세요.';
-
-const needsVolunteerTargetFetch = (value?: string) => {
-  const trimmedValue = value?.trim();
-  return !trimmedValue || trimmedValue === volunteerTargetFallback;
-};
 
 interface VolunteerDetailResponse {
   ok: boolean;
   volunteerTarget?: string | null;
   capacity?: string | null;
   currentParticipants?: string | null;
+  description?: string | null;
 }
 
 interface EnhancedDetailBottomSheetProps {
@@ -64,6 +60,121 @@ interface EnhancedDetailBottomSheetProps {
   };
 }
 
+type DetailDescriptionBlock =
+  | { type: 'section'; text: string }
+  | { type: 'bullet'; marker: string; text: string }
+  | { type: 'contact'; label: string; text: string }
+  | { type: 'text'; text: string }
+  | { type: 'spacer' };
+
+const DETAIL_DESCRIPTION_COLLAPSED_HEIGHT = 8 * 22.75;
+
+const decodeDetailDisplayEntities = (value: string) =>
+  value
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(Number.parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, decimal) => String.fromCodePoint(Number.parseInt(decimal, 10)));
+
+const normalizeDetailDisplayText = (value: string) =>
+  decodeDetailDisplayEntities(value)
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+    .replace(/<\/\s*(p|div|li|tr|h[1-6])\s*>/gi, '\n')
+    .replace(/<\s*li\b[^>]*>/gi, '- ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\r\n?/g, '\n')
+    .replace(/[ \t\f\v]+/g, ' ')
+    .replace(/[ \t]*\n[ \t]*/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+const formatDetailDescriptionBlocks = (value: string): DetailDescriptionBlock[] => {
+  const normalizedText = normalizeDetailDisplayText(value);
+  if (!normalizedText) return [];
+
+  return normalizedText.split('\n').map((rawLine) => {
+    const line = rawLine.trim();
+    if (!line) return { type: 'spacer' };
+
+    const sectionMatch = line.match(/^([1-5])\.\s*(.+)?$/);
+    if (sectionMatch) return { type: 'section', text: line };
+
+    const bulletMatch = line.match(/^([-•※])\s*(.+)?$/);
+    if (bulletMatch) {
+      return {
+        type: 'bullet',
+        marker: bulletMatch[1],
+        text: bulletMatch[2]?.trim() || '',
+      };
+    }
+
+    const contactMatch = line.match(/^(문의|전화|담당자)(\s*[:：])\s*(.*)$/);
+    if (contactMatch) {
+      return {
+        type: 'contact',
+        label: `${contactMatch[1]}${contactMatch[2]}`,
+        text: contactMatch[3]?.trim() || '',
+      };
+    }
+
+    return { type: 'text', text: line };
+  });
+};
+
+function DetailDescriptionContent({ text }: { text: string }) {
+  const blocks = formatDetailDescriptionBlocks(text);
+
+  if (blocks.length === 0) {
+    return <p className="text-sm leading-relaxed text-[#5a5a5a]">자세한 내용은 공식 페이지에서 확인해주세요.</p>;
+  }
+
+  return (
+    <div className="space-y-2 text-sm leading-relaxed text-[#5a5a5a]">
+      {blocks.map((block, index) => {
+        if (block.type === 'spacer') {
+          return <div key={`spacer-${index}`} className="h-1.5" aria-hidden="true" />;
+        }
+
+        if (block.type === 'section') {
+          return (
+            <p key={`${block.type}-${index}`} className="pt-2 text-[14px] font-semibold leading-relaxed text-[#2a2a2a] first:pt-0">
+              {block.text}
+            </p>
+          );
+        }
+
+        if (block.type === 'bullet') {
+          return (
+            <p key={`${block.type}-${index}`} className="flex gap-2">
+              <span className="mt-[1px] flex-shrink-0 text-[#8aaa98]">{block.marker}</span>
+              <span className="min-w-0 flex-1 break-words">{block.text}</span>
+            </p>
+          );
+        }
+
+        if (block.type === 'contact') {
+          return (
+            <p key={`${block.type}-${index}`} className="rounded-2xl bg-[#fbfaf6] px-3.5 py-2.5 text-[13px] leading-relaxed text-[#4f5b53]">
+              <span className="font-semibold text-[#2a2a2a]">{block.label}</span>
+              {block.text && <span> {block.text}</span>}
+            </p>
+          );
+        }
+
+        return (
+          <p key={`${block.type}-${index}`} className="break-words">
+            {block.text}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 export function EnhancedDetailBottomSheet({
   isOpen,
   onClose,
@@ -77,6 +188,12 @@ export function EnhancedDetailBottomSheet({
   const [detailVolunteerTarget, setDetailVolunteerTarget] = useState<string | null>(null);
   const [detailCapacity, setDetailCapacity] = useState<string | null>(null);
   const [detailCurrentParticipants, setDetailCurrentParticipants] = useState<string | null>(null);
+  const [detailDescription, setDetailDescription] = useState<string | null>(null);
+  const [detailDescriptionStatus, setDetailDescriptionStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [isDetailDescriptionExpanded, setIsDetailDescriptionExpanded] = useState(false);
+  const [canToggleDetailDescription, setCanToggleDetailDescription] = useState(false);
+  const detailDescriptionSectionRef = useRef<HTMLDivElement | null>(null);
+  const detailDescriptionContentRef = useRef<HTMLDivElement | null>(null);
   useBottomSheetScrollLock(isOpen);
   const formatShortDate = (value?: string) => {
     if (!value) return '';
@@ -177,6 +294,17 @@ export function EnhancedDetailBottomSheet({
   const organizationInfoRows = [
     ['모집기관', recruitingOrganization],
   ];
+  const fallbackDescription = activity.description?.trim() || '자세한 내용은 공식 페이지에서 확인해주세요.';
+  const detailedDescription =
+    detailDescriptionStatus === 'loading'
+      ? '상세 내용을 불러오는 중이에요.'
+      : detailDescriptionStatus === 'error'
+        ? '상세 내용을 불러오지 못했어요. 공식 페이지에서 확인해 주세요.'
+        : detailDescription || fallbackDescription;
+  const shouldMeasureDetailDescription =
+    detailDescriptionStatus !== 'loading' &&
+    detailDescriptionStatus !== 'error' &&
+    Boolean(detailedDescription.trim());
 
   useEffect(() => {
     if (!shareMessage) return;
@@ -189,70 +317,134 @@ export function EnhancedDetailBottomSheet({
     setDetailVolunteerTarget(null);
     setDetailCapacity(null);
     setDetailCurrentParticipants(null);
+    setDetailDescription(null);
+    setDetailDescriptionStatus('idle');
+    setIsDetailDescriptionExpanded(false);
+    setCanToggleDetailDescription(false);
   }, [activity.progrmRegistNo]);
 
   useEffect(() => {
-    const shouldFetchVolunteerTarget = needsVolunteerTargetFetch(activity.volunteerTarget);
-    const shouldFetchCapacity = !hasKnownCapacity(activity.capacity);
-    const shouldFetchCurrentParticipants = !hasKnownCapacity(activity.currentParticipants);
+    if (!isOpen) {
+      setIsDetailDescriptionExpanded(false);
+    }
+  }, [isOpen]);
 
-    if (
-      !isOpen ||
-      !activity.progrmRegistNo ||
-      (!shouldFetchVolunteerTarget && !shouldFetchCapacity && !shouldFetchCurrentParticipants)
-    ) return;
+  useEffect(() => {
+    setIsDetailDescriptionExpanded(false);
+  }, [detailedDescription]);
+
+  useEffect(() => {
+    const contentElement = detailDescriptionContentRef.current;
+    if (!contentElement || !shouldMeasureDetailDescription) {
+      setCanToggleDetailDescription(false);
+      return;
+    }
+
+    const updateToggleVisibility = () => {
+      setCanToggleDetailDescription(contentElement.scrollHeight > DETAIL_DESCRIPTION_COLLAPSED_HEIGHT + 1);
+    };
+
+    updateToggleVisibility();
+
+    if (typeof ResizeObserver === 'undefined') {
+      window.setTimeout(updateToggleVisibility, 0);
+      return;
+    }
+
+    const resizeObserver = new ResizeObserver(updateToggleVisibility);
+    resizeObserver.observe(contentElement);
+    return () => resizeObserver.disconnect();
+  }, [detailedDescription, shouldMeasureDetailDescription]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (!activity.progrmRegistNo) {
+      setDetailDescriptionStatus('idle');
+      return;
+    }
 
     const abortController = new AbortController();
     const params = new URLSearchParams({
       progrmRegistNo: activity.progrmRegistNo,
     });
 
-    const fetchVolunteerTarget = async () => {
+    const fetchVolunteerDetail = async () => {
+      setDetailDescriptionStatus('loading');
+
       try {
         const response = await fetch(`/api/volunteer/detail?${params.toString()}`, {
           signal: abortController.signal,
         });
         const payload = await response.json() as VolunteerDetailResponse;
 
-        if (!response.ok || !payload.ok) return;
+        if (!response.ok || !payload.ok) {
+          setDetailDescriptionStatus('error');
+          return;
+        }
 
         if (payload.volunteerTarget) setDetailVolunteerTarget(payload.volunteerTarget);
         if (payload.capacity) setDetailCapacity(payload.capacity);
         if (payload.currentParticipants) setDetailCurrentParticipants(payload.currentParticipants);
+        setDetailDescription(payload.description?.trim() || null);
+        setDetailDescriptionStatus('success');
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') return;
-        console.error('1365 volunteer target detail fetch failed:', error);
+        setDetailDescriptionStatus('error');
+        console.error('1365 volunteer detail fetch failed:', error);
       }
     };
 
-    void fetchVolunteerTarget();
+    void fetchVolunteerDetail();
 
     return () => abortController.abort();
-  }, [activity.capacity, activity.currentParticipants, activity.progrmRegistNo, activity.volunteerTarget, isOpen]);
+  }, [activity.progrmRegistNo, isOpen]);
 
   const handleShare = async () => {
-    const shareUrl = activity.applyUrl || activity.sourceUrl || window.location.href;
+    const shareUrl = window.location.href;
+
+    const copyShareUrl = async () => {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        setShareMessage('링크를 복사했어요.');
+        return;
+      } catch {
+        const textarea = document.createElement('textarea');
+        textarea.value = shareUrl;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+
+        try {
+          const didCopy = document.execCommand('copy');
+          if (!didCopy) throw new Error('copy command failed');
+          setShareMessage('링크를 복사했어요.');
+        } catch {
+          setShareMessage('링크 복사에 실패했어요.');
+          window.alert('링크 복사에 실패했어요.');
+        } finally {
+          document.body.removeChild(textarea);
+        }
+      }
+    };
 
     if (navigator.share) {
       try {
         await navigator.share({
-          title: activity.title,
-          text: `${activity.title}\n${activity.location}`,
+          title: '시선',
+          text: '여행 중 만나는 조용한 선행, 시선',
           url: shareUrl,
         });
-      } catch {
-        // 사용자가 공유창을 닫거나 취소한 경우 무시
+        return;
+      } catch (error) {
+        const err = error as Error;
+        if (err.name === 'AbortError') return;
       }
-      return;
     }
 
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setShareMessage('링크를 복사했어요.');
-    } catch {
-      setShareMessage('링크 복사에 실패했어요.');
-      window.alert('링크 복사에 실패했어요.');
-    }
+    await copyShareUrl();
   };
 
   const kakaoMapQuery = volunteerPlace || activity.recruitingOrganization || activity.title;
@@ -261,14 +453,24 @@ export function EnhancedDetailBottomSheet({
   const handleKakaoMapOpen = () => {
     if (!hasMapQuery) return;
 
-    let kakaoMapUrl: string;
-    if (activity.latitude != null && activity.longitude != null) {
-      kakaoMapUrl = `https://map.kakao.com/link/map/${encodeURIComponent(volunteerPlace || activity.title)},${activity.latitude},${activity.longitude}`;
-    } else {
-      kakaoMapUrl = `https://map.kakao.com/link/search/${encodeURIComponent(kakaoMapQuery)}`;
-    }
+    const kakaoMapUrl = `https://map.kakao.com/link/search/${encodeURIComponent(kakaoMapQuery)}`;
 
     window.open(kakaoMapUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleDetailDescriptionToggle = () => {
+    if (isDetailDescriptionExpanded) {
+      setIsDetailDescriptionExpanded(false);
+      window.requestAnimationFrame(() => {
+        detailDescriptionSectionRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        });
+      });
+      return;
+    }
+
+    setIsDetailDescriptionExpanded(true);
   };
 
   if (!isOpen) return null;
@@ -429,17 +631,35 @@ export function EnhancedDetailBottomSheet({
             </section>
 
             {/* Detailed Description */}
-            {activity.description && (
-              <>
-                <div className="border-t border-black/5 pt-6">
-                  <h3 className="mb-3">상세 설명</h3>
-                  <p className="text-sm text-[#5a5a5a] leading-relaxed">{activity.description}</p>
-                  <p className="mt-3 text-[12.5px] leading-relaxed text-[#999]">
-                    자세한 내용은 공식 페이지에서 확인해주세요.
-                  </p>
-                </div>
-              </>
-            )}
+            <div ref={detailDescriptionSectionRef} className="border-t border-black/5 pt-6">
+              <h3 className="mb-3">상세설명</h3>
+              <div
+                ref={detailDescriptionContentRef}
+                className="overflow-hidden transition-[max-height] duration-300 ease-out"
+                style={{
+                  maxHeight: canToggleDetailDescription && !isDetailDescriptionExpanded
+                    ? `${DETAIL_DESCRIPTION_COLLAPSED_HEIGHT}px`
+                    : undefined,
+                }}
+              >
+                <DetailDescriptionContent text={detailedDescription} />
+              </div>
+              {canToggleDetailDescription && detailDescriptionStatus !== 'loading' && (
+                <button
+                  type="button"
+                  onClick={handleDetailDescriptionToggle}
+                  aria-expanded={isDetailDescriptionExpanded}
+                  className="mt-3 text-[13px] font-medium text-[#5f9f74] underline-offset-2 hover:underline"
+                >
+                  {isDetailDescriptionExpanded ? '접기' : '더보기'}
+                </button>
+              )}
+              {detailDescriptionStatus === 'success' && detailDescription && (
+                <p className="mt-3 text-[12.5px] leading-relaxed text-[#999]">
+                  1365에서 제공한 내용을 바탕으로 보여드려요.
+                </p>
+              )}
+            </div>
 
             {/* Action Buttons */}
             <div className="space-y-3 pt-4 pb-6">

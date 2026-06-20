@@ -144,6 +144,7 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
   const captureRef = useRef<HTMLDivElement>(null);
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [isPreparing, setIsPreparing] = useState(true);
+  const [screenshotMessage, setScreenshotMessage] = useState('');
   const [preparationMessageIndex, setPreparationMessageIndex] = useState(0);
   const preparationMessageTimerRef = useRef<number | null>(null);
   const preparationCompleteTimerRef = useRef<number | null>(null);
@@ -209,15 +210,24 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
     clearPreparationTimers();
   }, []);
 
+  useEffect(() => {
+    if (!screenshotMessage) return undefined;
+
+    const timer = window.setTimeout(() => setScreenshotMessage(''), 2400);
+    return () => window.clearTimeout(timer);
+  }, [screenshotMessage]);
+
   const handleSaveScreenshot = async () => {
     const sourceElement = captureRef.current;
     if (!sourceElement) return;
 
     try {
-      const blob = await captureElementAsPng(sourceElement);
+      setScreenshotMessage('');
+      const blob = await captureElementAsPng(sourceElement, 2, { backgroundColor: '#fdfcfa' });
       downloadBlob(blob, `${selectedActivity.title.replace(/[\\/:*?"<>|]/g, '').slice(0, 20) || 'sison'}-itinerary.png`);
     } catch (error) {
       console.error('AI recommendation screenshot download failed', error);
+      setScreenshotMessage('이미지 저장에 실패했어요. 다시 시도해 주세요.');
     }
   };
 
@@ -313,7 +323,7 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
               </section>
             </div>
           ) : (
-            <div ref={captureRef} className="relative px-6 py-6 space-y-8">
+            <div ref={captureRef} className="relative space-y-8 bg-[#fdfcfa] px-6 py-6">
               <section>
                 <div className="bg-white rounded-3xl p-5 shadow-sm border border-black/5">
                   <h3 className="mb-4">{selectedActivity.title}</h3>
@@ -390,6 +400,11 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
                   <Download className="w-5 h-5" strokeWidth={2} />
                   <span>스크린샷 저장하기</span>
                 </button>
+                {screenshotMessage && (
+                  <p className="mt-3 text-center text-[12.5px] leading-relaxed text-[#c9897e]">
+                    {screenshotMessage}
+                  </p>
+                )}
               </section>
             </div>
           )}

@@ -6,6 +6,7 @@ import { SettingsItem } from './SettingsItem';
 import { BottomTabBar } from './BottomTabBar';
 import { PageShell } from './PageShell';
 import { useBottomSheetScrollLock } from './useBottomSheetScrollLock';
+import { scrollToTop } from '../utils/scrollToTop';
 import {
   AccountSettingsScreen,
   ContactSettingsScreen,
@@ -36,8 +37,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
   useBottomSheetScrollLock(isProfileEditorOpen);
 
   useLayoutEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-    document.scrollingElement?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    scrollToTop();
   }, [activeSettingsDetail]);
 
   useEffect(() => {

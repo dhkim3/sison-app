@@ -25,7 +25,7 @@ export function SearchSummaryCard({
     },
     {
       icon: Calendar,
-      label: hasDateRange ? dateRange : '여행 일정 선택',
+      label: hasDateRange ? dateRange : '일정 선택',
       isSelected: hasDateRange,
       isPrimary: false,
     },

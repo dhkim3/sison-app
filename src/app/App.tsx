@@ -26,6 +26,7 @@ import {
   type SearchState,
 } from './searchState';
 import { resolveSearchLocation } from './travelPlaceAliases';
+import { scrollToTop } from './utils/scrollToTop';
 
 type Screen = 'home' | 'search' | 'ai-recommendation' | 'story' | 'saved' | 'profile';
 type SearchEntrySource = 'tab' | 'home-search';
@@ -48,8 +49,7 @@ export default function App() {
   const saveFeedbackTimers = useRef<number[]>([]);
 
   useLayoutEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-    document.scrollingElement?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    scrollToTop();
   }, [currentScreen]);
 
   useEffect(() => {

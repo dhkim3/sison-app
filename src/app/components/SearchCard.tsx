@@ -22,7 +22,7 @@ export function SearchCard({ onSearch }: SearchCardProps) {
         <div className="grid grid-cols-2 gap-3">
           <div className="flex items-center gap-3 p-3 rounded-2xl bg-[#f8f8f5]">
             <Calendar className="w-4 h-4 text-[#5a5a5a]" />
-            <span className="text-sm text-[#5a5a5a]">여행 일정</span>
+            <span className="text-sm text-[#5a5a5a]">일정</span>
           </div>
 
           <div className="flex items-center gap-3 p-3 rounded-2xl bg-[#f8f8f5]">

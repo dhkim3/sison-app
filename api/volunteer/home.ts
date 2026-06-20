@@ -21,7 +21,7 @@ type HomeCachePayload = {
   source: '1365';
   counts: {
     lightweight: number;
-    monthly: number;
+    upcoming: number;
     festival: number;
   };
   sections: HomeVolunteerSections;
@@ -103,7 +103,7 @@ const createCacheError = (
 
 const EMPTY_HOME_SECTIONS: HomeVolunteerSections = {
   lightweight: [],
-  monthly: [],
+  upcoming: [],
   festival: [],
 };
 
@@ -111,16 +111,22 @@ const toHomeVolunteerSections = (value: unknown): HomeVolunteerSections => {
   if (!value || typeof value !== 'object') return EMPTY_HOME_SECTIONS;
 
   const sections = value as Record<string, unknown>;
+  const upcomingSection = Array.isArray(sections.upcoming)
+    ? sections.upcoming
+    : Array.isArray(sections.monthly)
+      ? sections.monthly
+      : [];
+
   return {
     lightweight: Array.isArray(sections.lightweight) ? sections.lightweight : [],
-    monthly: Array.isArray(sections.monthly) ? sections.monthly : [],
+    upcoming: upcomingSection,
     festival: Array.isArray(sections.festival) ? sections.festival : [],
   } as HomeVolunteerSections;
 };
 
 const getHomeSectionCounts = (sections: HomeVolunteerSections) => ({
   lightweight: sections.lightweight.length,
-  monthly: sections.monthly.length,
+  upcoming: sections.upcoming.length,
   festival: sections.festival.length,
 });
 
@@ -149,15 +155,15 @@ const toSortableDate = (value?: string | null) => {
 
 const hasFutureRecruitmentDeadline = (activity: { recruitmentEndDate?: string | null }) => {
   const recruitmentEndDate = toSortableDate(activity.recruitmentEndDate);
-  return recruitmentEndDate > 0 && recruitmentEndDate > getTodayApiDate();
+  return recruitmentEndDate > 0 && recruitmentEndDate >= getTodayApiDate();
 };
 
 const hasOnlyFutureRecruitmentDeadlines = (sections: HomeVolunteerSections) =>
-  [...sections.lightweight, ...sections.monthly, ...sections.festival]
+  [...sections.lightweight, ...sections.upcoming, ...sections.festival]
     .every(hasFutureRecruitmentDeadline);
 
-const hasUsableMonthlySection = (sections: HomeVolunteerSections) =>
-  sections.monthly.length > 0;
+const hasUsableUpcomingSection = (sections: HomeVolunteerSections) =>
+  sections.upcoming.length > 0;
 
 const normalizeHomeCachePayload = (value: unknown): HomeCachePayload | null => {
   if (!value || typeof value !== 'object') return null;
@@ -168,7 +174,7 @@ const normalizeHomeCachePayload = (value: unknown): HomeCachePayload | null => {
   const hasExpectedSections = (
     Boolean(rawSections) &&
     Array.isArray(rawSections?.lightweight) &&
-    Array.isArray(rawSections?.monthly) &&
+    (Array.isArray(rawSections?.upcoming) || Array.isArray(rawSections?.monthly)) &&
     Array.isArray(rawSections?.festival)
   );
 
@@ -319,8 +325,8 @@ const readHomeCache = async () => {
     });
   }
 
-  if (!hasUsableMonthlySection(normalizedPayload.sections)) {
-    throw createCacheError('cache_policy', new Error('홈 캐시의 이달의 활동 섹션이 비어 있어요.'), {
+  if (!hasUsableUpcomingSection(normalizedPayload.sections)) {
+    throw createCacheError('cache_policy', new Error('홈 캐시의 다가오는 활동 섹션이 비어 있어요.'), {
       blobToken,
       blobTokenExists,
       blobTokenLength,

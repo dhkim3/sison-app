@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { RegionMapView } from './story/RegionMapView';
 import { MyActivitiesView } from './story/MyActivitiesView';
 import { StoryUploadView } from './story/StoryUploadView';
 import { CardCreationView } from './story/CardCreationView';
 import type { StoryInteractionProps } from '../storyInteractionState';
 import type { StoryItem } from './story/storyTypes';
+import { scrollToTop } from '../utils/scrollToTop';
 
 interface StoryCreationProps {
   onNavigate: (screen: string) => void;
@@ -23,6 +24,10 @@ export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationPr
   const [didTrySubmitStory, setDidTrySubmitStory] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [createdStories, setCreatedStories] = useState<StoryItem[]>([]);
+
+  useLayoutEffect(() => {
+    scrollToTop();
+  }, [currentView]);
 
   useEffect(() => {
     return () => {

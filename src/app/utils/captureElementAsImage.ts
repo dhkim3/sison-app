@@ -16,6 +16,12 @@ type CaptureDebugInfo = {
   imageCount: number;
 };
 
+type CaptureOptions = {
+  backgroundColor?: string;
+};
+
+const DEFAULT_CAPTURE_BACKGROUND_COLOR = '#fdfcfa';
+
 function isWebKitCaptureFallbackRequired() {
   const ua = window.navigator.userAgent;
   const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -431,7 +437,21 @@ function canvasToPngBlob(canvas: HTMLCanvasElement) {
   });
 }
 
-async function captureElementWithCanvasFallback(element: HTMLElement, width: number, height: number, scale: number) {
+function fillCanvasBackground(context: CanvasRenderingContext2D, width: number, height: number, backgroundColor: string) {
+  context.save();
+  context.setTransform(1, 0, 0, 1, 0, 0);
+  context.fillStyle = backgroundColor;
+  context.fillRect(0, 0, width, height);
+  context.restore();
+}
+
+async function captureElementWithCanvasFallback(
+  element: HTMLElement,
+  width: number,
+  height: number,
+  scale: number,
+  backgroundColor: string,
+) {
   const rootRect = element.getBoundingClientRect();
   const canvas = document.createElement('canvas');
   canvas.width = width * scale;
@@ -442,17 +462,19 @@ async function captureElementWithCanvasFallback(element: HTMLElement, width: num
     throw new Error('Canvas context unavailable');
   }
 
+  fillCanvasBackground(context, canvas.width, canvas.height, backgroundColor);
   context.scale(scale, scale);
   await drawElementTree(context, element, rootRect);
 
   return canvasToPngBlob(canvas);
 }
 
-export async function captureElementAsPng(element: HTMLElement, scale = 2) {
+export async function captureElementAsPng(element: HTMLElement, scale = 2, options: CaptureOptions = {}) {
   const rect = element.getBoundingClientRect();
   const width = Math.ceil(rect.width);
   const height = Math.ceil(rect.height);
   const debugInfo = buildCaptureDebugInfo(element, width, height);
+  const backgroundColor = options.backgroundColor || DEFAULT_CAPTURE_BACKGROUND_COLOR;
 
   if (width === 0 || height === 0) {
     throw new Error('Capture target is empty');
@@ -462,7 +484,7 @@ export async function captureElementAsPng(element: HTMLElement, scale = 2) {
     await prepareElementForCapture(element);
 
     if (isWebKitCaptureFallbackRequired()) {
-      return await captureElementWithCanvasFallback(element, width, height, Math.min(scale, 2));
+      return await captureElementWithCanvasFallback(element, width, height, Math.min(scale, 2), backgroundColor);
     }
 
     const clone = element.cloneNode(true) as HTMLElement;
@@ -472,12 +494,14 @@ export async function captureElementAsPng(element: HTMLElement, scale = 2) {
     clone.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
     clone.style.margin = '0';
     clone.style.transform = 'none';
+    clone.style.backgroundColor = backgroundColor;
 
     const serializedNode = new XMLSerializer().serializeToString(clone);
     const svg = `
       <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+        <rect width="100%" height="100%" fill="${backgroundColor}" />
         <foreignObject width="100%" height="100%">
-          <div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;overflow:hidden;">
+          <div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;overflow:hidden;background:${backgroundColor};">
             ${serializedNode}
           </div>
         </foreignObject>
@@ -494,6 +518,7 @@ export async function captureElementAsPng(element: HTMLElement, scale = 2) {
       throw new Error('Canvas context unavailable');
     }
 
+    fillCanvasBackground(context, canvas.width, canvas.height, backgroundColor);
     context.scale(scale, scale);
     context.drawImage(image, 0, 0, width, height);
 
@@ -509,8 +534,9 @@ export function downloadBlob(blob: Blob, filename: string) {
   const link = document.createElement('a');
   link.href = objectUrl;
   link.download = filename;
+  link.rel = 'noopener noreferrer';
   document.body.appendChild(link);
   link.click();
   link.remove();
-  window.URL.revokeObjectURL(objectUrl);
+  window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 1000);
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Download, X } from 'lucide-react';
 import { SegmentedTabs } from './SegmentedTabs';
 import { CompactActivityCard } from './CompactActivityCard';
@@ -15,6 +15,7 @@ import { getActivitySaveKey, type ActivitySaveLookup, type ActivitySaveRecord } 
 import type { StoryInteractionProps } from '../storyInteractionState';
 import { captureElementAsPng, downloadBlob } from '../utils/captureElementAsImage';
 import { avoidConsecutiveActivityImages } from '../utils/activityImage';
+import { scrollToTop } from '../utils/scrollToTop';
 
 export type SavedArchiveTab = 0 | 1 | 2;
 type TravelCardActionMode = 'actions' | 'confirm-delete';
@@ -214,6 +215,10 @@ export function SavedArchive({
   const travelCardRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const resolvedSavedActivities = avoidConsecutiveActivityImages(savedActivities);
 
+  useLayoutEffect(() => {
+    scrollToTop();
+  }, [activeTab]);
+
   useEffect(() => {
     setActiveTab(activeArchiveTab);
   }, [activeArchiveTab]);
@@ -233,6 +238,9 @@ export function SavedArchive({
 
   const handleTabChange = (index: number) => {
     const nextTab = index as SavedArchiveTab;
+    if (nextTab !== activeTab) {
+      scrollToTop();
+    }
     setActiveTab(nextTab);
     onArchiveTabChange?.(nextTab);
   };

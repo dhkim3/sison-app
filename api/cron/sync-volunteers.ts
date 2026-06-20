@@ -55,12 +55,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const homeCapacityEnrichment = await enrichHomeVolunteerSectionsWithCapacity(serviceKey, sections);
     const normalizedSections = {
       lightweight: Array.isArray(homeCapacityEnrichment.sections.lightweight) ? homeCapacityEnrichment.sections.lightweight : [],
-      monthly: Array.isArray(homeCapacityEnrichment.sections.monthly) ? homeCapacityEnrichment.sections.monthly : [],
+      upcoming: Array.isArray(homeCapacityEnrichment.sections.upcoming) ? homeCapacityEnrichment.sections.upcoming : [],
       festival: Array.isArray(homeCapacityEnrichment.sections.festival) ? homeCapacityEnrichment.sections.festival : [],
     };
     const counts = {
       lightweight: normalizedSections.lightweight.length,
-      monthly: normalizedSections.monthly.length,
+      upcoming: normalizedSections.upcoming.length,
       festival: normalizedSections.festival.length,
     };
     const cachePayload = {

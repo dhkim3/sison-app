@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Search, Calendar, Users, MapPin, ChevronRight, X } from 'lucide-react';
-import { filterLocationSuggestions, locationDiscoverySections } from '../locationSuggestions';
-import { formatRecentSearchShort, type RecentSearchItem } from '../searchState';
+import { SearchDiscoverySections } from './SearchDiscoverySections';
+import { filterLocationSuggestions } from '../locationSuggestions';
+import { type RecentSearchItem } from '../searchState';
 
 interface EnhancedSearchCardProps {
   destination: string;
@@ -12,6 +13,7 @@ interface EnhancedSearchCardProps {
   onSearch: () => void;
   onDestinationChange: (value: string) => void;
   onDateClear?: () => void;
+  onPeopleClear?: () => void;
   recentSearches?: RecentSearchItem[];
 }
 
@@ -24,6 +26,7 @@ export function EnhancedSearchCard({
   onSearch,
   onDestinationChange,
   onDateClear,
+  onPeopleClear,
   recentSearches = [],
 }: EnhancedSearchCardProps) {
   const [isDiscoveryOpen, setIsDiscoveryOpen] = useState(false);
@@ -33,14 +36,13 @@ export function EnhancedSearchCard({
   const discoveryCloseTimerRef = useRef<number | null>(null);
   const normalizedDestination = destination.trim().toLowerCase();
   const autocompleteItems = filterLocationSuggestions(destination);
-  const topRecentSearches = recentSearches.slice(0, 3);
 
   useLayoutEffect(() => {
     const content = discoveryContentRef.current;
     if (!content) return;
 
     setDiscoveryHeight(isDiscoveryOpen ? content.scrollHeight : 0);
-  }, [isDiscoveryOpen, normalizedDestination, autocompleteItems.length]);
+  }, [isDiscoveryOpen, normalizedDestination, autocompleteItems.length, recentSearches.length]);
 
   useEffect(() => () => {
     if (discoveryCloseTimerRef.current) {
@@ -166,56 +168,11 @@ export function EnhancedSearchCard({
                   </div>
                 </section>
               ) : (
-                <div className="space-y-4">
-                  {topRecentSearches.length > 0 && (
-                    <section>
-                      <div className="mb-2 flex items-center gap-1.5">
-                        <Search className="w-3.5 h-3.5 text-[#bbb]" strokeWidth={2} />
-                        <h4 className="text-[12px] font-semibold text-[#5a5a5a] leading-none">최근 검색</h4>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {topRecentSearches.map((item) => (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onPointerDown={(event) => {
-                              event.preventDefault();
-                              handleDiscoverySelect(formatRecentSearchShort(item));
-                            }}
-                            className="px-3 py-2 rounded-full bg-[#f8f8f5] text-[12px] text-[#5a5a5a] hover:bg-[#e8f5ed] hover:text-[#2a2a2a] transition-colors"
-                          >
-                            {formatRecentSearchShort(item)}
-                          </button>
-                        ))}
-                      </div>
-                    </section>
-                  )}
-                  {locationDiscoverySections.map((section) => (
-                    <section key={section.title}>
-                      <div className="mb-2 flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-[#bbb]" strokeWidth={2} />
-                        <h4 className="text-[12px] font-semibold text-[#5a5a5a] leading-none">
-                          {section.title}
-                        </h4>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {section.items.map((item) => (
-                          <button
-                            key={item}
-                            type="button"
-                            onPointerDown={(event) => {
-                              event.preventDefault();
-                              handleDiscoverySelect(item);
-                            }}
-                            className="px-3 py-2 rounded-full bg-[#f8f8f5] text-[12px] text-[#5a5a5a] hover:bg-[#e8f5ed] hover:text-[#2a2a2a] transition-colors"
-                          >
-                            {item}
-                          </button>
-                        ))}
-                      </div>
-                    </section>
-                  ))}
-                </div>
+                <SearchDiscoverySections
+                  recentSearches={recentSearches}
+                  onRecentSearchSelect={(item) => handleDiscoverySelect(item.destination)}
+                  onRegionSelect={handleDiscoverySelect}
+                />
               )}
               <div className="pt-4 pb-4">
                 <div className="h-px bg-black/5" />
@@ -248,7 +205,7 @@ export function EnhancedSearchCard({
           >
             <Calendar className="w-4 h-4 text-[#5a5a5a] flex-shrink-0" strokeWidth={2} />
             <span className={`min-w-0 flex-1 truncate text-sm ${dateRange ? 'text-[#2a2a2a]' : 'text-[#5a5a5a]'}`}>
-              {dateRange || '여행 일정'}
+              {dateRange || '일정'}
             </span>
             {dateRange && onDateClear && (
               <button
@@ -257,30 +214,50 @@ export function EnhancedSearchCard({
                   event.stopPropagation();
                   onDateClear();
                 }}
-                aria-label="여행 일정 초기화"
-                className="-mr-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/80 text-[#aaa] transition-colors hover:bg-white hover:text-[#777] active:scale-95"
+                aria-label="일정 초기화"
+                className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-[#aaa] transition-colors hover:text-[#777] active:scale-95"
               >
-                <X className="h-3.5 w-3.5" strokeWidth={2} />
+                <X className="h-3 w-3" strokeWidth={2} />
               </button>
             )}
           </div>
 
           {/* People Selector */}
-          <button
-            type="button"
+          <div
+            role="button"
+            tabIndex={0}
             onMouseDown={(event) => {
               if (isDiscoveryOpen) {
                 event.preventDefault();
               }
             }}
             onClick={() => transitionToSelection(onPeopleClick)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                transitionToSelection(onPeopleClick);
+              }
+            }}
             className="flex h-12 items-center gap-3 rounded-2xl bg-[#f8f8f5] px-3 text-left transition-colors hover:bg-[#e8f5ed]"
           >
             <Users className="w-4 h-4 text-[#5a5a5a] flex-shrink-0" strokeWidth={2} />
-            <span className={`text-sm ${peopleCount > 0 ? 'text-[#2a2a2a]' : 'text-[#5a5a5a]'}`}>
+            <span className={`min-w-0 flex-1 truncate text-sm ${peopleCount > 0 ? 'text-[#2a2a2a]' : 'text-[#5a5a5a]'}`}>
               {peopleCount > 0 ? `${peopleCount}명` : '인원'}
             </span>
-          </button>
+            {peopleCount > 0 && onPeopleClear && (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onPeopleClear();
+                }}
+                aria-label="인원 초기화"
+                className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-[#aaa] transition-colors hover:text-[#777] active:scale-95"
+              >
+                <X className="h-3 w-3" strokeWidth={2} />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Search Button */}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { resolveSearchLocation, type ResolvedSearchLocation } from '../travelPlaceAliases';
 import { ArrowLeft } from 'lucide-react';
 import { DefaultSearchState } from './DefaultSearchState';
@@ -16,10 +16,12 @@ import type { ActivitySaveLookup, ActivitySaveRecord } from '../activitySaveStat
 import { getActivityStatus, isPastActivity } from '../activityFormatters';
 import { normalizeCapacity } from '../activityCapacity';
 import { avoidConsecutiveActivityImages, logActivityImageMappings, withResolvedActivityImage } from '../utils/activityImage';
+import { scrollToTop } from '../utils/scrollToTop';
 import {
   addRecentSearch,
   createSearchKey,
   formatSearchDateRangeFull,
+  initialSearchApiState,
   selectRecentSearch,
   type RecentSearchItem,
   type SearchCondition,
@@ -270,6 +272,10 @@ export function SearchTab({
     }));
   };
 
+  useLayoutEffect(() => {
+    scrollToTop();
+  }, [hasSearched]);
+
   const runSearch = (values: {
     destination: string;
     startDate: Date | null;
@@ -280,8 +286,34 @@ export function SearchTab({
     resolvedGugunCd?: string | null;
     resolvedKeywords?: string[] | null;
   }) => {
-    const nextDestination = values.destination;
+    scrollToTop();
+    const nextDestination = values.destination.trim();
     const nextPeopleCount = values.peopleCount;
+
+    if (!nextDestination) {
+      setDestination('');
+      setStartDate(values.startDate);
+      setEndDate(values.endDate);
+      setSummaryDateRange(values.dateRangeLabel);
+      setPeopleCount(nextPeopleCount);
+      setSummaryPeople(nextPeopleCount > 0 ? `${nextPeopleCount}명` : '');
+      setHasSearched(true);
+      setVisibleCount(15);
+      resolvedLocationRef.current = null;
+      searchApiStateRef.current = initialSearchApiState;
+
+      onSearchStateChange((currentState) => ({
+        ...currentState,
+        destination: '',
+        startDate: values.startDate,
+        endDate: values.endDate,
+        dateRangeLabel: values.dateRangeLabel,
+        peopleCount: nextPeopleCount,
+        hasSearched: true,
+        api: initialSearchApiState,
+      }));
+      return;
+    }
 
     // 저장된 resolved 정보 사용 (최근 검색 클릭) 또는 새로 resolve
     const resolved = (values.resolvedSidoCd !== undefined)
@@ -446,6 +478,8 @@ export function SearchTab({
     nextPeopleCount: number,
     preResolvedLocation?: ResolvedSearchLocation | null,
   ) => {
+    if (!keyword.trim()) return;
+
     const searchCondition = buildSearchCondition(keyword, nextStartDate, nextEndDate, nextPeopleCount);
     const searchKey = createSearchKey(searchCondition);
     const currentApiState = searchApiStateRef.current;
@@ -699,6 +733,16 @@ export function SearchTab({
       return;
     }
 
+    if (!searchState.destination.trim()) {
+      resolvedLocationRef.current = null;
+      searchApiStateRef.current = initialSearchApiState;
+      onSearchStateChange((currentState) => ({
+        ...currentState,
+        api: initialSearchApiState,
+      }));
+      return;
+    }
+
     void fetchVolunteerActivities(
       searchState.destination,
       searchState.startDate,
@@ -788,6 +832,19 @@ export function SearchTab({
     });
   };
 
+  const handlePeopleClear = () => {
+    setPeopleCount(0);
+    setSummaryPeople('');
+    updateSearchShellState({
+      destination,
+      startDate,
+      endDate,
+      dateRangeLabel: currentSummaryDateRange,
+      peopleCount: 0,
+      hasSearched,
+    });
+  };
+
   const handleSearchConditionsApply = (values: {
     destination: string;
     dateRange: string;
@@ -821,6 +878,7 @@ export function SearchTab({
     !isLoadingResults && searchApiState.failedSearchKey === currentSearchKey
       ? searchApiState.error || ''
       : '';
+  const isMissingDestinationSearch = hasSearched && destination.trim().length === 0;
   const filteredResults = avoidConsecutiveActivityImages(rawResults.filter((activity) => {
     const searchableText = `${activity.title} ${activity.location}`.toLowerCase();
     // alias 지역코드 검색 시 백엔드가 이미 지역 필터링 → 클라이언트 destination 필터 생략
@@ -842,7 +900,7 @@ export function SearchTab({
   const visibleResults = filteredResults.slice(0, visibleCount);
   const hasAppliedCategoryFilters = appliedCategoryFilters.length > 0;
   const resultCount = filteredResults.length;
-  const shouldShowResultCount = isLoadingResults || (!searchError && filteredResults.length > 0);
+  const shouldShowResultCount = !isMissingDestinationSearch && (isLoadingResults || (!searchError && filteredResults.length > 0));
   const hasMoreClientResults = filteredResults.length > visibleCount;
   const hasMoreApiResults = hasCachedResultsForCurrentSearch &&
     filteredResults.length > 0 &&
@@ -920,6 +978,7 @@ export function SearchTab({
               onRecentSearchSelect={handleRecentSearchSelect}
               onDateConfirm={handleDateConfirm}
               onDateClear={handleDateClear}
+              onPeopleClear={handlePeopleClear}
               onPeopleConfirm={handlePeopleConfirm}
               destinationActivityLabels={destinationActivityLabels}
             />
@@ -930,11 +989,13 @@ export function SearchTab({
         {hasSearched && (
           <>
             {/* Filters */}
+            {!isMissingDestinationSearch && (
             <div className="px-5 py-3">
               <div className="flex items-center">
                 <FilterChips selectedFilters={appliedCategoryFilters} onOpen={() => setIsFilterOpen(true)} />
               </div>
             </div>
+            )}
 
             {/* Results Count */}
             {shouldShowResultCount && (
@@ -965,7 +1026,7 @@ export function SearchTab({
                   <p className="mt-1.5 text-[13px] text-[#999]">검색어나 일정을 조금 바꿔 다시 시도해보세요</p>
                 </div>
               )}
-              {!isLoadingResults && !searchError && visibleResults.map((activity) => (
+              {!isMissingDestinationSearch && !isLoadingResults && !searchError && visibleResults.map((activity) => (
                 <CompactActivityCard
                   key={activity.id || `${activity.title}-${activity.date}`}
                   variant="searchResult"
@@ -989,8 +1050,14 @@ export function SearchTab({
               ))}
               {!isLoadingResults && !searchError && filteredResults.length === 0 && (
                 <div className="rounded-3xl bg-white border border-black/5 px-5 py-8 text-center shadow-sm">
-                  <p className="text-[15px] font-medium text-[#2a2a2a]">조건에 맞는 활동이 아직 없어요</p>
-                  <p className="mt-1.5 text-[13px] text-[#999]">여행지나 일정을 조금 넓혀 다시 찾아보세요</p>
+                  <p className="text-[15px] font-medium text-[#2a2a2a]">
+                    {isMissingDestinationSearch ? '여행지를 입력해 주세요' : '조건에 맞는 활동이 아직 없어요'}
+                  </p>
+                  <p className="mt-1.5 text-[13px] text-[#999]">
+                    {isMissingDestinationSearch
+                      ? '가고 싶은 지역을 입력하면 근처 활동을 찾아드릴게요.'
+                      : '다른 여행지나 일정을 선택해 다시 찾아보세요.'}
+                  </p>
                 </div>
               )}
 

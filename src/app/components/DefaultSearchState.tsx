@@ -2,7 +2,8 @@ import { useRef, useState } from 'react';
 import { Search, Calendar, Users, MapPin, X } from 'lucide-react';
 import { SearchHistory } from './SearchHistory';
 import { DestinationCard } from './DestinationCard';
-import { formatRecentSearchShort, type RecentSearchItem } from '../searchState';
+import { SearchDiscoverySections, popularRegionItems } from './SearchDiscoverySections';
+import { type RecentSearchItem } from '../searchState';
 
 interface DefaultSearchStateProps {
   onSearch: (dest: string, dates: string, people: number) => void;
@@ -16,6 +17,7 @@ interface DefaultSearchStateProps {
   onRecentSearchSelect: (item: RecentSearchItem) => void;
   onDateConfirm?: (start: Date, end: Date) => void;
   onDateClear?: () => void;
+  onPeopleClear?: () => void;
   onPeopleConfirm?: (count: number) => void;
   destinationActivityLabels?: Record<string, string>;
 }
@@ -31,6 +33,7 @@ export function DefaultSearchState({
   onDestinationChange,
   onRecentSearchSelect,
   onDateClear,
+  onPeopleClear,
   destinationActivityLabels = {},
 }: DefaultSearchStateProps) {
   const [isDiscoveryOpen, setIsDiscoveryOpen] = useState(false);
@@ -54,27 +57,6 @@ export function DefaultSearchState({
       name: '여수',
     },
   ];
-
-  const recommendedRegions = [
-    {
-      name: '부산 수영구',
-      description: '바다 산책과 함께하는 가벼운 활동',
-      searchKeyword: '부산 수영구',
-    },
-    {
-      name: '제주',
-      description: '느린 일정 사이에 머무는 활동',
-      searchKeyword: '제주',
-    },
-    {
-      name: '서울 마포구',
-      description: '공원과 도심을 잇는 가벼운 활동',
-      searchKeyword: '서울 마포구',
-    },
-  ];
-
-  const topRecentSearches = recentSearches.slice(0, 3);
-  const popularRegionNames = recommendedRegions.map((region) => region.searchKeyword);
 
   const handleSearchSubmit = () => {
     onSearch(destination, dateRange, peopleCount);
@@ -137,53 +119,11 @@ export function DefaultSearchState({
             }`}
           >
             <div className="pt-4">
-              <div className="space-y-4">
-                {topRecentSearches.length > 0 && (
-                  <section>
-                    <div className="mb-2 flex items-center gap-1.5">
-                      <Search className="w-3.5 h-3.5 text-[#bbb]" strokeWidth={2} />
-                      <h4 className="text-[12px] font-semibold text-[#5a5a5a] leading-none">
-                        최근 검색
-                      </h4>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {topRecentSearches.map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => handleRecentSelect(item)}
-                          className="px-3 py-2 rounded-full bg-[#f8f8f5] text-[12px] text-[#5a5a5a] hover:bg-[#e8f5ed] hover:text-[#2a2a2a] transition-colors"
-                        >
-                          {formatRecentSearchShort(item)}
-                        </button>
-                      ))}
-                    </div>
-                  </section>
-                )}
-
-                <section>
-                  <div className="mb-2 flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-[#bbb]" strokeWidth={2} />
-                    <h4 className="text-[12px] font-semibold text-[#5a5a5a] leading-none">
-                      실시간 인기 지역
-                    </h4>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {popularRegionNames.map((item) => (
-                      <button
-                        key={item}
-                        type="button"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => handleDiscoverySelect(item)}
-                        className="px-3 py-2 rounded-full bg-[#f8f8f5] text-[12px] text-[#5a5a5a] hover:bg-[#e8f5ed] hover:text-[#2a2a2a] transition-colors"
-                      >
-                        {item}
-                      </button>
-                    ))}
-                  </div>
-                </section>
-              </div>
+              <SearchDiscoverySections
+                recentSearches={recentSearches}
+                onRecentSearchSelect={handleRecentSelect}
+                onRegionSelect={handleDiscoverySelect}
+              />
               <div className="pt-4 pb-4">
                 <div className="h-px bg-black/5" />
               </div>
@@ -213,7 +153,7 @@ export function DefaultSearchState({
             className="flex h-12 flex-1 cursor-pointer items-center gap-2 rounded-2xl bg-[#f8f8f5] px-4 transition-colors hover:bg-[#f0f0eb]"
           >
             <Calendar className="w-4 h-4 text-[#5a5a5a]" strokeWidth={2} />
-            <span className="min-w-0 flex-1 truncate text-sm text-[#5a5a5a]">{dateRange || '여행 일정'}</span>
+            <span className="min-w-0 flex-1 truncate text-sm text-[#5a5a5a]">{dateRange || '일정'}</span>
             {dateRange && onDateClear && (
               <button
                 type="button"
@@ -221,26 +161,46 @@ export function DefaultSearchState({
                   event.stopPropagation();
                   onDateClear();
                 }}
-                aria-label="여행 일정 초기화"
-                className="-mr-2 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/80 text-[#aaa] transition-colors hover:bg-white hover:text-[#777] active:scale-95"
+                aria-label="일정 초기화"
+                className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-[#aaa] transition-colors hover:text-[#777] active:scale-95"
               >
-                <X className="h-3.5 w-3.5" strokeWidth={2} />
+                <X className="h-3 w-3" strokeWidth={2} />
               </button>
             )}
           </div>
-          <button
-            type="button"
+          <div
+            role="button"
+            tabIndex={0}
             onMouseDown={(event) => {
               if (isDiscoveryOpen) {
                 event.preventDefault();
               }
             }}
             onClick={() => transitionToSelection(onPeopleClick)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                transitionToSelection(onPeopleClick);
+              }
+            }}
             className="flex h-12 flex-1 items-center gap-2 rounded-2xl bg-[#f8f8f5] px-4 transition-colors hover:bg-[#f0f0eb]"
           >
             <Users className="w-4 h-4 text-[#5a5a5a]" strokeWidth={2} />
-            <span className="text-sm text-[#5a5a5a]">{peopleCount > 0 ? `${peopleCount}명` : '인원'}</span>
-          </button>
+            <span className="min-w-0 flex-1 truncate text-sm text-[#5a5a5a]">{peopleCount > 0 ? `${peopleCount}명` : '인원'}</span>
+            {peopleCount > 0 && onPeopleClear && (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onPeopleClear();
+                }}
+                aria-label="인원 초기화"
+                className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-[#aaa] transition-colors hover:text-[#777] active:scale-95"
+              >
+                <X className="h-3 w-3" strokeWidth={2} />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Search button */}
@@ -270,7 +230,7 @@ export function DefaultSearchState({
           <h3 className="mb-1">실시간 인기 지역</h3>
         </div>
         <div className="space-y-2.5">
-          {recommendedRegions.map((region) => (
+          {popularRegionItems.map((region) => (
             <button
               key={region.name}
               type="button"

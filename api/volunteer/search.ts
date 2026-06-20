@@ -1036,35 +1036,6 @@ const filterWeeklyActivities = (items: ParsedVolunteerItem[]) => {
   return [];
 };
 
-const monthlyRemoteActivityPattern = /비대면|온라인|재택|키트|각 가정|개인공간/;
-const monthlyCareFacilityPattern = /요양|병원|치매|간병|어르신 돌봄|재활요양/;
-const monthlyOperationalPattern = /정기|상시|멘토링|학습지도|상담|사무/;
-const monthlyTravelerFriendlyPattern = /문화|관광|축제|행사|환경|플로깅|해변|공원|산책|캠페인|체험|마을|거리|해안|정화|버스킹/;
-const monthlySecondaryPenaltyPattern = /교육|센터|어르신|프로그램/;
-const monthlyInstitutionalPenaltyPattern = /기관|복지관|요양원|병동|재가|무료 급식|급식|조리|돌봄/;
-const monthlyRepeatPenaltyPattern = /매주|주\s*\d+회|월\s*\d+회|반복|장기|기간\s*내|수시/;
-const monthlySupplementKeywords = ['플로깅', '환경정화', '캠페인', '공원', '문화', '체험', '축제', '행사'];
-const monthlyHomeStrongExcludePattern = new RegExp(
-  `${monthlyRemoteActivityPattern.source}|${monthlyCareFacilityPattern.source}`,
-);
-
-type MonthlyHomeFallbackLevel = 'strict_monthly' | 'relaxed_monthly' | 'upcoming_traveler';
-
-const getMonthBoundsFromApiDate = (today: string) => {
-  const year = Number(today.slice(0, 4));
-  const month = Number(today.slice(4, 6));
-  const monthEnd = new Date(year, month, 0);
-
-  return {
-    monthStart: Number(`${today.slice(0, 6)}01`),
-    monthEnd: Number(
-      `${monthEnd.getFullYear()}${String(monthEnd.getMonth() + 1).padStart(2, '0')}${String(monthEnd.getDate()).padStart(2, '0')}`,
-    ),
-  };
-};
-
-const clampApiDate = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
-
 const addApiDateDays = (value: string, days: number) => {
   const date = toApiDateObject(value);
   if (!date) return value;
@@ -1073,7 +1044,23 @@ const addApiDateDays = (value: string, days: number) => {
   return `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
 };
 
-const getMonthlySearchableText = (item: ParsedVolunteerItem) => {
+const upcomingRemoteActivityPattern = /비대면|온라인|재택|키트|각 가정|개인공간/;
+const upcomingCareFacilityPattern = /요양|병원|치매|간병|어르신 돌봄|재활요양/;
+const upcomingOperationalPattern = /정기|상시|멘토링|학습지도|상담|사무/;
+const upcomingTravelerFriendlyPattern = /문화|관광|축제|행사|환경|플로깅|해변|공원|산책|캠페인|체험|마을|거리|해안|정화|버스킹/;
+const upcomingSecondaryPenaltyPattern = /교육|센터|어르신|프로그램/;
+const upcomingInstitutionalPenaltyPattern = /기관|복지관|요양원|병동|재가|무료 급식|급식|조리|돌봄/;
+const upcomingRepeatPenaltyPattern = /매주|주\s*\d+회|월\s*\d+회|반복|장기|기간\s*내|수시/;
+const upcomingSupplementKeywords = ['플로깅', '환경정화', '캠페인', '공원', '문화', '체험', '축제', '행사'];
+const upcomingHomeStrongExcludePattern = new RegExp(
+  `${upcomingRemoteActivityPattern.source}|${upcomingCareFacilityPattern.source}`,
+);
+const UPCOMING_HOME_TARGET_COUNT = 6;
+const UPCOMING_SEARCH_TARGET_COUNT = 3;
+
+type UpcomingHomeFallbackLevel = 'strict_upcoming' | 'relaxed_upcoming' | 'upcoming_traveler';
+
+const getUpcomingSearchableText = (item: ParsedVolunteerItem) => {
   const title = item.progrmSj;
   const categoryAndTitle = `${item.srvcClCode} ${title}`;
   return {
@@ -1082,37 +1069,55 @@ const getMonthlySearchableText = (item: ParsedVolunteerItem) => {
   };
 };
 
-const getMonthlyActivityScore = (item: ParsedVolunteerItem, index: number) => {
-  const { categoryAndTitle, searchableText } = getMonthlySearchableText(item);
+const getUpcomingCandidateDate = (item: ParsedVolunteerItem) => {
   const activityStartDate = getActivityStartDate(item);
   const activityEndDate = getLightweightActivityEndDate(item);
+
+  if (isPeriodActivity(item)) {
+    if (isApiDateTodayOrLater(activityStartDate) && isApiDateTodayOrLater(activityEndDate)) {
+      return activityStartDate;
+    }
+
+    if (isApiDateTodayOrEarlier(activityStartDate) && isApiDateTodayOrLater(activityEndDate)) {
+      return getTodayApiDate();
+    }
+
+    return activityEndDate;
+  }
+
+  return activityStartDate || activityEndDate;
+};
+
+const getUpcomingActivityScore = (item: ParsedVolunteerItem, index: number) => {
+  const { categoryAndTitle, searchableText } = getUpcomingSearchableText(item);
+  const activityStartDate = getActivityStartDate(item);
+  const activityEndDate = getLightweightActivityEndDate(item);
+  const candidateDate = getUpcomingCandidateDate(item);
   const recruitmentEndDate = getRecruitmentEndDate(item);
   const durationMinutes = getActivityDurationMinutes(item);
   const today = getTodayApiDate();
   const todayValue = Number(today);
-  const { monthStart, monthEnd } = getMonthBoundsFromApiDate(today);
-  const activityStartValue = toSortableDate(activityStartDate);
   const activityEndValue = toSortableDate(activityEndDate || activityStartDate);
+  const candidateDateValue = toSortableDate(candidateDate);
   const recruitmentEndValue = toSortableDate(recruitmentEndDate);
   const activitySpanDays = getApiDateSpanDays(activityStartDate, activityEndDate || activityStartDate);
-  const hasTravelerFriendlyKeyword = monthlyTravelerFriendlyPattern.test(searchableText);
+  const hasTravelerFriendlyKeyword = upcomingTravelerFriendlyPattern.test(searchableText);
 
   if (!isRecruitingItem(item)) return null;
   if (isActivityEnded(item)) return null;
-  if (!recruitmentEndDate || recruitmentEndValue <= todayValue) return null;
-  if (!activityStartDate) return null;
-  if (!activityEndValue || activityEndValue < todayValue) return null;
-  if (!activityStartValue || activityStartValue > monthEnd) return null;
-  if (activityEndValue < monthStart) return null;
+  if (!recruitmentEndDate || recruitmentEndValue < todayValue) return null;
+  if (activityEndValue > 0 && activityEndValue < todayValue) return null;
+  if (candidateDateValue > 0 && candidateDateValue < todayValue) return null;
+  if (candidateDate && candidateDateValue === 0) return null;
   if (!isYesFlag(item.adultPosblAt)) return null;
-  if (monthlyRemoteActivityPattern.test(searchableText)) return null;
-  if (monthlyCareFacilityPattern.test(searchableText)) return null;
-  if (monthlyOperationalPattern.test(searchableText)) return null;
+  if (upcomingRemoteActivityPattern.test(searchableText)) return null;
+  if (upcomingCareFacilityPattern.test(searchableText)) return null;
+  if (upcomingOperationalPattern.test(searchableText)) return null;
   if (activitySpanDays !== null && activitySpanDays >= 60 && !hasTravelerFriendlyKeyword) return null;
 
   let score = 0;
-  const availableStartDate = clampApiDate(activityStartValue, Math.max(todayValue, monthStart), monthEnd);
-  const availableEndDate = clampApiDate(activityEndValue, monthStart, monthEnd);
+  const sortableActivityDate = candidateDateValue || Number.MAX_SAFE_INTEGER;
+  const availableEndDate = activityEndValue || Number.MAX_SAFE_INTEGER;
 
   if (hasTravelerFriendlyKeyword) score += 45;
   if (weeklyPreferredCategoryKeywords.some((kw) => categoryAndTitle.includes(kw))) score += 30;
@@ -1123,59 +1128,61 @@ const getMonthlyActivityScore = (item: ParsedVolunteerItem, index: number) => {
   if (durationMinutes !== null && durationMinutes >= 60 && durationMinutes <= 240) score += 35;
   else if (durationMinutes !== null && durationMinutes <= 360) score += 12;
 
+  if (!candidateDateValue) score -= 25;
   if (activitySpanDays !== null && activitySpanDays <= 14) score += 18;
   else if (activitySpanDays !== null && activitySpanDays >= 30) score -= 18;
   if (activitySpanDays !== null && activitySpanDays >= 60) score -= 28;
 
-  if (monthlySecondaryPenaltyPattern.test(searchableText)) score -= 18;
-  if (monthlyInstitutionalPenaltyPattern.test(searchableText)) score -= 24;
-  if (monthlyRepeatPenaltyPattern.test(searchableText)) score -= 20;
+  if (upcomingSecondaryPenaltyPattern.test(searchableText)) score -= 18;
+  if (upcomingInstitutionalPenaltyPattern.test(searchableText)) score -= 24;
+  if (upcomingRepeatPenaltyPattern.test(searchableText)) score -= 20;
   if (recruitmentEndValue === todayValue) score -= 10;
 
   return {
     item,
     index,
     score,
-    availableStartDate,
+    activityDate: sortableActivityDate,
     availableEndDate,
     recruitmentEndDate: recruitmentEndValue,
+    isRecruiting: isRecruitingItem(item),
     durationMinutes: durationMinutes ?? Infinity,
     hasTravelerFriendlyKeyword,
     activitySpanDays: activitySpanDays ?? Infinity,
   };
 };
 
-const getMonthlyHomeFallbackScore = (
+const getUpcomingHomeFallbackScore = (
   item: ParsedVolunteerItem,
   index: number,
-  sourceLevel: Exclude<MonthlyHomeFallbackLevel, 'strict_monthly'>,
+  sourceLevel: Exclude<UpcomingHomeFallbackLevel, 'strict_upcoming'>,
 ) => {
-  const { categoryAndTitle, searchableText } = getMonthlySearchableText(item);
+  const { categoryAndTitle, searchableText } = getUpcomingSearchableText(item);
   const activityStartDate = getActivityStartDate(item);
   const activityEndDate = getLightweightActivityEndDate(item);
+  const candidateDate = getUpcomingCandidateDate(item);
   const recruitmentEndDate = getRecruitmentEndDate(item);
   const durationMinutes = getActivityDurationMinutes(item);
   const today = getTodayApiDate();
   const todayValue = Number(today);
-  const { monthStart, monthEnd } = getMonthBoundsFromApiDate(today);
   const activityStartValue = toSortableDate(activityStartDate);
   const activityEndValue = toSortableDate(activityEndDate || activityStartDate);
+  const candidateDateValue = toSortableDate(candidateDate);
   const recruitmentEndValue = toSortableDate(recruitmentEndDate);
   const activitySpanDays = getApiDateSpanDays(activityStartDate, activityEndDate || activityStartDate);
-  const daysUntilActivity = getDaysAfterToday(activityStartDate);
-  const hasTravelerFriendlyKeyword = monthlyTravelerFriendlyPattern.test(searchableText);
-  const isInThisMonth = Boolean(activityStartValue && activityStartValue <= monthEnd && activityEndValue >= monthStart);
+  const daysUntilActivity = getDaysAfterToday(candidateDate);
+  const hasTravelerFriendlyKeyword = upcomingTravelerFriendlyPattern.test(searchableText);
 
   if (!isRecruitingItem(item)) return null;
   if (isActivityEnded(item)) return null;
-  if (!recruitmentEndDate || recruitmentEndValue <= todayValue) return null;
-  if (!activityStartDate) return null;
-  if (!activityEndValue || activityEndValue < todayValue) return null;
+  if (!recruitmentEndDate || recruitmentEndValue < todayValue) return null;
+  if (activityEndValue > 0 && activityEndValue < todayValue) return null;
+  if (candidateDateValue > 0 && candidateDateValue < todayValue) return null;
+  if (candidateDate && candidateDateValue === 0) return null;
   if (!isYesFlag(item.adultPosblAt)) return null;
-  if (monthlyHomeStrongExcludePattern.test(searchableText)) return null;
+  if (upcomingHomeStrongExcludePattern.test(searchableText)) return null;
 
-  if (sourceLevel === 'relaxed_monthly') {
-    if (!isInThisMonth) return null;
+  if (sourceLevel === 'relaxed_upcoming') {
     if (!hasTravelerFriendlyKeyword && !weeklyPreferredCategoryKeywords.some((kw) => categoryAndTitle.includes(kw))) return null;
     if (activitySpanDays !== null && activitySpanDays >= 90 && !hasTravelerFriendlyKeyword) return null;
   } else {
@@ -1185,11 +1192,9 @@ const getMonthlyHomeFallbackScore = (
     if (activitySpanDays !== null && activitySpanDays >= 45) return null;
   }
 
-  let score = sourceLevel === 'relaxed_monthly' ? 15 : 0;
-  const availableStartDate = clampApiDate(activityStartValue, todayValue, sourceLevel === 'relaxed_monthly' ? monthEnd : Number(addApiDateDays(today, 45)));
-  const availableEndDate = sourceLevel === 'relaxed_monthly'
-    ? clampApiDate(activityEndValue, monthStart, monthEnd)
-    : activityEndValue;
+  let score = sourceLevel === 'relaxed_upcoming' ? 15 : 0;
+  const sortableActivityDate = candidateDateValue || Number.MAX_SAFE_INTEGER;
+  const availableEndDate = activityEndValue || Number.MAX_SAFE_INTEGER;
 
   if (hasTravelerFriendlyKeyword) score += 35;
   if (weeklyPreferredCategoryKeywords.some((kw) => categoryAndTitle.includes(kw))) score += 22;
@@ -1200,16 +1205,17 @@ const getMonthlyHomeFallbackScore = (
   if (durationMinutes !== null && durationMinutes >= 60 && durationMinutes <= 300) score += 22;
   else if (durationMinutes !== null && durationMinutes <= 420) score += 8;
 
+  if (!candidateDateValue) score -= 25;
   if (activitySpanDays !== null && activitySpanDays <= 14) score += 14;
   else if (activitySpanDays !== null && activitySpanDays >= 30) score -= 16;
 
-  if (monthlySecondaryPenaltyPattern.test(searchableText)) score -= 10;
-  if (monthlyInstitutionalPenaltyPattern.test(searchableText)) score -= 18;
-  if (monthlyRepeatPenaltyPattern.test(searchableText)) score -= 18;
-  if (monthlyOperationalPattern.test(searchableText)) score -= sourceLevel === 'relaxed_monthly' ? 14 : 24;
+  if (upcomingSecondaryPenaltyPattern.test(searchableText)) score -= 10;
+  if (upcomingInstitutionalPenaltyPattern.test(searchableText)) score -= 18;
+  if (upcomingRepeatPenaltyPattern.test(searchableText)) score -= 18;
+  if (upcomingOperationalPattern.test(searchableText)) score -= sourceLevel === 'relaxed_upcoming' ? 14 : 24;
 
   if (daysUntilActivity !== null && daysUntilActivity >= 0) {
-    score += Math.max(0, sourceLevel === 'relaxed_monthly' ? 20 - Math.min(daysUntilActivity, 20) : 18 - Math.min(daysUntilActivity, 18));
+    score += Math.max(0, sourceLevel === 'relaxed_upcoming' ? 20 - Math.min(daysUntilActivity, 20) : 18 - Math.min(daysUntilActivity, 18));
   }
 
   return {
@@ -1217,41 +1223,42 @@ const getMonthlyHomeFallbackScore = (
     index,
     score,
     sourceLevel,
-    availableStartDate,
+    activityDate: sortableActivityDate,
     availableEndDate,
     recruitmentEndDate: recruitmentEndValue,
+    isRecruiting: isRecruitingItem(item),
     durationMinutes: durationMinutes ?? Infinity,
     hasTravelerFriendlyKeyword,
     activitySpanDays: activitySpanDays ?? Infinity,
   };
 };
 
-const getMonthlyActivityRejectReason = (item: ParsedVolunteerItem) => {
-  const { searchableText } = getMonthlySearchableText(item);
+const getUpcomingActivityRejectReason = (item: ParsedVolunteerItem) => {
+  const { searchableText } = getUpcomingSearchableText(item);
   const activityStartDate = getActivityStartDate(item);
   const activityEndDate = getLightweightActivityEndDate(item);
+  const candidateDate = getUpcomingCandidateDate(item);
   const recruitmentEndDate = getRecruitmentEndDate(item);
   const today = getTodayApiDate();
   const todayValue = Number(today);
-  const { monthStart, monthEnd } = getMonthBoundsFromApiDate(today);
-  const activityStartValue = toSortableDate(activityStartDate);
   const activityEndValue = toSortableDate(activityEndDate || activityStartDate);
+  const candidateDateValue = toSortableDate(candidateDate);
   const recruitmentEndValue = toSortableDate(recruitmentEndDate);
   const activitySpanDays = getApiDateSpanDays(activityStartDate, activityEndDate || activityStartDate);
-  const hasTravelerFriendlyKeyword = monthlyTravelerFriendlyPattern.test(searchableText);
+  const hasTravelerFriendlyKeyword = upcomingTravelerFriendlyPattern.test(searchableText);
 
   if (!isRecruitingItem(item)) return 'not_recruiting';
   if (isActivityEnded(item)) return 'activity_ended';
   if (!recruitmentEndDate || recruitmentEndValue < todayValue) return 'recruitment_ended';
   if (recruitmentEndValue === todayValue) return 'recruitment_deadline_today';
-  if (!activityStartDate) return 'missing_activity_start';
   if (!activityEndValue || activityEndValue < todayValue) return 'activity_end_before_today';
-  if (!activityStartValue || activityStartValue > monthEnd) return 'activity_start_after_month_end';
-  if (activityEndValue < monthStart) return 'activity_end_before_month_start';
+  if (candidateDate && candidateDateValue === 0) return 'invalid_activity_date';
+  if (!candidateDateValue) return 'missing_activity_date';
+  if (candidateDateValue < todayValue) return 'activity_date_before_today';
   if (!isYesFlag(item.adultPosblAt)) return 'not_adult_eligible';
-  if (monthlyRemoteActivityPattern.test(searchableText)) return 'remote_keyword';
-  if (monthlyCareFacilityPattern.test(searchableText)) return 'care_facility_keyword';
-  if (monthlyOperationalPattern.test(searchableText)) return 'operational_keyword';
+  if (upcomingRemoteActivityPattern.test(searchableText)) return 'remote_keyword';
+  if (upcomingCareFacilityPattern.test(searchableText)) return 'care_facility_keyword';
+  if (upcomingOperationalPattern.test(searchableText)) return 'operational_keyword';
   if (activitySpanDays !== null && activitySpanDays >= 60 && !hasTravelerFriendlyKeyword) {
     return 'long_without_traveler_keyword';
   }
@@ -1259,55 +1266,53 @@ const getMonthlyActivityRejectReason = (item: ParsedVolunteerItem) => {
   return 'passed';
 };
 
-const filterMonthlyActivities = (items: ParsedVolunteerItem[]) => {
+const filterUpcomingActivities = (items: ParsedVolunteerItem[], limit = UPCOMING_SEARCH_TARGET_COUNT) => {
   const candidates = items
-    .map((item, index) => getMonthlyActivityScore(item, index))
+    .map((item, index) => getUpcomingActivityScore(item, index))
     .filter((c): c is NonNullable<typeof c> => c !== null)
-    .sort((a, b) => {
-      if (a.availableStartDate !== b.availableStartDate) return a.availableStartDate - b.availableStartDate;
-      if (a.recruitmentEndDate !== b.recruitmentEndDate) return a.recruitmentEndDate - b.recruitmentEndDate;
-      if (a.durationMinutes !== b.durationMinutes) return a.durationMinutes - b.durationMinutes;
-      if (a.hasTravelerFriendlyKeyword !== b.hasTravelerFriendlyKeyword) return a.hasTravelerFriendlyKeyword ? -1 : 1;
-      if (b.score !== a.score) return b.score - a.score;
-      if (a.activitySpanDays !== b.activitySpanDays) return a.activitySpanDays - b.activitySpanDays;
-      if (a.availableEndDate !== b.availableEndDate) return a.availableEndDate - b.availableEndDate;
-      return a.index - b.index;
-    });
+    .sort(compareUpcomingHomeCandidates);
 
-  return candidates.slice(0, 3).map(({ item }) => item);
+  return candidates.slice(0, limit).map(({ item }) => item);
 };
 
 const getVolunteerItemKey = (item: ParsedVolunteerItem) =>
   item.progrmRegistNo || `${item.progrmSj}-${item.noticeEndde}-${item.progrmBgnde}`;
 
-const sortMonthlyHomeCandidates = <T extends {
-  availableStartDate: number;
+type UpcomingSortableCandidate = {
+  activityDate: number;
   recruitmentEndDate: number;
+  isRecruiting: boolean;
   durationMinutes: number;
   hasTravelerFriendlyKeyword: boolean;
   score: number;
   activitySpanDays: number;
   availableEndDate: number;
   index: number;
-}>(candidates: T[]) =>
-  candidates.sort((a, b) => {
-    if (a.availableStartDate !== b.availableStartDate) return a.availableStartDate - b.availableStartDate;
-    if (a.recruitmentEndDate !== b.recruitmentEndDate) return a.recruitmentEndDate - b.recruitmentEndDate;
-    if (a.durationMinutes !== b.durationMinutes) return a.durationMinutes - b.durationMinutes;
-    if (a.hasTravelerFriendlyKeyword !== b.hasTravelerFriendlyKeyword) return a.hasTravelerFriendlyKeyword ? -1 : 1;
-    if (b.score !== a.score) return b.score - a.score;
-    if (a.activitySpanDays !== b.activitySpanDays) return a.activitySpanDays - b.activitySpanDays;
-    if (a.availableEndDate !== b.availableEndDate) return a.availableEndDate - b.availableEndDate;
-    return a.index - b.index;
-  });
+};
 
-const appendMonthlyHomeCandidates = (
+const compareUpcomingHomeCandidates = <T extends UpcomingSortableCandidate>(a: T, b: T) => {
+  if (a.activityDate !== b.activityDate) return a.activityDate - b.activityDate;
+  if (a.recruitmentEndDate !== b.recruitmentEndDate) return a.recruitmentEndDate - b.recruitmentEndDate;
+  if (a.isRecruiting !== b.isRecruiting) return a.isRecruiting ? -1 : 1;
+  if (a.durationMinutes !== b.durationMinutes) return a.durationMinutes - b.durationMinutes;
+  if (a.hasTravelerFriendlyKeyword !== b.hasTravelerFriendlyKeyword) return a.hasTravelerFriendlyKeyword ? -1 : 1;
+  if (b.score !== a.score) return b.score - a.score;
+  if (a.activitySpanDays !== b.activitySpanDays) return a.activitySpanDays - b.activitySpanDays;
+  if (a.availableEndDate !== b.availableEndDate) return a.availableEndDate - b.availableEndDate;
+  return a.index - b.index;
+};
+
+const sortUpcomingHomeCandidates = <T extends UpcomingSortableCandidate>(candidates: T[]) =>
+  candidates.sort(compareUpcomingHomeCandidates);
+
+const appendUpcomingHomeCandidates = (
   selected: ParsedVolunteerItem[],
   selectedKeys: Set<string>,
   candidates: Array<{ item: ParsedVolunteerItem }>,
+  limit: number,
 ) => {
   for (const candidate of candidates) {
-    if (selected.length >= 3) break;
+    if (selected.length >= limit) break;
 
     const key = getVolunteerItemKey(candidate.item);
     if (selectedKeys.has(key)) continue;
@@ -1317,42 +1322,42 @@ const appendMonthlyHomeCandidates = (
   }
 };
 
-const selectMonthlyHomeItems = (items: ParsedVolunteerItem[]) => {
+const selectUpcomingHomeItems = (items: ParsedVolunteerItem[], limit = UPCOMING_HOME_TARGET_COUNT) => {
   const selected: ParsedVolunteerItem[] = [];
   const selectedKeys = new Set<string>();
-  const sourceLevelCounts: Record<MonthlyHomeFallbackLevel, number> = {
-    strict_monthly: 0,
-    relaxed_monthly: 0,
+  const sourceLevelCounts: Record<UpcomingHomeFallbackLevel, number> = {
+    strict_upcoming: 0,
+    relaxed_upcoming: 0,
     upcoming_traveler: 0,
   };
 
-  const strictCandidates = sortMonthlyHomeCandidates(
+  const strictCandidates = sortUpcomingHomeCandidates(
     items
-      .map((item, index) => getMonthlyActivityScore(item, index))
+      .map((item, index) => getUpcomingActivityScore(item, index))
       .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== null),
   );
-  appendMonthlyHomeCandidates(selected, selectedKeys, strictCandidates);
-  sourceLevelCounts.strict_monthly = selected.length;
+  appendUpcomingHomeCandidates(selected, selectedKeys, strictCandidates, limit);
+  sourceLevelCounts.strict_upcoming = selected.length;
 
-  if (selected.length < 3) {
-    const relaxedCandidates = sortMonthlyHomeCandidates(
+  if (selected.length < limit) {
+    const relaxedCandidates = sortUpcomingHomeCandidates(
       items
-        .map((item, index) => getMonthlyHomeFallbackScore(item, index, 'relaxed_monthly'))
+        .map((item, index) => getUpcomingHomeFallbackScore(item, index, 'relaxed_upcoming'))
         .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== null),
     );
     const beforeCount = selected.length;
-    appendMonthlyHomeCandidates(selected, selectedKeys, relaxedCandidates);
-    sourceLevelCounts.relaxed_monthly = selected.length - beforeCount;
+    appendUpcomingHomeCandidates(selected, selectedKeys, relaxedCandidates, limit);
+    sourceLevelCounts.relaxed_upcoming = selected.length - beforeCount;
   }
 
-  if (selected.length < 3) {
-    const upcomingCandidates = sortMonthlyHomeCandidates(
+  if (selected.length < limit) {
+    const upcomingCandidates = sortUpcomingHomeCandidates(
       items
-        .map((item, index) => getMonthlyHomeFallbackScore(item, index, 'upcoming_traveler'))
+        .map((item, index) => getUpcomingHomeFallbackScore(item, index, 'upcoming_traveler'))
         .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== null),
     );
     const beforeCount = selected.length;
-    appendMonthlyHomeCandidates(selected, selectedKeys, upcomingCandidates);
+    appendUpcomingHomeCandidates(selected, selectedKeys, upcomingCandidates, limit);
     sourceLevelCounts.upcoming_traveler = selected.length - beforeCount;
   }
 
@@ -1362,21 +1367,21 @@ const selectMonthlyHomeItems = (items: ParsedVolunteerItem[]) => {
   };
 };
 
-const getMonthlyRejectReasonCounts = (items: ParsedVolunteerItem[]) =>
+const getUpcomingRejectReasonCounts = (items: ParsedVolunteerItem[]) =>
   items.reduce<Record<string, number>>((counts, item) => {
-    const reason = getMonthlyActivityRejectReason(item);
+    const reason = getUpcomingActivityRejectReason(item);
     counts[reason] = (counts[reason] ?? 0) + 1;
     return counts;
   }, {});
 
-const fetchMonthlySupplementItems = async (params: {
+const fetchUpcomingSupplementItems = async (params: {
   serviceKey: string;
   startDate: string;
   endDate: string;
 }) => {
   const supplementalItems: ParsedVolunteerItem[] = [];
 
-  for (const keyword of monthlySupplementKeywords) {
+  for (const keyword of upcomingSupplementKeywords) {
     const supplementUrl = buildVolunteerSearchUrl({
       serviceKey: params.serviceKey,
       pageNo: 1,
@@ -1391,7 +1396,7 @@ const fetchMonthlySupplementItems = async (params: {
       const xmlText = await response.text();
 
       if (!response.ok) {
-        console.error('1365 monthly supplement request failed:', {
+        console.error('1365 upcoming supplement request failed:', {
           keyword,
           status: response.status,
           responseText: stripScriptTags(xmlText).slice(0, 500),
@@ -1401,7 +1406,7 @@ const fetchMonthlySupplementItems = async (params: {
 
       supplementalItems.push(...parseVolunteerItems(xmlText));
     } catch (error) {
-      console.error('1365 monthly supplement request errored:', {
+      console.error('1365 upcoming supplement request errored:', {
         keyword,
         errorMessage: error instanceof Error ? error.message : String(error),
       });
@@ -1959,13 +1964,13 @@ const mapHomeVolunteerActivity = (item: ReturnType<typeof parseVolunteerItems>[n
 
 export type HomeVolunteerSections = {
   lightweight: VolunteerActivity[];
-  monthly: VolunteerActivity[];
+  upcoming: VolunteerActivity[];
   festival: VolunteerActivity[];
 };
 
 const fetchHomeVolunteerSearchItems = async (params: {
   serviceKey: string;
-  sort: 'lightweight' | 'monthly' | 'festival';
+  sort: 'lightweight' | 'upcoming' | 'festival';
   numOfRows: number;
 }) => {
   const upstreamUrl = buildVolunteerSearchUrl({
@@ -2027,48 +2032,55 @@ const buildLightweightHomeSection = async (serviceKey: string) => {
   return lightweightItems.map(mapHomeVolunteerActivity);
 };
 
-const buildMonthlyHomeSection = async (serviceKey: string) => {
-  const { items } = await fetchHomeVolunteerSearchItems({ serviceKey, sort: 'monthly', numOfRows: 30 });
-  const supplementalItems = await fetchMonthlySupplementItems({
-    serviceKey,
-    startDate: '',
-    endDate: '',
-  });
-  let sourceItems = mergeVolunteerItems([...items, ...supplementalItems]);
-  let monthlySelection = selectMonthlyHomeItems(sourceItems);
+const buildUpcomingHomeSection = async (serviceKey: string) => {
+  const { items } = await fetchHomeVolunteerSearchItems({ serviceKey, sort: 'upcoming', numOfRows: 50 });
+  let supplementalItems: ParsedVolunteerItem[] = [];
+  let sourceItems = items;
+  let upcomingSelection = selectUpcomingHomeItems(sourceItems);
 
-  if (monthlySelection.items.length < 3) {
-    const upcomingSupplementalItems = await fetchMonthlySupplementItems({
+  if (upcomingSelection.items.length < 4) {
+    supplementalItems = await fetchUpcomingSupplementItems({
+      serviceKey,
+      startDate: '',
+      endDate: '',
+    });
+    sourceItems = mergeVolunteerItems([...sourceItems, ...supplementalItems]);
+    upcomingSelection = selectUpcomingHomeItems(sourceItems);
+  }
+
+  if (upcomingSelection.items.length < 4) {
+    const upcomingSupplementalItems = await fetchUpcomingSupplementItems({
       serviceKey,
       startDate: getTodayApiDate(),
       endDate: addApiDateDays(getTodayApiDate(), 45),
     });
+    supplementalItems = mergeVolunteerItems([...supplementalItems, ...upcomingSupplementalItems]);
     sourceItems = mergeVolunteerItems([...sourceItems, ...upcomingSupplementalItems]);
-    monthlySelection = selectMonthlyHomeItems(sourceItems);
+    upcomingSelection = selectUpcomingHomeItems(sourceItems);
   }
 
-  const monthlyItems = monthlySelection.items
+  const upcomingItems = upcomingSelection.items
     .map(mapHomeVolunteerActivity)
     .filter((activity) => activity.status !== '지난 활동');
 
-  if (monthlyItems.length < 3) {
-    console.warn('1365 monthly home candidates below target:', {
+  if (upcomingItems.length < 4) {
+    console.warn('1365 upcoming home candidates below target:', {
       baseCandidateCount: items.length,
       supplementCandidateCount: supplementalItems.length,
       mergedCandidateCount: sourceItems.length,
-      selectedBeforeStatusFilterCount: monthlySelection.items.length,
-      finalMonthlyCount: monthlyItems.length,
-      sourceLevelCounts: monthlySelection.sourceLevelCounts,
-      rejectReasonCounts: getMonthlyRejectReasonCounts(sourceItems),
+      selectedBeforeStatusFilterCount: upcomingSelection.items.length,
+      finalUpcomingCount: upcomingItems.length,
+      sourceLevelCounts: upcomingSelection.sourceLevelCounts,
+      rejectReasonCounts: getUpcomingRejectReasonCounts(sourceItems),
     });
-  } else if (monthlySelection.sourceLevelCounts.relaxed_monthly > 0 || monthlySelection.sourceLevelCounts.upcoming_traveler > 0) {
-    console.info('1365 monthly home candidates filled with fallback:', {
-      finalMonthlyCount: monthlyItems.length,
-      sourceLevelCounts: monthlySelection.sourceLevelCounts,
+  } else if (upcomingSelection.sourceLevelCounts.relaxed_upcoming > 0 || upcomingSelection.sourceLevelCounts.upcoming_traveler > 0) {
+    console.info('1365 upcoming home candidates filled with fallback:', {
+      finalUpcomingCount: upcomingItems.length,
+      sourceLevelCounts: upcomingSelection.sourceLevelCounts,
     });
   }
 
-  return monthlyItems;
+  return upcomingItems;
 };
 
 const buildFestivalHomeSection = async (serviceKey: string) => {
@@ -2096,13 +2108,13 @@ const buildFestivalHomeSection = async (serviceKey: string) => {
 };
 
 export const buildHomeVolunteerSections = async (serviceKey: string): Promise<HomeVolunteerSections> => {
-  const [lightweight, monthly, festival] = await Promise.all([
+  const [lightweight, upcoming, festival] = await Promise.all([
     buildLightweightHomeSection(serviceKey),
-    buildMonthlyHomeSection(serviceKey),
+    buildUpcomingHomeSection(serviceKey),
     buildFestivalHomeSection(serviceKey),
   ]);
 
-  return { lightweight, monthly, festival };
+  return { lightweight, upcoming, festival };
 };
 
 export const enrichHomeVolunteerSectionsWithCapacity = async (
@@ -2110,19 +2122,19 @@ export const enrichHomeVolunteerSectionsWithCapacity = async (
   sections: HomeVolunteerSections,
 ) => {
   const lightweight = await enrichVolunteerActivitiesWithCapacity(serviceKey, sections.lightweight);
-  const monthly = await enrichVolunteerActivitiesWithCapacity(serviceKey, sections.monthly);
+  const upcoming = await enrichVolunteerActivitiesWithCapacity(serviceKey, sections.upcoming);
   const festival = await enrichVolunteerActivitiesWithCapacity(serviceKey, sections.festival);
 
   return {
     sections: {
       lightweight: lightweight.items,
-      monthly: monthly.items,
+      upcoming: upcoming.items,
       festival: festival.items,
     },
-    stats: mergeCapacityEnrichmentStats([lightweight.stats, monthly.stats, festival.stats]),
+    stats: mergeCapacityEnrichmentStats([lightweight.stats, upcoming.stats, festival.stats]),
     sectionStats: {
       lightweight: lightweight.stats,
-      monthly: monthly.stats,
+      upcoming: upcoming.stats,
       festival: festival.stats,
     },
   };
@@ -2741,31 +2753,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    if (sort === 'monthly') {
-      const supplementalItems = await fetchMonthlySupplementItems({
-        serviceKey,
-        startDate,
-        endDate,
-      });
-      const monthlySourceItems = mergeVolunteerItems([...rawItems, ...supplementalItems]);
-      const monthlyFilteredItems = filterMonthlyActivities(monthlySourceItems);
-      const monthlyItems = monthlyFilteredItems
+    if (sort === 'upcoming' || sort === 'monthly') {
+      let upcomingSourceItems = rawItems;
+      let supplementalItems: ParsedVolunteerItem[] = [];
+      let upcomingFilteredItems = filterUpcomingActivities(upcomingSourceItems);
+
+      if (upcomingFilteredItems.length < UPCOMING_SEARCH_TARGET_COUNT) {
+        supplementalItems = await fetchUpcomingSupplementItems({
+          serviceKey,
+          startDate,
+          endDate,
+        });
+        upcomingSourceItems = mergeVolunteerItems([...rawItems, ...supplementalItems]);
+        upcomingFilteredItems = filterUpcomingActivities(upcomingSourceItems);
+      }
+
+      const upcomingItems = upcomingFilteredItems
         .map(mapHomeVolunteerActivity)
         .filter((activity) => activity.status !== '지난 활동');
 
-      if (monthlyItems.length === 0) {
-        console.warn('1365 monthly search candidates filtered to zero:', {
+      if (upcomingItems.length === 0) {
+        console.warn('1365 upcoming search candidates filtered to zero:', {
           baseCandidateCount: rawItems.length,
           supplementCandidateCount: supplementalItems.length,
-          mergedCandidateCount: monthlySourceItems.length,
-          filterPassedCount: monthlyFilteredItems.length,
-          finalMonthlyCount: monthlyItems.length,
-          rejectReasonCounts: getMonthlyRejectReasonCounts(monthlySourceItems),
+          mergedCandidateCount: upcomingSourceItems.length,
+          filterPassedCount: upcomingFilteredItems.length,
+          finalUpcomingCount: upcomingItems.length,
+          rejectReasonCounts: getUpcomingRejectReasonCounts(upcomingSourceItems),
         });
       }
 
       sendSuccess(res, {
-        items: monthlyItems,
+        items: upcomingItems,
         totalCount,
         page: pageNo,
         size: numOfRows,

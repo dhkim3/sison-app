@@ -65,7 +65,8 @@ interface HomeVolunteerApiResponse {
   generatedAt: string | null;
   sections: {
     lightweight: VolunteerApiActivity[];
-    monthly: VolunteerApiActivity[];
+    upcoming?: VolunteerApiActivity[];
+    monthly?: VolunteerApiActivity[];
     festival: VolunteerApiActivity[];
   };
   error?: string;
@@ -101,7 +102,7 @@ const getActivitySectionState = (
 const getRecruitingLabel = (activity: VolunteerApiActivity) =>
   activity.category || '기타';
 
-const isWeeklySection = (sectionTitle: string) => sectionTitle === '이달의 활동';
+const isWeeklySection = (sectionTitle: string) => sectionTitle === '다가오는 활동';
 const isFestivalSection = (sectionTitle: string) => sectionTitle === '축제 · 행사 활동';
 
 function ActivityState({
@@ -171,7 +172,7 @@ const HOME_CACHE_TTL = 5 * 60 * 1000;
 interface HomeActivityCache {
   timestamp: number;
   lightweight: RecentActivity[];
-  monthly: RecentActivity[];
+  upcoming: RecentActivity[];
   festival: RecentActivity[];
 }
 let homeActivityCache: HomeActivityCache | null = null;
@@ -398,9 +399,9 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
   const [apiLightweightActivities, setApiLightweightActivities] = useState<RecentActivity[]>([]);
   const [isLightweightActivitiesLoading, setIsLightweightActivitiesLoading] = useState(true);
   const [hasLightweightActivitiesError, setHasLightweightActivitiesError] = useState(false);
-  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
-  const [isRecentActivitiesLoading, setIsRecentActivitiesLoading] = useState(true);
-  const [hasRecentActivitiesError, setHasRecentActivitiesError] = useState(false);
+  const [upcomingActivities, setUpcomingActivities] = useState<RecentActivity[]>([]);
+  const [isUpcomingActivitiesLoading, setIsUpcomingActivitiesLoading] = useState(true);
+  const [hasUpcomingActivitiesError, setHasUpcomingActivitiesError] = useState(false);
   const [hiddenActivities, setHiddenActivities] = useState<RecentActivity[]>([]);
   const [isHiddenActivitiesLoading, setIsHiddenActivitiesLoading] = useState(true);
   const [hasHiddenActivitiesError, setHasHiddenActivitiesError] = useState(false);
@@ -424,10 +425,10 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
     const cached = homeActivityCache;
     if (cached && Date.now() - cached.timestamp < HOME_CACHE_TTL) {
       setApiLightweightActivities(cached.lightweight);
-      setRecentActivities(cached.monthly);
+      setUpcomingActivities(cached.upcoming);
       setHiddenActivities(cached.festival);
       setIsLightweightActivitiesLoading(false);
-      setIsRecentActivitiesLoading(false);
+      setIsUpcomingActivitiesLoading(false);
       setIsHiddenActivitiesLoading(false);
       return;
     }
@@ -458,7 +459,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
 
       return {
         lightweight: mapHomeSectionActivities(payload.sections?.lightweight),
-        monthly: mapHomeSectionActivities(payload.sections?.monthly),
+        upcoming: mapHomeSectionActivities(payload.sections?.upcoming ?? payload.sections?.monthly),
         festival: mapHomeSectionActivities(payload.sections?.festival),
       };
     };
@@ -469,30 +470,30 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
         if (abortController.signal.aborted) return;
 
         setApiLightweightActivities(cachedSections.lightweight);
-        setRecentActivities(cachedSections.monthly);
+        setUpcomingActivities(cachedSections.upcoming);
         setHiddenActivities(cachedSections.festival);
         setHasLightweightActivitiesError(false);
-        setHasRecentActivitiesError(false);
+        setHasUpcomingActivitiesError(false);
         setHasHiddenActivitiesError(false);
         homeActivityCache = { timestamp: Date.now(), ...cachedSections };
         setIsLightweightActivitiesLoading(false);
-        setIsRecentActivitiesLoading(false);
+        setIsUpcomingActivitiesLoading(false);
         setIsHiddenActivitiesLoading(false);
         return;
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') return;
       }
 
-      const [lightweightResult, monthlyResult, festivalResult] = await Promise.allSettled([
+      const [lightweightResult, upcomingResult, festivalResult] = await Promise.allSettled([
         fetchSection('lightweight', '30'),
-        fetchSection('monthly', '30'),
+        fetchSection('upcoming', '50'),
         fetchSection('festival', '50'),
       ]);
 
       if (abortController.signal.aborted) return;
 
       const lightweight = lightweightResult.status === 'fulfilled' ? lightweightResult.value : [];
-      const monthly = monthlyResult.status === 'fulfilled' ? monthlyResult.value : [];
+      const upcoming = upcomingResult.status === 'fulfilled' ? upcomingResult.value : [];
       const festival = festivalResult.status === 'fulfilled' ? festivalResult.value : [];
 
       if (lightweightResult.status === 'fulfilled') {
@@ -503,12 +504,12 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
         setHasLightweightActivitiesError(true);
       }
 
-      if (monthlyResult.status === 'fulfilled') {
-        setRecentActivities(monthly);
-        setHasRecentActivitiesError(false);
-      } else if (!(monthlyResult.reason instanceof DOMException && monthlyResult.reason.name === 'AbortError')) {
-        setRecentActivities([]);
-        setHasRecentActivitiesError(true);
+      if (upcomingResult.status === 'fulfilled') {
+        setUpcomingActivities(upcoming);
+        setHasUpcomingActivitiesError(false);
+      } else if (!(upcomingResult.reason instanceof DOMException && upcomingResult.reason.name === 'AbortError')) {
+        setUpcomingActivities([]);
+        setHasUpcomingActivitiesError(true);
       }
 
       if (festivalResult.status === 'fulfilled') {
@@ -521,14 +522,14 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
 
       if (
         lightweightResult.status === 'fulfilled' &&
-        monthlyResult.status === 'fulfilled' &&
+        upcomingResult.status === 'fulfilled' &&
         festivalResult.status === 'fulfilled'
       ) {
-        homeActivityCache = { timestamp: Date.now(), lightweight, monthly, festival };
+        homeActivityCache = { timestamp: Date.now(), lightweight, upcoming, festival };
       }
 
       setIsLightweightActivitiesLoading(false);
-      setIsRecentActivitiesLoading(false);
+      setIsUpcomingActivitiesLoading(false);
       setIsHiddenActivitiesLoading(false);
     };
 
@@ -570,10 +571,14 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
     setPeopleCount(count);
   };
 
+  const handlePeopleClear = () => {
+    setPeopleCount(0);
+  };
+
   const lightweightSectionActivities: ActivitySaveRecord[] = isLightweightActivitiesLoading
     ? []
     : apiLightweightActivities;
-  const weeklySectionActivities = recentActivities.slice(0, 3);
+  const weeklySectionActivities = upcomingActivities.slice(0, 3);
   const hiddenSectionActivities = hiddenActivities.slice(0, 3);
 
   const activitySections = [
@@ -588,15 +593,15 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
       ),
     },
     {
-      title: '이달의 활동',
-      description: '이번 달에 참여할 수 있는 활동이에요',
+      title: '다가오는 활동',
+      description: '가까운 일정부터 참여할 수 있는 활동이에요',
       activities: weeklySectionActivities,
       state: getActivitySectionState(
-        isRecentActivitiesLoading,
-        hasRecentActivitiesError,
+        isUpcomingActivitiesLoading,
+        hasUpcomingActivitiesError,
         weeklySectionActivities,
       ),
-      emptyTitle: '이달에 참여할 수 있는 활동이 없어요',
+      emptyTitle: '다가오는 활동이 아직 없어요',
     },
     {
       title: '축제 · 행사 활동',
@@ -612,7 +617,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
   ];
   const allHomeActivities = [
     ...lightweightSectionActivities,
-    ...recentActivities,
+    ...upcomingActivities,
     ...hiddenActivities,
   ];
 
@@ -674,6 +679,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
             onSearch={handleSearch}
             onDestinationChange={setDestination}
             onDateClear={handleDateClear}
+            onPeopleClear={handlePeopleClear}
             recentSearches={recentSearches}
           />
         </section>

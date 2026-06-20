@@ -36,6 +36,8 @@ const decodeXmlEntities = (value: string) =>
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
     .replace(/&amp;/g, '&')
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(Number.parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, decimal) => String.fromCodePoint(Number.parseInt(decimal, 10)))
     .trim();
 
 const getTagValue = (xml: string, tagName: string) => {
@@ -48,6 +50,25 @@ const stripScriptTags = (xmlText: string) => xmlText.replace(/<script\b[^>]*>[\s
 const firstPresentValue = (...values: string[]) => {
   const value = values.find((item) => item.trim() !== '');
   return value ?? '';
+};
+
+const normalizeDetailText = (value: string) => {
+  if (!value.trim()) return '';
+
+  return decodeXmlEntities(value)
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(Number.parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, decimal) => String.fromCodePoint(Number.parseInt(decimal, 10)))
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&#160;/g, ' ')
+    .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+    .replace(/<\/\s*(p|div|li|tr|h[1-6])\s*>/gi, '\n')
+    .replace(/<\s*li\b[^>]*>/gi, '- ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\r\n?/g, '\n')
+    .replace(/[ \t\f\v]+/g, ' ')
+    .replace(/[ \t]*\n[ \t]*/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 };
 
 const buildVolunteerDetailApiUrl = (params: {
@@ -98,6 +119,16 @@ const parseVolunteerDetailItem = (xmlText: string) => {
     srvcTarget: getTagValue(itemXml, 'srvcTarget'),
     volunteerTarget: getTagValue(itemXml, 'volunteerTarget'),
     trgetNm: getTagValue(itemXml, 'trgetNm'),
+    detailDescription: firstPresentValue(
+      getTagValue(itemXml, 'progrmCn'),
+      getTagValue(itemXml, 'actCn'),
+      getTagValue(itemXml, 'contents'),
+      getTagValue(itemXml, 'cn'),
+      getTagValue(itemXml, 'progrmContent'),
+      getTagValue(itemXml, 'programContent'),
+      getTagValue(itemXml, 'content'),
+      getTagValue(itemXml, 'description'),
+    ),
   };
 };
 
@@ -179,6 +210,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       recruitmentEndDate: formatDate(getRecruitmentEndDate(item)),
       capacity,
       currentParticipants,
+      description: normalizeDetailText(item.detailDescription),
     });
   } catch (error) {
     console.error('1365 detail volunteer target request errored:', {
