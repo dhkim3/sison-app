@@ -102,7 +102,7 @@ async function fetchTravelPlans(
   if (cached) return cached;
 
   // Step 1: 주소 → 좌표 (VWorld)
-  const geocodeRes = await fetch('/api/travel/geocode', {
+  const geocodeRes = await fetch('/api/travel?action=geocode', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ address, region: destination }),
@@ -119,7 +119,7 @@ async function fetchTravelPlans(
   }
 
   // Step 2: 좌표 → 주변 관광지 (TourAPI)
-  const nearbyRes = await fetch('/api/travel/nearby-places', {
+  const nearbyRes = await fetch('/api/travel?action=nearby-places', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ lat: geocodeData.lat, lng: geocodeData.lng }),
