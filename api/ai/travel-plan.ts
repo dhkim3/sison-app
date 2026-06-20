@@ -1,4 +1,4 @@
-import { geocodeAddress, findNearbyPlaces } from '../../lib/server/travelService';
+import { geocodeAddress, findNearbyPlaces, normalizeVolunteerAddress } from '../../lib/server/travelService';
 
 type VercelRequest = {
   method?: string;
@@ -172,21 +172,40 @@ const FALLBACK_LABELS = ['탐방 코스', '여행 코스', '관광 코스'];
 // ─── Validation ───────────────────────────────────────────────────────────────
 
 function validatePlans(rawPlans: RawPlan[], metaMap: Map<string, PlaceMeta>): TravelPlan[] {
+  console.log('[travel-plan] response validation start', { rawPlansCount: rawPlans.length });
   const usedCategories: string[] = [];
   const result: TravelPlan[] = [];
 
-  for (const plan of rawPlans) {
+  for (let i = 0; i < rawPlans.length; i++) {
+    const plan = rawPlans[i];
     const duration = plan.duration?.trim();
-    if (!duration || !Array.isArray(plan.stops)) continue;
+    if (!duration || !Array.isArray(plan.stops)) {
+      console.warn('[travel-plan] plan validation fail', {
+        planIndex: i,
+        reason: !duration ? 'missing duration' : 'stops is not array',
+      });
+      continue;
+    }
 
     const placeStops: PlaceStop[] = [];
     let valid = true;
+    let failedStopId: string | undefined;
+    let failedReason: string | undefined;
 
     for (const stop of plan.stops) {
       const id = typeof stop.id === 'string' ? stop.id.trim() : '';
-      if (!id) { valid = false; break; }
+      if (!id) {
+        valid = false;
+        failedReason = 'empty stop id';
+        break;
+      }
       const meta = metaMap.get(id);
-      if (!meta) { valid = false; break; }
+      if (!meta) {
+        valid = false;
+        failedStopId = id;
+        failedReason = 'id not in metaMap';
+        break;
+      }
       placeStops.push({
         type: 'place',
         id,
@@ -199,7 +218,17 @@ function validatePlans(rawPlans: RawPlan[], metaMap: Map<string, PlaceMeta>): Tr
       });
     }
 
-    if (!valid || placeStops.length < 2) continue;
+    if (!valid || placeStops.length < 2) {
+      console.warn('[travel-plan] plan validation fail', {
+        planIndex: i,
+        duration,
+        reason: !valid ? failedReason : 'placeStops < 2',
+        failedStopId,
+        placeStopsCount: placeStops.length,
+        rawStopsCount: plan.stops.length,
+      });
+      continue;
+    }
 
     const category = classifyCategory(placeStops, metaMap);
     const planMeta = PLAN_META[category] ?? PLAN_META.nature;
@@ -218,6 +247,7 @@ function validatePlans(rawPlans: RawPlan[], metaMap: Map<string, PlaceMeta>): Tr
     result.push({ title, summary, duration, maxDistanceM, stops: placeStops });
   }
 
+  console.log('[travel-plan] response validation complete', { validPlanCount: result.length });
   return result;
 }
 
@@ -243,80 +273,118 @@ async function callOpenAI(
     distanceM: p.distance ?? 0,
   }));
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4.1-mini',
-      temperature: 0.8,
-      max_tokens: 600,
-      messages: [
-        {
-          role: 'system',
-          content: [
-            '당신은 여행 동선 전문가입니다.',
-            '',
-            '절대적 규칙:',
-            '- stops의 id는 반드시 아래 places 배열의 id 값만 사용하세요.',
-            '- places에 없는 id는 사용 금지입니다.',
-            '',
-            '일정 구성:',
-            '- 관광지만 stops에 포함하세요 (봉사활동 제외).',
-            '- 각 일정은 2~5개 관광지로 구성하세요.',
-            '- distanceM이 가까운 장소를 우선 고려하세요.',
-            '- 총 예상 소요 시간이 timePreference 범위 안에 들어와야 합니다.',
-            '',
-            '차별화 (필수):',
-            '- 3개 일정은 서로 다른 성격의 장소 조합을 만드세요.',
-            '- 예) 역사·문화 중심 / 자연·산책 중심 / 먹거리·시장 중심.',
-            '- 한 장소가 여러 일정에 중복되면 안 됩니다.',
-          ].join('\n'),
-        },
-        {
-          role: 'user',
-          content: JSON.stringify({
-            destination,
-            date,
-            timePreference,
-            activity: { title: activity.title, address: activity.address ?? '' },
-            places: placesForPrompt,
-            request: '성격이 서로 다른 여행 일정 3개를 만들어주세요. 각 일정은 다른 장소 조합이어야 합니다.',
-          }),
-        },
-      ],
-      response_format: {
-        type: 'json_schema',
-        json_schema: {
-          name: 'travel_plan',
-          strict: true,
-          schema: travelPlanSchema,
-        },
-      },
-    }),
+  console.log('[travel-plan] openai request start', {
+    model: 'gpt-4.1-mini',
+    destination,
+    placesCount: places.length,
+    placeIds: places.map((p) => p.id).slice(0, 5),
   });
+
+  let response: Response;
+  try {
+    response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4.1-mini',
+        temperature: 0.8,
+        max_tokens: 600,
+        messages: [
+          {
+            role: 'system',
+            content: [
+              '당신은 여행 동선 전문가입니다.',
+              '',
+              '절대적 규칙:',
+              '- stops의 id는 반드시 아래 places 배열의 id 값만 사용하세요.',
+              '- places에 없는 id는 사용 금지입니다.',
+              '',
+              '일정 구성:',
+              '- 관광지만 stops에 포함하세요 (봉사활동 제외).',
+              '- 각 일정은 2~5개 관광지로 구성하세요.',
+              '- distanceM이 가까운 장소를 우선 고려하세요.',
+              '- 총 예상 소요 시간이 timePreference 범위 안에 들어와야 합니다.',
+              '',
+              '차별화 (필수):',
+              '- 3개 일정은 서로 다른 성격의 장소 조합을 만드세요.',
+              '- 예) 역사·문화 중심 / 자연·산책 중심 / 먹거리·시장 중심.',
+              '- 한 장소가 여러 일정에 중복되면 안 됩니다.',
+            ].join('\n'),
+          },
+          {
+            role: 'user',
+            content: JSON.stringify({
+              destination,
+              date,
+              timePreference,
+              activity: { title: activity.title, address: activity.address ?? '' },
+              places: placesForPrompt,
+              request: '성격이 서로 다른 여행 일정 3개를 만들어주세요. 각 일정은 다른 장소 조합이어야 합니다.',
+            }),
+          },
+        ],
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'travel_plan',
+            strict: true,
+            schema: travelPlanSchema,
+          },
+        },
+      }),
+    });
+  } catch (err) {
+    console.error('[travel-plan] openai fetch fail', {
+      message: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
+    return null;
+  }
+
+  console.log('[travel-plan] openai response received', { status: response.status, ok: response.ok });
 
   let payload: OpenAIPayload;
   try {
     payload = (await response.json()) as OpenAIPayload;
-  } catch {
-    console.error('[travel-plan] OpenAI 응답 파싱 실패, status:', response.status);
+  } catch (err) {
+    console.error('[travel-plan] openai response json parse fail', {
+      status: response.status,
+      message: err instanceof Error ? err.message : String(err),
+    });
     return null;
   }
 
   if (!response.ok) {
-    console.error('[travel-plan] OpenAI 오류:', response.status, payload.error?.message);
+    console.error('[travel-plan] openai error', {
+      status: response.status,
+      error: payload.error?.message,
+    });
     return null;
   }
 
   const content = payload.choices?.[0]?.message?.content;
-  if (!content) return null;
+  if (!content) {
+    console.error('[travel-plan] openai content empty', {
+      choicesCount: payload.choices?.length ?? 0,
+      firstChoice: payload.choices?.[0],
+    });
+    return null;
+  }
 
   try {
-    return JSON.parse(content) as RawResponse;
-  } catch {
+    const parsed = JSON.parse(content) as RawResponse;
+    console.log('[travel-plan] openai success', {
+      rawPlansCount: parsed.plans?.length ?? 0,
+    });
+    return parsed;
+  } catch (err) {
+    console.error('[travel-plan] openai content json parse fail', {
+      message: err instanceof Error ? err.message : String(err),
+      contentPreview: content.slice(0, 300),
+    });
     return null;
   }
 }
@@ -455,11 +523,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  console.log('[travel-plan] start', { address, region, destination, date, timePreference, activityTitle: activity.title });
+  // 정규화 후보 미리 계산 — geocode 실패 시 로그에 포함
+  const normalizedCandidates = normalizeVolunteerAddress(address, region);
+
+  console.log('[travel-plan] start', {
+    address,
+    region,
+    destination,
+    date,
+    timePreference,
+    activityTitle: activity.title,
+    normalizedCandidates,
+  });
 
   try {
     // Step 1: 주소 → 좌표 (VWorld)
-    console.log('[travel-plan] normalize address', { address, region });
+    console.log('[travel-plan] address normalize start', { candidatesCount: normalizedCandidates.length, candidates: normalizedCandidates });
     let geoLat: number;
     let geoLng: number;
     try {
@@ -468,9 +547,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       geoLng = geo.lng;
       console.log('[travel-plan] geocode success', { lat: geoLat, lng: geoLng });
     } catch (err) {
-      console.error('[travel-plan] geocode 실패', {
+      console.error('[travel-plan:error] geocode fail', {
         message: err instanceof Error ? err.message : String(err),
         stack: err instanceof Error ? err.stack : undefined,
+        activity,
+        address,
+        normalizedCandidates,
       });
       res.status(200).json({ ok: false, error: '일정을 만들지 못했어요.' });
       return;
@@ -480,16 +562,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let nearby: Awaited<ReturnType<typeof findNearbyPlaces>> = [];
     try {
       nearby = await findNearbyPlaces(geoLat, geoLng);
-      console.log('[travel-plan] nearby places fetched', { count: nearby.length });
+      console.log('[travel-plan] nearby places success', { count: nearby.length, titles: nearby.map((p) => p.title).slice(0, 5) });
     } catch (err) {
-      console.error('[travel-plan] 주변 관광지 조회 실패', {
+      console.error('[travel-plan:error] nearby places fail', {
         message: err instanceof Error ? err.message : String(err),
         stack: err instanceof Error ? err.stack : undefined,
+        lat: geoLat,
+        lng: geoLng,
       });
     }
 
     if (nearby.length === 0) {
-      console.error('[travel-plan] 주변 관광지 없음 — 종료');
+      console.error('[travel-plan:error] nearby places empty — 종료', { lat: geoLat, lng: geoLng });
       res.status(200).json({ ok: false, error: '일정을 만들지 못했어요.' });
       return;
     }
@@ -519,13 +603,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let plans = raw ? validatePlans(raw.plans ?? [], metaMap) : [];
 
     if (plans.length === 0) {
-      console.log('[travel-plan] 첫 번째 OpenAI 시도 실패 — 재시도');
+      console.log('[travel-plan] openai first attempt failed — retry', { rawNull: raw === null });
       raw = await callOpenAI(apiKey, destination, date, timePreference, activity, inputPlaces);
       plans = raw ? validatePlans(raw.plans ?? [], metaMap) : [];
     }
 
     if (plans.length === 0) {
-      console.error('[travel-plan] itinerary generation failed — 재시도 후에도 0건');
+      console.error('[travel-plan:error] itinerary generation failed — 0건 after retry', {
+        rawNull: raw === null,
+        activity,
+        address,
+        normalizedCandidates,
+      });
       res.status(200).json({ ok: false, error: '일정을 만들지 못했어요.' });
       return;
     }
@@ -538,12 +627,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       plans = await enrichPlansWithOverviews(plans, tourKey);
     }
 
-    console.log('[travel-plan] complete');
+    console.log('[travel-plan] complete', { planCount: plans.length });
     res.status(200).json({ ok: true, plans });
   } catch (err) {
-    console.error('[travel-plan]', {
+    console.error('[travel-plan:error]', {
       message: err instanceof Error ? err.message : String(err),
       stack: err instanceof Error ? err.stack : undefined,
+      activity,
+      address,
+      normalizedCandidates,
     });
     res.status(500).json({ ok: false, error: '일정을 만들지 못했어요.' });
   }
