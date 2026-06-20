@@ -1,3 +1,11 @@
+// Self-contained Serverless Function — no external imports
+
+declare const process: {
+  env: Record<string, string | undefined>;
+};
+
+// ─── Vercel Types ─────────────────────────────────────────────────────────────
+
 type VercelRequest = {
   method?: string;
   body?: unknown;
@@ -9,11 +17,241 @@ type VercelResponse = {
   setHeader: (name: string, value: string) => void;
 };
 
-declare const process: {
-  env: Record<string, string | undefined>;
+// ─── VWorld / TourAPI Internal Types ─────────────────────────────────────────
+
+type VWorldItem = {
+  address?: { road?: string; parcel?: string };
+  point?: { x?: string; y?: string };
 };
 
-// ─── Input Types ─────────────────────────────────────────────────────────────
+type VWorldResponse = {
+  response?: {
+    status?: string;
+    result?: { items?: VWorldItem[] };
+    error?: { code?: string; text?: string };
+  };
+};
+
+type TourApiItem = {
+  contentid?: string;
+  title?: string;
+  addr1?: string;
+  addr2?: string;
+  firstimage?: string;
+  firstimage2?: string;
+  mapy?: string;
+  mapx?: string;
+  dist?: string;
+  contenttypeid?: string;
+};
+
+type TourApiResponse = {
+  response?: {
+    header?: { resultCode?: string; resultMsg?: string };
+    body?: { items?: { item?: TourApiItem[] } | '' };
+  };
+};
+
+type GeocodeResult = {
+  lat: number;
+  lng: number;
+  roadAddress: string | null;
+  parcelAddress: string | null;
+};
+
+type TravelPlace = {
+  id: string;
+  title: string;
+  address: string;
+  image: string | null;
+  lat: number;
+  lng: number;
+  distance: number;
+  contentTypeId: string;
+};
+
+// ─── Shared Utilities ─────────────────────────────────────────────────────────
+
+function parseNum(value: string | undefined): number | null {
+  if (!value) return null;
+  const n = parseFloat(value);
+  return isNaN(n) ? null : n;
+}
+
+// ─── VWorld Geocoding ─────────────────────────────────────────────────────────
+
+const VWORLD_BASE = 'https://api.vworld.kr/req/search';
+const VWORLD_BASE_PARAMS = {
+  service: 'search', request: 'search', version: '2.0',
+  format: 'json', crs: 'EPSG:4326', size: '5',
+} as const;
+
+async function vworldFetch(apiKey: string, extra: Record<string, string>): Promise<VWorldItem | null> {
+  const params = new URLSearchParams({ ...VWORLD_BASE_PARAMS, ...extra, key: apiKey });
+  let r: Response;
+  try { r = await fetch(`${VWORLD_BASE}?${params}`); } catch { return null; }
+  if (!r.ok) return null;
+  let data: VWorldResponse;
+  try { data = (await r.json()) as VWorldResponse; } catch { return null; }
+  if (data?.response?.status !== 'OK') return null;
+  const items = data.response?.result?.items;
+  return items && items.length > 0 ? items[0] : null;
+}
+
+function toGeo(item: VWorldItem): GeocodeResult | null {
+  const lng = parseNum(item.point?.x);
+  const lat = parseNum(item.point?.y);
+  if (lat === null || lng === null) return null;
+  return { lat, lng, roadAddress: item.address?.road ?? null, parcelAddress: item.address?.parcel ?? null };
+}
+
+// ─── Address Normalization ─────────────────────────────────────────────────────
+
+const ADDR_PREFIX_RE = /^(집결지|집합장소|모임장소|장소명?|집결|출발지|집합)\s*[:：\-·\s]\s*/;
+const NOISE_TOKENS = new Set([
+  '입구','출구','앞','뒤','옆','안쪽','바깥쪽','정문','후문','측문',
+  '주차장','주차','광장','공터','화장실','쉼터','캐노피','텐트','부스',
+  '컨테이너','막구조물','안내판','현수막','인근','일원','일대','주변','부근','근처',
+  '집결지','집합장소','만남의광장','선착장','중간선착장','공원입구','해변입구',
+  '내','홀','로비',
+]);
+const INDOOR_SUFFIX_RE = /\s+(?:[A-Z]?\d+[층호실]|\d+번[호지]|강당|홀|로비|내)$/;
+
+function extractSigungu(a: string): string | null {
+  const t = a.trim().split(/\s+/); let i = -1;
+  for (let k = 0; k < t.length; k++) if (/시$|군$|구$/.test(t[k])) i = k;
+  return i >= 0 ? t.slice(0, i + 1).join(' ') : null;
+}
+function extractUpToDong(a: string): string | null {
+  const t = a.trim().split(/\s+/); let i = -1;
+  for (let k = 0; k < t.length; k++) if (/동$|읍$|면$|리$/.test(t[k])) i = k;
+  return i >= 0 ? t.slice(0, i + 1).join(' ') : null;
+}
+function stripProvince(a: string): string | null {
+  const t = a.trim().split(/\s+/); if (t.length < 2) return null;
+  if (/도$|광역시$|특별시$|특별자치시$|특별자치도$/.test(t[0]) ||
+    /^(경남|경북|전남|전북|충남|충북|강원|경기|제주|인천|대전|대구|부산|울산|광주|세종)$/.test(t[0])) {
+    const r = t.slice(1).join(' '); return r.length > 0 ? r : null;
+  }
+  return null;
+}
+function trimNoise(a: string): string {
+  const t = a.trim().split(/\s+/); let e = t.length;
+  while (e > 0 && NOISE_TOKENS.has(t[e - 1])) e--;
+  return t.slice(0, e).join(' ');
+}
+function shrinkCandidates(a: string): string[] {
+  const t = a.trim().split(/\s+/); const r: string[] = [];
+  for (let e = t.length - 1; e >= 1; e--) {
+    r.push(t.slice(0, e).join(' '));
+    if (/시$|군$|구$|동$|읍$|면$|리$/.test(t[e - 1])) break;
+  }
+  return r;
+}
+function hasAdmin(a: string) { return /[시군구](\s|$)|[동읍면리](\s|$)/.test(a); }
+
+function normalizeAddress(raw: string, region = ''): string[] {
+  const seen = new Set<string>(); const out: string[] = [];
+  const push = (s: string) => {
+    const q = s.replace(/\s{2,}/g, ' ').trim();
+    if (q.length > 1 && !seen.has(q)) { seen.add(q); out.push(q); }
+  };
+  let base = raw.trim().replace(ADDR_PREFIX_RE, '');
+  const bm = base.match(/\(([^)]{2,60})\)/);
+  if (bm) {
+    const inner = bm[1].replace(/[\r\n\t]+/g, ' ').trim();
+    if (/\d+(?:길|로|번길|번지)|[시군구동읍면리]\s/.test(inner)) {
+      push(inner);
+      const rp = extractSigungu(region) ?? (region.trim() ? region.trim().split(/\s+/).slice(0, 2).join(' ') : '');
+      if (rp && !inner.startsWith(rp)) push(`${rp} ${inner}`);
+    }
+  }
+  base = base.replace(/\([^)]*\)/g,' ').replace(/【[^】]*】/g,' ').replace(/\[[^\]]*\]/g,' ')
+    .replace(/['"'"]/g,'').replace(/[\r\n\t]+/g,' ').replace(/\s{2,}/g,' ').trim();
+  base = base.replace(INDOOR_SUFFIX_RE,'').trim();
+  push(base);
+  const di = base.indexOf('-'); let ab = base;
+  if (di > 0) { const af = base.slice(di + 1).trim(); if (af) { push(af); ab = af; } }
+  const dn = trimNoise(ab);
+  if (dn !== ab && dn.length > 0) { push(dn); ab = dn; }
+  if (!hasAdmin(ab) && region.trim()) {
+    const rp = extractSigungu(region) ?? region.trim().split(/\s+/).slice(0, 2).join(' ');
+    if (rp) push(`${rp} ${ab}`); push(ab);
+  }
+  for (const c of shrinkCandidates(ab)) { push(c); const s = stripProvince(c); if (s) push(s); }
+  const dong = extractUpToDong(ab); if (dong) { push(dong); const s = stripProvince(dong); if (s) push(s); }
+  const sg = extractSigungu(ab); if (sg) { push(sg); const s = stripProvince(sg); if (s) push(s); }
+  return out;
+}
+
+async function geocodeAddress(address: string, region = ''): Promise<GeocodeResult> {
+  const key = process.env.VWORLD_API_KEY?.trim();
+  if (!key) throw new Error('VWORLD_API_KEY 미설정');
+  const candidates = normalizeAddress(address, region);
+  const regionStr = region.trim();
+  for (const q of candidates) {
+    const road = await vworldFetch(key, { type: 'address', category: 'ROAD', query: q });
+    if (road) { const r = toGeo(road); if (r) return r; }
+    const parcel = await vworldFetch(key, { type: 'address', category: 'PARCEL', query: q });
+    if (parcel) { const r = toGeo(parcel); if (r) return r; }
+    const place = await vworldFetch(key, { type: 'place', query: q });
+    if (place) { const r = toGeo(place); if (r) return r; }
+    if (regionStr) {
+      const rq = `${regionStr} ${q}`.replace(/\s{2,}/g,' ').trim();
+      if (rq !== q) { const rp = await vworldFetch(key, { type: 'place', query: rq }); if (rp) { const r = toGeo(rp); if (r) return r; } }
+    }
+  }
+  const lastTok = (s: string) => s.trim().split(/\s+/).pop() ?? '';
+  const dc = candidates.filter(c => /[동읍면리시군구]$/.test(lastTok(c)));
+  if (regionStr && !dc.includes(regionStr)) dc.push(regionStr);
+  for (const q of dc) {
+    for (const cat of ['L4', 'L2'] as const) {
+      const d = await vworldFetch(key, { type: 'district', category: cat, query: q });
+      if (d) { const r = toGeo(d); if (r) return r; }
+    }
+  }
+  throw new Error('주소 좌표를 찾지 못했어요.');
+}
+
+// ─── TourAPI Nearby Places ─────────────────────────────────────────────────────
+
+async function findNearbyPlaces(lat: number, lng: number): Promise<TravelPlace[]> {
+  const svcKey = process.env.TOUR_API_SERVICE_KEY?.trim();
+  if (!svcKey) throw new Error('TOUR_API_SERVICE_KEY 미설정');
+  const params = new URLSearchParams({
+    MobileOS: 'ETC', MobileApp: 'sison', _type: 'json',
+    mapX: String(lng), mapY: String(lat),
+    radius: '10000', contentTypeId: '12', numOfRows: '20', pageNo: '1', arrange: 'E',
+  });
+  const url = `https://apis.data.go.kr/B551011/KorService2/locationBasedList2?serviceKey=${svcKey}&${params}`;
+  const response = await fetch(url);
+  const text = await response.text();
+  if (!response.ok) throw new Error(`TourAPI HTTP ${response.status}: ${text.slice(0, 200)}`);
+  let data: TourApiResponse;
+  try { data = JSON.parse(text) as TourApiResponse; }
+  catch { throw new Error(`TourAPI 파싱 실패: ${text.slice(0, 200)}`); }
+  const code = data.response?.header?.resultCode;
+  if (code && code !== '0000') throw new Error(data.response?.header?.resultMsg ?? `TourAPI 오류 (${code})`);
+  const raw = data.response?.body?.items;
+  const items: TourApiItem[] = raw && raw !== '' && Array.isArray(raw.item) ? raw.item : [];
+  const seen = new Set<string>(); const result: TravelPlace[] = [];
+  for (const item of items) {
+    const id = item.contentid?.trim(); const title = item.title?.trim();
+    if (!id || !title || seen.has(id)) continue; seen.add(id);
+    const ilat = parseNum(item.mapy); const ilng = parseNum(item.mapx);
+    if (ilat === null || ilng === null) continue;
+    const addr1 = item.addr1?.trim() ?? ''; const addr2 = item.addr2?.trim() ?? '';
+    result.push({
+      id, title, address: addr2 ? `${addr1} ${addr2}`.trim() : addr1,
+      image: item.firstimage?.trim() || item.firstimage2?.trim() || null,
+      lat: ilat, lng: ilng, distance: parseInt(item.dist ?? '0', 10),
+      contentTypeId: item.contenttypeid ?? '12',
+    });
+  }
+  return result;
+}
+
+// ─── Travel Plan Types ────────────────────────────────────────────────────────
 
 type InputPlace = {
   id: string;
@@ -29,25 +267,9 @@ type ActivityInfo = {
   address?: string;
 };
 
-// ─── GPT Raw Output Types ─────────────────────────────────────────────────────
-
-// GPT가 반환하는 것은 duration과 stop id 배열뿐
-// title/summary는 코드에서 생성
-
-type RawStop = {
-  id: string;
-};
-
-type RawPlan = {
-  duration: string;
-  stops: RawStop[];
-};
-
-type RawResponse = {
-  plans: RawPlan[];
-};
-
-// ─── Public Output Types ──────────────────────────────────────────────────────
+type RawStop = { id: string };
+type RawPlan = { duration: string; stops: RawStop[] };
+type RawResponse = { plans: RawPlan[] };
 
 type PlaceStop = {
   type: 'place';
@@ -69,35 +291,22 @@ type TravelPlan = {
   stops: Stop[];
 };
 
+type PlaceMeta = { title: string; address: string; contentTypeId: string; distance: number; image: string | null };
+
 // ─── JSON Schema ──────────────────────────────────────────────────────────────
 
 const travelPlanSchema = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['plans'],
+  type: 'object', additionalProperties: false, required: ['plans'],
   properties: {
     plans: {
-      type: 'array',
-      minItems: 1,
-      maxItems: 3,
+      type: 'array', minItems: 1, maxItems: 3,
       items: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['duration', 'stops'],
+        type: 'object', additionalProperties: false, required: ['duration', 'stops'],
         properties: {
           duration: { type: 'string' },
           stops: {
-            type: 'array',
-            minItems: 2,
-            maxItems: 5,
-            items: {
-              type: 'object',
-              additionalProperties: false,
-              required: ['id'],
-              properties: {
-                id: { type: 'string' },
-              },
-            },
+            type: 'array', minItems: 2, maxItems: 5,
+            items: { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string' } } },
           },
         },
       },
@@ -107,64 +316,29 @@ const travelPlanSchema = {
 
 // ─── Category Classification ──────────────────────────────────────────────────
 
-type PlaceMeta = { title: string; address: string; contentTypeId: string; distance: number; image: string | null };
-
-function classifyCategory(placeStops: PlaceStop[], metaMap: Map<string, PlaceMeta>): string {
-  const counts: Record<string, number> = {
-    food: 0, sea: 0, view: 0, history: 0, sport: 0, nature: 0,
-  };
-
-  for (const stop of placeStops) {
-    const meta = metaMap.get(stop.id);
-    if (!meta) continue;
-    const { contentTypeId, title } = meta;
-
-    if (contentTypeId === '39' || contentTypeId === '38') { counts.food++; continue; }
-    if (contentTypeId === '28') { counts.sport++; continue; }
-    if (/해수욕장|해변|해안|바다|항구|포구|섬|선착장|갯벌|방파제/.test(title)) { counts.sea++; continue; }
-    if (/전망대|타워|정상|전망/.test(title)) { counts.view++; continue; }
-    if (
-      contentTypeId === '14' ||
-      /사찰|절|향교|성[^공]|궁|유적|박물관|고택|전통|역사/.test(title)
-    ) { counts.history++; continue; }
-    if (/산|계곡|폭포|공원|숲|자연|호수|저수지|캠핑|둘레길/.test(title)) { counts.nature++; continue; }
-    counts.nature++;
+function classifyCategory(stops: PlaceStop[], meta: Map<string, PlaceMeta>): string {
+  const c = { food: 0, sea: 0, view: 0, history: 0, sport: 0, nature: 0 };
+  for (const s of stops) {
+    const m = meta.get(s.id); if (!m) continue;
+    const { contentTypeId: ct, title: t } = m;
+    if (ct === '39' || ct === '38') { c.food++; continue; }
+    if (ct === '28') { c.sport++; continue; }
+    if (/해수욕장|해변|해안|바다|항구|포구|섬|선착장|갯벌|방파제/.test(t)) { c.sea++; continue; }
+    if (/전망대|타워|정상|전망/.test(t)) { c.view++; continue; }
+    if (ct === '14' || /사찰|절|향교|성[^공]|궁|유적|박물관|고택|전통|역사/.test(t)) { c.history++; continue; }
+    c.nature++;
   }
-
-  return (
-    ['food', 'sea', 'view', 'history', 'sport', 'nature']
-      .find((k) => counts[k] > 0) ?? 'nature'
-  );
+  return ['food','sea','view','history','sport','nature'].find(k => c[k as keyof typeof c] > 0) ?? 'nature';
 }
 
 const PLAN_META: Record<string, { title: string; summary: string }> = {
-  history: {
-    title: '역사 탐방 코스',
-    summary: '봉사 후 지역의 역사·문화 명소를 둘러보는 일정이에요.',
-  },
-  nature: {
-    title: '자연 산책 코스',
-    summary: '봉사 후 가까운 자연 명소를 가볍게 둘러보는 일정이에요.',
-  },
-  food: {
-    title: '먹거리 여행 코스',
-    summary: '봉사 후 지역 먹거리와 관광지를 함께 즐기는 일정이에요.',
-  },
-  sea: {
-    title: '바다 풍경 코스',
-    summary: '봉사 후 바닷가 명소를 따라 걷는 일정이에요.',
-  },
-  view: {
-    title: '전망 명소 코스',
-    summary: '봉사 후 지역 전망 명소를 찾아보는 일정이에요.',
-  },
-  sport: {
-    title: '액티비티 코스',
-    summary: '봉사 후 가볍게 즐길 수 있는 레포츠 코스예요.',
-  },
+  history: { title: '역사 탐방 코스', summary: '봉사 후 지역의 역사·문화 명소를 둘러보는 일정이에요.' },
+  nature:  { title: '자연 산책 코스', summary: '봉사 후 가까운 자연 명소를 가볍게 둘러보는 일정이에요.' },
+  food:    { title: '먹거리 여행 코스', summary: '봉사 후 지역 먹거리와 관광지를 함께 즐기는 일정이에요.' },
+  sea:     { title: '바다 풍경 코스', summary: '봉사 후 바닷가 명소를 따라 걷는 일정이에요.' },
+  view:    { title: '전망 명소 코스', summary: '봉사 후 지역 전망 명소를 찾아보는 일정이에요.' },
+  sport:   { title: '액티비티 코스', summary: '봉사 후 가볍게 즐길 수 있는 레포츠 코스예요.' },
 };
-
-// 같은 카테고리가 겹칠 때 사용할 대체 레이블 순서
 const FALLBACK_LABELS = ['탐방 코스', '여행 코스', '관광 코스'];
 
 // ─── Validation ───────────────────────────────────────────────────────────────
@@ -172,50 +346,29 @@ const FALLBACK_LABELS = ['탐방 코스', '여행 코스', '관광 코스'];
 function validatePlans(rawPlans: RawPlan[], metaMap: Map<string, PlaceMeta>): TravelPlan[] {
   const usedCategories: string[] = [];
   const result: TravelPlan[] = [];
-
   for (const plan of rawPlans) {
     const duration = plan.duration?.trim();
     if (!duration || !Array.isArray(plan.stops)) continue;
-
     const placeStops: PlaceStop[] = [];
     let valid = true;
-
     for (const stop of plan.stops) {
       const id = typeof stop.id === 'string' ? stop.id.trim() : '';
       if (!id) { valid = false; break; }
-      const meta = metaMap.get(id);
-      if (!meta) { valid = false; break; }
-      placeStops.push({
-        type: 'place',
-        id,
-        title: meta.title,
-        address: meta.address,
-        distance: meta.distance,
-        contentTypeId: meta.contentTypeId,
-        image: meta.image,
-        overview: null,
-      });
+      const m = metaMap.get(id);
+      if (!m) { valid = false; break; }
+      placeStops.push({ type: 'place', id, title: m.title, address: m.address, distance: m.distance, contentTypeId: m.contentTypeId, image: m.image, overview: null });
     }
-
     if (!valid || placeStops.length < 2) continue;
-
-    const category = classifyCategory(placeStops, metaMap);
-    const planMeta = PLAN_META[category] ?? PLAN_META.nature;
-    let { title, summary } = planMeta;
-
-    if (usedCategories.includes(category)) {
-      const fallback = FALLBACK_LABELS[usedCategories.filter((c) => c === category).length - 1]
-        ?? FALLBACK_LABELS[FALLBACK_LABELS.length - 1];
-      title = `${title.replace(/\s+코스$/, '')} · ${fallback}`;
+    const cat = classifyCategory(placeStops, metaMap);
+    const pm = PLAN_META[cat] ?? PLAN_META.nature;
+    let { title, summary } = pm;
+    if (usedCategories.includes(cat)) {
+      const fb = FALLBACK_LABELS[usedCategories.filter(c => c === cat).length - 1] ?? FALLBACK_LABELS[FALLBACK_LABELS.length - 1];
+      title = `${title.replace(/\s+코스$/, '')} · ${fb}`;
     }
-    usedCategories.push(category);
-
-    // 활동 장소에서 각 관광지까지 거리 중 최대값 (= 최대 이동 반경)
-    const maxDistanceM = Math.max(0, ...placeStops.map((s) => s.distance));
-
-    result.push({ title, summary, duration, maxDistanceM, stops: placeStops });
+    usedCategories.push(cat);
+    result.push({ title, summary, duration, maxDistanceM: Math.max(0, ...placeStops.map(s => s.distance)), stops: placeStops });
   }
-
   return result;
 }
 
@@ -227,164 +380,53 @@ type OpenAIPayload = {
 };
 
 async function callOpenAI(
-  apiKey: string,
-  destination: string,
-  date: string,
-  timePreference: string,
-  activity: ActivityInfo,
-  places: InputPlace[],
+  apiKey: string, destination: string, date: string,
+  timePreference: string, activity: ActivityInfo, places: InputPlace[],
 ): Promise<RawResponse | null> {
-  const placesForPrompt = places.map((p) => ({
-    id: p.id,
-    title: p.title,
-    contentTypeId: p.contentTypeId ?? '12',
-    distanceM: p.distance ?? 0,
-  }));
-
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4.1-mini',
-      temperature: 0.8,
-      max_tokens: 600,
-      messages: [
-        {
-          role: 'system',
-          content: [
-            '당신은 여행 동선 전문가입니다.',
-            '',
-            '절대적 규칙:',
-            '- stops의 id는 반드시 아래 places 배열의 id 값만 사용하세요.',
-            '- places에 없는 id는 사용 금지입니다.',
-            '',
-            '일정 구성:',
-            '- 관광지만 stops에 포함하세요 (봉사활동 제외).',
-            '- 각 일정은 2~5개 관광지로 구성하세요.',
-            '- distanceM이 가까운 장소를 우선 고려하세요.',
-            '- 총 예상 소요 시간이 timePreference 범위 안에 들어와야 합니다.',
-            '',
-            '차별화 (필수):',
-            '- 3개 일정은 서로 다른 성격의 장소 조합을 만드세요.',
-            '- 예) 역사·문화 중심 / 자연·산책 중심 / 먹거리·시장 중심.',
-            '- 한 장소가 여러 일정에 중복되면 안 됩니다.',
-          ].join('\n'),
-        },
-        {
-          role: 'user',
-          content: JSON.stringify({
-            destination,
-            date,
-            timePreference,
-            activity: { title: activity.title, address: activity.address ?? '' },
-            places: placesForPrompt,
-            request: '성격이 서로 다른 여행 일정 3개를 만들어주세요. 각 일정은 다른 장소 조합이어야 합니다.',
-          }),
-        },
-      ],
-      response_format: {
-        type: 'json_schema',
-        json_schema: {
-          name: 'travel_plan',
-          strict: true,
-          schema: travelPlanSchema,
-        },
-      },
-    }),
-  });
-
-  const payload = (await response.json()) as OpenAIPayload;
-
-  if (!response.ok) {
-    console.error('OpenAI travel-plan failed:', {
-      status: response.status,
-      error: payload.error?.message,
-    });
-    return null;
-  }
-
-  const content = payload.choices?.[0]?.message?.content;
-  if (!content) return null;
-
+  const placesForPrompt = places.map(p => ({ id: p.id, title: p.title, contentTypeId: p.contentTypeId ?? '12', distanceM: p.distance ?? 0 }));
+  let response: Response;
   try {
-    return JSON.parse(content) as RawResponse;
-  } catch {
+    response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'gpt-4.1-mini', temperature: 0.8, max_tokens: 600,
+        messages: [
+          { role: 'system', content: [
+            '당신은 여행 동선 전문가입니다.','',
+            '절대적 규칙:','- stops의 id는 반드시 아래 places 배열의 id 값만 사용하세요.','- places에 없는 id는 사용 금지입니다.','',
+            '일정 구성:','- 관광지만 stops에 포함하세요 (봉사활동 제외).','- 각 일정은 2~5개 관광지로 구성하세요.','- distanceM이 가까운 장소를 우선 고려하세요.','- 총 예상 소요 시간이 timePreference 범위 안에 들어와야 합니다.','',
+            '차별화 (필수):','- 3개 일정은 서로 다른 성격의 장소 조합을 만드세요.','- 예) 역사·문화 중심 / 자연·산책 중심 / 먹거리·시장 중심.','- 한 장소가 여러 일정에 중복되면 안 됩니다.',
+          ].join('\n') },
+          { role: 'user', content: JSON.stringify({ destination, date, timePreference, activity: { title: activity.title, address: activity.address ?? '' }, places: placesForPrompt, request: '성격이 서로 다른 여행 일정 3개를 만들어주세요. 각 일정은 다른 장소 조합이어야 합니다.' }) },
+        ],
+        response_format: { type: 'json_schema', json_schema: { name: 'travel_plan', strict: true, schema: travelPlanSchema } },
+      }),
+    });
+  } catch (err) {
+    console.error('[travel-plan:error] openai fetch fail', err instanceof Error ? err.message : String(err));
     return null;
   }
+  let payload: OpenAIPayload;
+  try { payload = (await response.json()) as OpenAIPayload; }
+  catch (err) { console.error('[travel-plan:error] openai json parse fail', response.status, err instanceof Error ? err.message : String(err)); return null; }
+  if (!response.ok) { console.error('[travel-plan:error] openai error', response.status, payload.error?.message); return null; }
+  const content = payload.choices?.[0]?.message?.content;
+  if (!content) { console.error('[travel-plan:error] openai content empty'); return null; }
+  try { return JSON.parse(content) as RawResponse; }
+  catch (err) { console.error('[travel-plan:error] openai content parse fail', err instanceof Error ? err.message : String(err)); return null; }
 }
 
-// ─── Request Body Parser ──────────────────────────────────────────────────────
-
-function parseBody(raw: unknown): Record<string, unknown> | null {
-  if (!raw) return null;
-  if (typeof raw === 'string') {
-    try {
-      const p = JSON.parse(raw) as unknown;
-      return p && typeof p === 'object' && !Array.isArray(p) ? (p as Record<string, unknown>) : null;
-    } catch {
-      return null;
-    }
-  }
-  return raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : null;
-}
-
-function getString(v: unknown): string {
-  return typeof v === 'string' ? v.trim() : '';
-}
-
-function normalizePlaces(raw: unknown): InputPlace[] {
-  if (!Array.isArray(raw)) return [];
-  const seen = new Set<string>();
-  const result: InputPlace[] = [];
-
-  for (const item of raw) {
-    if (!item || typeof item !== 'object') continue;
-    const p = item as Record<string, unknown>;
-    const id = getString(p.id);
-    const title = getString(p.title);
-    if (!id || !title || seen.has(id)) continue;
-    seen.add(id);
-    const addr = getString(p.address);
-    const imgRaw = p.image;
-    result.push({
-      id,
-      title,
-      address: addr,
-      distance: typeof p.distance === 'number' ? p.distance : 0,
-      contentTypeId: getString(p.contentTypeId) || '12',
-      image: typeof imgRaw === 'string' && imgRaw.trim() ? imgRaw.trim() : null,
-    });
-  }
-
-  return result.slice(0, 20);
-}
-
-// ─── TourAPI Detail Common (overview 조회) ────────────────────────────────────
+// ─── TourAPI Overview ─────────────────────────────────────────────────────────
 
 type DetailCommonResponse = {
-  response?: {
-    header?: { resultCode?: string };
-    body?: { items?: { item?: Array<{ overview?: string }> } | '' };
-  };
+  response?: { header?: { resultCode?: string }; body?: { items?: { item?: Array<{ overview?: string }> } | '' } };
 };
 
-async function fetchPlaceOverview(contentId: string, serviceKey: string): Promise<string | null> {
-  const params = new URLSearchParams({
-    MobileOS: 'ETC',
-    MobileApp: 'sison',
-    _type: 'json',
-    defaultYN: 'N',
-    addrinfoYN: 'N',
-    overviewYN: 'Y',
-    contentId,
-  });
+async function fetchOverview(contentId: string, svcKey: string): Promise<string | null> {
+  const params = new URLSearchParams({ MobileOS: 'ETC', MobileApp: 'sison', _type: 'json', defaultYN: 'N', addrinfoYN: 'N', overviewYN: 'Y', contentId });
   try {
-    const res = await fetch(
-      `https://apis.data.go.kr/B551011/KorService2/detailCommon2?serviceKey=${serviceKey}&${params.toString()}`,
-    );
+    const res = await fetch(`https://apis.data.go.kr/B551011/KorService2/detailCommon2?serviceKey=${svcKey}&${params}`);
     if (!res.ok) return null;
     const data = (await res.json()) as DetailCommonResponse;
     if (data.response?.header?.resultCode !== '0000') return null;
@@ -392,35 +434,31 @@ async function fetchPlaceOverview(contentId: string, serviceKey: string): Promis
     if (!items || items === '') return null;
     const raw = items.item?.[0]?.overview?.trim() ?? null;
     if (!raw) return null;
-    // HTML 태그 제거 후 공백 정규화, 최대 100자
     const clean = raw.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
     return clean.length > 100 ? clean.slice(0, 97) + '...' : clean;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
-async function enrichPlansWithOverviews(plans: TravelPlan[], serviceKey: string): Promise<TravelPlan[]> {
-  const uniqueIds = new Set<string>();
-  for (const plan of plans) {
-    for (const stop of plan.stops) uniqueIds.add(stop.id);
-  }
-
-  const overviewMap = new Map<string, string | null>();
-  await Promise.all(
-    Array.from(uniqueIds).map(async (id) => {
-      overviewMap.set(id, await fetchPlaceOverview(id, serviceKey));
-    }),
-  );
-
-  return plans.map((plan) => ({
-    ...plan,
-    stops: plan.stops.map((stop) => ({
-      ...stop,
-      overview: overviewMap.get(stop.id) ?? null,
-    })),
-  }));
+async function enrichOverviews(plans: TravelPlan[], svcKey: string): Promise<TravelPlan[]> {
+  const ids = new Set<string>();
+  for (const p of plans) for (const s of p.stops) ids.add(s.id);
+  const map = new Map<string, string | null>();
+  await Promise.all(Array.from(ids).map(async id => { map.set(id, await fetchOverview(id, svcKey)); }));
+  return plans.map(p => ({ ...p, stops: p.stops.map(s => ({ ...s, overview: map.get(s.id) ?? null })) }));
 }
+
+// ─── Request Body Parser ──────────────────────────────────────────────────────
+
+function parseBody(raw: unknown): Record<string, unknown> | null {
+  if (!raw) return null;
+  if (typeof raw === 'string') {
+    try { const p = JSON.parse(raw) as unknown; return p && typeof p === 'object' && !Array.isArray(p) ? (p as Record<string, unknown>) : null; }
+    catch { return null; }
+  }
+  return raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : null;
+}
+
+function str(v: unknown): string { return typeof v === 'string' ? v.trim() : ''; }
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
@@ -435,87 +473,81 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) {
-    res.status(500).json({ ok: false, error: 'OPENAI_API_KEY가 설정되지 않았어요.' });
+    console.error('[travel-plan:error] OPENAI_API_KEY 미설정');
+    res.status(500).json({ ok: false, error: '일정을 만들지 못했어요.' });
     return;
   }
 
   const body = parseBody(req.body);
-  if (!body) {
-    res.status(400).json({ ok: false, error: '요청 형식이 올바르지 않아요.' });
-    return;
-  }
+  if (!body) { res.status(400).json({ ok: false, error: '요청 형식이 올바르지 않아요.' }); return; }
 
-  const destination = getString(body.destination);
-  const date = getString(body.date);
-  const timePreference = getString(body.timePreference);
+  const address = str(body.address);
+  const region  = str(body.region);
+  const destination = str(body.destination) || region;
+  const date = str(body.date);
+  const timePreference = str(body.timePreference);
 
-  if (!destination) {
-    res.status(400).json({ ok: false, error: '여행지를 입력해주세요.' });
-    return;
-  }
+  if (!address) { res.status(400).json({ ok: false, error: '봉사활동 주소가 없어요.' }); return; }
 
-  const activityRaw =
-    body.activity && typeof body.activity === 'object' && !Array.isArray(body.activity)
-      ? (body.activity as Record<string, unknown>)
-      : null;
+  const actRaw = body.activity && typeof body.activity === 'object' && !Array.isArray(body.activity)
+    ? (body.activity as Record<string, unknown>) : null;
+  if (!actRaw) { res.status(400).json({ ok: false, error: '봉사활동 정보가 없어요.' }); return; }
 
-  if (!activityRaw) {
-    res.status(400).json({ ok: false, error: '봉사활동 정보가 없어요.' });
-    return;
-  }
-
-  const activity: ActivityInfo = {
-    title: getString(activityRaw.title),
-    address: getString(activityRaw.address),
-  };
-
-  if (!activity.title) {
-    res.status(400).json({ ok: false, error: '봉사활동 제목이 없어요.' });
-    return;
-  }
-
-  const places = normalizePlaces(body.places);
-  if (places.length === 0) {
-    res.status(400).json({ ok: false, error: '관광지 후보가 없어요.' });
-    return;
-  }
-
-  const metaMap = new Map<string, PlaceMeta>(
-    places.map((p) => [
-      p.id,
-      {
-        title: p.title,
-        address: p.address ?? '',
-        contentTypeId: p.contentTypeId ?? '12',
-        distance: p.distance ?? 0,
-        image: p.image ?? null,
-      },
-    ]),
-  );
+  const activity: ActivityInfo = { title: str(actRaw.title), address };
+  if (!activity.title) { res.status(400).json({ ok: false, error: '봉사활동 제목이 없어요.' }); return; }
 
   try {
-    let raw = await callOpenAI(apiKey, destination, date, timePreference, activity, places);
-    let plans = raw ? validatePlans(raw.plans ?? [], metaMap) : [];
-
-    if (plans.length === 0) {
-      raw = await callOpenAI(apiKey, destination, date, timePreference, activity, places);
-      plans = raw ? validatePlans(raw.plans ?? [], metaMap) : [];
-    }
-
-    if (plans.length === 0) {
-      res.status(200).json({ ok: false, error: '일정을 생성하지 못했어요.' });
+    // Step 1: 주소 → 좌표
+    let geo: GeocodeResult;
+    try {
+      geo = await geocodeAddress(address, region);
+      console.log('[travel-plan] geocode success', { lat: geo.lat, lng: geo.lng });
+    } catch (err) {
+      console.error('[travel-plan:error] geocode fail', { message: err instanceof Error ? err.message : String(err), address, region });
+      res.status(200).json({ ok: false, error: '일정을 만들지 못했어요.' });
       return;
     }
 
-    // overview 조회 (실패해도 기본 설명으로 대체)
-    const tourKey = process.env.TOUR_API_SERVICE_KEY?.trim() ?? '';
-    if (tourKey) {
-      plans = await enrichPlansWithOverviews(plans, tourKey);
+    // Step 2: 좌표 → 주변 관광지
+    let nearby: TravelPlace[] = [];
+    try {
+      nearby = await findNearbyPlaces(geo.lat, geo.lng);
+      console.log('[travel-plan] nearby places', { count: nearby.length });
+    } catch (err) {
+      console.error('[travel-plan:error] nearby fail', { message: err instanceof Error ? err.message : String(err) });
+    }
+    if (nearby.length === 0) {
+      console.error('[travel-plan:error] nearby empty', { lat: geo.lat, lng: geo.lng });
+      res.status(200).json({ ok: false, error: '일정을 만들지 못했어요.' });
+      return;
     }
 
+    // Step 3: OpenAI 일정 생성
+    const metaMap = new Map<string, PlaceMeta>(
+      nearby.map(p => [p.id, { title: p.title, address: p.address, contentTypeId: p.contentTypeId, distance: p.distance, image: p.image }])
+    );
+    const inputPlaces: InputPlace[] = nearby.map(p => ({ id: p.id, title: p.title, address: p.address, distance: p.distance, contentTypeId: p.contentTypeId, image: p.image }));
+
+    let raw = await callOpenAI(apiKey, destination, date, timePreference, activity, inputPlaces);
+    let plans = raw ? validatePlans(raw.plans ?? [], metaMap) : [];
+    if (plans.length === 0) {
+      raw = await callOpenAI(apiKey, destination, date, timePreference, activity, inputPlaces);
+      plans = raw ? validatePlans(raw.plans ?? [], metaMap) : [];
+    }
+    if (plans.length === 0) {
+      console.error('[travel-plan:error] openai returned 0 valid plans');
+      res.status(200).json({ ok: false, error: '일정을 만들지 못했어요.' });
+      return;
+    }
+
+    // Step 4: overview 보강 (실패해도 무시)
+    const tourKey = process.env.TOUR_API_SERVICE_KEY?.trim() ?? '';
+    if (tourKey) plans = await enrichOverviews(plans, tourKey);
+
+    console.log('[travel-plan] complete', { planCount: plans.length });
     res.status(200).json({ ok: true, plans });
   } catch (err) {
-    console.error('travel-plan error:', err instanceof Error ? err.message : String(err));
-    res.status(500).json({ ok: false, error: '일정을 생성하지 못했어요.' });
+    console.error('[travel-plan:error]', { message: err instanceof Error ? err.message : String(err), stack: err instanceof Error ? err.stack : undefined });
+    res.status(500).json({ ok: false, error: '일정을 만들지 못했어요.' });
   }
 }
