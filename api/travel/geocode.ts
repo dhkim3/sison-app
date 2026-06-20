@@ -1,4 +1,4 @@
-import { geocodeAddress } from './_service';
+import { geocodeAddress } from './_service.js';
 
 type VercelRequest = {
   method?: string;

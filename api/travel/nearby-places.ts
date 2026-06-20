@@ -1,4 +1,4 @@
-import { findNearbyPlaces } from './_service';
+import { findNearbyPlaces } from './_service.js';
 
 type VercelRequest = {
   method?: string;
