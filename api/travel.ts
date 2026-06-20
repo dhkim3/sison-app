@@ -1,4 +1,4 @@
-import { geocodeAddress, findNearbyPlaces } from './travel/_service';
+import { geocodeAddress, findNearbyPlaces } from '../lib/server/travelService';
 
 type VercelRequest = {
   method?: string;
