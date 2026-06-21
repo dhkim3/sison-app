@@ -27,77 +27,98 @@ const initialArchiveStories: StoryItem[] = [
     imageUrl: '/activity-images/beach-cleanup-1.png',
     title: '광안리 해변에서의 아침',
     region: '부산',
+    location: '부산 수영구 광안리해수욕장',
     author: '여행자',
     likes: 16,
     comments: 4,
     body: '광안리의 아침은 생각보다 조용했어요. 짧은 정화 활동을 마치고 바라본 바다는 여행의 속도를 한 번 늦춰주는 장면처럼 남았습니다.',
     relatedActivity: '광안리 해변 환경정화',
+    activityTitle: '광안리 해변 환경정화',
+    activityDate: '2026.07.20',
   },
   {
     id: 102,
     imageUrl: '/activity-images/beach-cleanup-2.png',
     title: '제주 바다의 석양',
     region: '제주',
+    location: '제주 제주시 함덕해수욕장',
     author: '여행자',
     likes: 11,
     comments: 2,
     body: '하루 끝에 만난 제주 바다는 오래 바라보고 싶은 색이었어요. 작은 활동 뒤에 남은 고요함이 여행의 기억을 더 선명하게 만들어줬습니다.',
     relatedActivity: '함덕해수욕장 해양 환경 정화 봉사',
+    activityTitle: '함덕해수욕장 해양 환경 정화 봉사',
+    activityDate: '2026.06.15',
   },
   {
     id: 103,
     imageUrl: '/activity-images/forest-trail-2.png',
     title: '공원 산책로의 오후',
     region: '부산',
+    location: '부산 수영구 수영 근린공원',
     author: '여행자',
     likes: 8,
     comments: 1,
     body: '산책로를 정리하는 동안 오후 햇빛이 천천히 나무 사이로 내려왔어요. 큰 이벤트보다 작은 돌봄이 더 오래 기억되는 날이었습니다.',
     relatedActivity: '수영 공원 산책로 정비',
+    activityTitle: '수영 공원 산책로 정비',
+    activityDate: '2026.05.28',
   },
   {
     id: 104,
     imageUrl: '/activity-images/forest-trail-1.png',
     title: '비자림의 고요한 산책',
     region: '제주',
+    location: '제주 제주시 비자림',
     author: '여행자',
     likes: 13,
     comments: 3,
     body: '비자림 안쪽으로 들어갈수록 말수가 줄어드는 기분이었어요. 길을 천천히 살피며 걷는 시간이 여행과 봉사 사이를 부드럽게 이어줬습니다.',
     relatedActivity: '제주 숲길 산책로 정비',
+    activityTitle: '제주 숲길 산책로 정비',
+    activityDate: '2026.06.08',
   },
   {
     id: 105,
     imageUrl: '/activity-images/beach-cleanup-3.png',
     title: '안목해변 커피 향 사이로',
     region: '강원',
+    location: '강원 강릉시 안목해변',
     author: '여행자',
     likes: 9,
     comments: 2,
     body: '플로깅을 마치고 커피거리 쪽으로 걸어오니 바다 냄새와 커피 향이 섞였어요. 짧은 활동이 하루의 표정을 바꿔주었습니다.',
     relatedActivity: '안목해변 아침 플로깅',
+    activityTitle: '안목해변 아침 플로깅',
+    activityDate: '2026.08.05',
   },
   {
     id: 106,
     imageUrl: '/activity-images/festival-event-2.png',
     title: '통영 항구의 느린 오후',
     region: '경남',
+    location: '경남 통영시 강구안',
     author: '여행자',
     likes: 10,
     comments: 2,
     body: '작은 항구 행사에서 방문객을 안내하고 의자를 정리했어요. 낯선 도시가 잠깐 생활처럼 가까워지는 시간이었습니다.',
     relatedActivity: '통영 항구 마을 행사 도우미',
+    activityTitle: '통영 항구 마을 행사 도우미',
+    activityDate: '2026.04.26',
   },
   {
     id: 107,
     imageUrl: '/activity-images/city-travel-3.png',
     title: '경주 골목의 오후빛',
     region: '경북',
+    location: '경북 경주시 황리단길',
     author: '여행자',
     likes: 8,
     comments: 1,
     body: '황리단길 작은 전시 안내를 돕는 동안 오래된 담벼락에 빛이 머물렀어요. 여행지의 이야기를 조금 더 가까이 들은 날이었습니다.',
     relatedActivity: '경주 황리단길 작은 문화 안내',
+    activityTitle: '경주 황리단길 작은 문화 안내',
+    activityDate: '2026.05.04',
   },
 ];
 
@@ -207,6 +228,8 @@ interface SavedArchiveProps {
   onArchiveTabChange?: (tab: SavedArchiveTab) => void;
   myStories?: StoryItem[];
   myCards?: StoryCardItem[];
+  dismissedArchiveStoryIds?: number[];
+  onDeleteArchiveStory?: (story: StoryItem) => void;
 }
 
 export function SavedArchive({
@@ -219,6 +242,8 @@ export function SavedArchive({
   onArchiveTabChange,
   myStories,
   myCards,
+  dismissedArchiveStoryIds,
+  onDeleteArchiveStory,
 }: SavedArchiveProps) {
   const [activeTab, setActiveTab] = useState<SavedArchiveTab>(activeArchiveTab);
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
@@ -243,9 +268,12 @@ export function SavedArchive({
   }, [activeArchiveTab]);
 
   // 내가 올린 스토리/생성한 카드를 저장 탭에 반영 (목 데이터 앞에 배치)
+  // 사용자가 삭제한 시드 스토리는 dismissedArchiveStoryIds로 영속 관리되어 화면 전환 후에도 유지된다.
   useEffect(() => {
-    setStories([...(myStories ?? []), ...initialArchiveStories]);
-  }, [myStories]);
+    const dismissed = new Set(dismissedArchiveStoryIds ?? []);
+    const combined = [...(myStories ?? []), ...initialArchiveStories];
+    setStories(combined.filter((story) => !dismissed.has(story.id)));
+  }, [myStories, dismissedArchiveStoryIds]);
 
   useEffect(() => {
     setTravelCards([...(myCards ?? []).map(storyCardToArchiveCard), ...initialTravelCards]);
@@ -285,10 +313,10 @@ export function SavedArchive({
   };
 
   const handleDeleteStory = (story: StoryItem) => {
-    setStories((currentStories) => currentStories.filter((item) => item.id !== story.id));
     setSelectedStory((currentStory) => (currentStory?.id === story.id ? null : currentStory));
     setCommentStory((currentStory) => (currentStory?.id === story.id ? null : currentStory));
     storyInteractions.onRemoveStory?.(story.id);
+    onDeleteArchiveStory?.(story);
   };
 
   const closeTravelCardAction = () => {
@@ -317,7 +345,7 @@ export function SavedArchive({
         throw new Error('Travel card element unavailable');
       }
 
-      const blob = await captureElementAsPng(cardElement);
+      const blob = await captureElementAsPng(cardElement, 2, { backgroundColor: 'transparent' });
       downloadBlob(blob, `sison-travel-card-${card.id}.png`);
       closeTravelCardAction();
       showTravelCardToast('여행 카드를 저장했어요.');

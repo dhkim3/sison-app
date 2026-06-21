@@ -55,6 +55,7 @@ export default function App() {
   const [profileNickname, setProfileNickname] = useState('여행자');
   const [pendingCardStory, setPendingCardStory] = useState<StoryItem | null>(null);
   const [myCards, setMyCards] = useState<StoryCardItem[]>([]);
+  const [dismissedArchiveStoryIds, setDismissedArchiveStoryIds] = useState<number[]>([]);
   const saveFeedbackTimers = useRef<number[]>([]);
 
   useLayoutEffect(() => {
@@ -268,6 +269,7 @@ export default function App() {
   };
 
   const handleDeleteStory = (story: StoryItem) => {
+    const wasMine = userStories.some((item) => item.id === story.id);
     setUserStories((current) => current.filter((item) => item.id !== story.id));
     setLikedStoryIds((currentIds) => currentIds.filter((id) => id !== story.id));
     setStoryComments((currentComments) => {
@@ -276,7 +278,12 @@ export default function App() {
       delete nextComments[story.id];
       return nextComments;
     });
-    if (deviceKey) {
+    if (!wasMine) {
+      setDismissedArchiveStoryIds((currentIds) =>
+        currentIds.includes(story.id) ? currentIds : [...currentIds, story.id],
+      );
+    }
+    if (wasMine && deviceKey) {
       storyApi.deleteStory(deviceKey, story.id).catch((error) => console.error('delete story failed', error));
     }
   };
@@ -424,6 +431,8 @@ export default function App() {
           onArchiveTabChange={setSavedArchiveTab}
           myStories={userStories.filter((story) => story.isMine)}
           myCards={myCards}
+          dismissedArchiveStoryIds={dismissedArchiveStoryIds}
+          onDeleteArchiveStory={handleDeleteStory}
         />
       )}
       {currentScreen === 'profile' && (

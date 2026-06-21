@@ -480,6 +480,7 @@ function canvasToPngBlob(canvas: HTMLCanvasElement) {
 }
 
 function fillCanvasBackground(context: CanvasRenderingContext2D, width: number, height: number, backgroundColor: string) {
+  if (backgroundColor === 'transparent') return;
   context.save();
   context.setTransform(1, 0, 0, 1, 0, 0);
   context.fillStyle = backgroundColor;
@@ -540,14 +541,20 @@ export async function captureElementAsPng(element: HTMLElement, scale = 2, optio
     clone.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
     clone.style.margin = '0';
     clone.style.transform = 'none';
-    clone.style.backgroundColor = backgroundColor;
+    if (backgroundColor !== 'transparent') {
+      clone.style.backgroundColor = backgroundColor;
+    } else {
+      clone.style.backgroundColor = 'transparent';
+    }
 
     const serializedNode = new XMLSerializer().serializeToString(clone);
+    const svgBackgroundRect = backgroundColor === 'transparent' ? '' : `<rect width="100%" height="100%" fill="${backgroundColor}" />`;
+    const wrapperBackground = backgroundColor === 'transparent' ? 'transparent' : backgroundColor;
     const svg = `
       <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-        <rect width="100%" height="100%" fill="${backgroundColor}" />
+        ${svgBackgroundRect}
         <foreignObject width="100%" height="100%">
-          <div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;overflow:hidden;background:${backgroundColor};">
+          <div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;overflow:hidden;background:${wrapperBackground};">
             ${serializedNode}
           </div>
         </foreignObject>

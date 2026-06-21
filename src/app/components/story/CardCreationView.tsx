@@ -120,7 +120,7 @@ export function CardCreationView({
     try {
       // AI 프레임도 포함해 카드 전체를 캡처 (사진 + 프레임 레이어 + 텍스트 영역)
       if (!cardPreviewRef.current) throw new Error('Card preview unavailable');
-      const blob = await captureElementAsPng(cardPreviewRef.current);
+      const blob = await captureElementAsPng(cardPreviewRef.current, 2, { backgroundColor: 'transparent' });
       downloadBlob(blob, `sison-card-${storyId ?? activity.id ?? 'my-card'}.png`);
       setDownloadMessage('여행 카드를 저장했어요.');
       window.setTimeout(() => {

@@ -96,7 +96,7 @@ export function StoryDetailSheet({
               {story.isMine && onDelete && (
                 <button
                   type="button"
-                  onClick={() => setIsDeleteConfirmOpen((isOpen) => !isOpen)}
+                  onClick={() => setIsDeleteConfirmOpen(true)}
                   aria-label="스토리 삭제"
                   className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f8f8f5] transition-colors hover:bg-[#f0f0eb]"
                 >
@@ -113,28 +113,6 @@ export function StoryDetailSheet({
               </button>
             </div>
           </div>
-
-          {isDeleteConfirmOpen && (
-            <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-[#f8f8f5] px-3.5 py-3">
-              <p className="text-[12.5px] text-[#777]">이 스토리를 삭제할까요?</p>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setIsDeleteConfirmOpen(false)}
-                  className="rounded-full px-3 py-1.5 text-[12px] font-medium text-[#5F6368] transition-colors hover:bg-white"
-                >
-                  취소
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  className="rounded-full bg-white px-3 py-1.5 text-[12px] font-medium text-[#5a5a5a] shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors hover:bg-[#f0f0eb]"
-                >
-                  삭제
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
         <div
@@ -256,6 +234,41 @@ export function StoryDetailSheet({
           </div>
         </div>
       </div>
+
+      {isDeleteConfirmOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-5">
+          <button
+            type="button"
+            aria-label="스토리 삭제 취소"
+            onClick={() => setIsDeleteConfirmOpen(false)}
+            className="absolute inset-0 bg-black/35"
+          />
+          <section className="relative w-full max-w-[342px] rounded-3xl border border-black/[0.04] bg-[#fdfcfa] p-5 shadow-[0_18px_42px_rgba(42,42,42,0.18)]">
+            <h3 className="text-[17px] font-semibold leading-snug text-[#2a2a2a]">
+              이 기록을 삭제할까요?
+            </h3>
+            <p className="mt-2 text-[12px] leading-5 text-[#5F6368]">
+              삭제하면 다시 복구할 수 없어요.
+            </p>
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setIsDeleteConfirmOpen(false)}
+                className="flex-1 rounded-2xl bg-[#f5f3ee] py-3 text-[14px] font-medium text-[#777] transition-colors hover:bg-[#efede7]"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="flex-1 rounded-2xl bg-[#b76e65] py-3 text-[14px] font-semibold text-white transition-colors hover:bg-[#a85f56]"
+              >
+                삭제
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </>
   );
 }
