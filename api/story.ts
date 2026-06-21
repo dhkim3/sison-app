@@ -390,17 +390,19 @@ const buildFramePrompt = (
     `\n` +
     `ZONE C — CHARACTER STRIP (y: 1040–1220px, full width)\n` +
     `  • Background: solid warm-cream (#f5ecd9).\n` +
-    `  • Add one cute pixel-art character that matches <ACTIVITY>: ${theme.character}. Max height 150px; placed on the left half.\n` +
+    `  • Add ONE cute pixel-art character on the LEFT half. Max height 150px.\n` +
+    `  • CHARACTER PERSONALIZATION (priority rule): If source.png contains one or more visible people, model the pixel-art character after ONE of them — pick the most prominent person and mirror their visible traits: hair length & color, skin tone, hat/cap if any, top color, bottom color, and the prop they are holding (e.g. a trash bag, gloves, tongs). Keep the chibi-style cute pixel-art look (large head, friendly smile) — do NOT attempt photographic likeness, just clear visual cues that say "this is the person from the photo".\n` +
+    `  • If source.png has no clearly visible person, fall back to this default for <ACTIVITY>: ${theme.character}.\n` +
     `  • The character or a small prop it holds MAY peek slightly above y=1040 into the lower edge of the photo (up to ~40px), as long as it does not cover faces or the central action.\n` +
     `  • Sprinkle 2–3 tiny motifs from ${theme.decorations} on the right side of the strip.\n` +
     `\n` +
     `ZONE D — TEXT PANEL (y: 1220–1460px, full width)\n` +
     `  • Background: solid cream-white (#faf5ee).\n` +
-    `  • Render the following three lines as CRISP PIXEL-FONT TEXT, left-aligned with 60px left padding, dark slate color (#2a2a2a). Use the EXACT strings from the tags above — do not translate, paraphrase, or shorten them.\n` +
+    `  • Render EXACTLY the following three lines as CRISP PIXEL-FONT TEXT, left-aligned with 60px left padding, dark slate color (#2a2a2a). Use the EXACT strings from the tags above — do not translate, paraphrase, shorten, or skip any of them.\n` +
     `      Line 1 (y≈1245, ~44px tall, bold): <TITLE> contents.\n` +
     `      Line 2 (y≈1330, ~28px tall, regular): a small pin glyph "📍" then <REGION> contents.\n` +
-    `      Line 3 (y≈1380, ~28px tall, regular): a small calendar glyph "🗓" then <DATE> contents.\n` +
-    `  • Text must be perfectly readable — no overlapping decorations behind the letters.\n` +
+    `      Line 3 (y≈1395, ~28px tall, regular): a small calendar glyph "🗓" then <DATE> contents. THIS LINE IS MANDATORY — the date MUST always appear, even if it is short. Never omit it.\n` +
+    `  • All three lines must appear. Text must be perfectly readable — no overlapping decorations behind the letters.\n` +
     `\n` +
     `ZONE E — BOTTOM SIGNATURE (y: 1460–1536px, full width)\n` +
     `  • At y≈1470 draw ONE thin horizontal pixel-art guideline (1–2px tall, full width minus 80px margin on each side, color #cfc6b8).\n` +
@@ -409,9 +411,10 @@ const buildFramePrompt = (
     `CRITICAL RULES (violating any = failure):\n` +
     `  1. The photo inside Zone A remains a real photograph — NEVER pixelated, posterized, painted, or re-rendered. People's faces and the scene must look exactly like the source.\n` +
     `  2. Pixel-art elements (frame motifs, character props) may intrude into the outer edges of the photo, but must NEVER cover faces, hands, or the central subject of the photo.\n` +
-    `  3. Render <TITLE>, <REGION>, <DATE>, and the word "시선" as actual readable text in the final PNG. Do NOT leave the text panel blank.\n` +
+    `  3. Render <TITLE>, <REGION>, <DATE>, and the word "시선" as actual readable text in the final PNG. All four must appear. <DATE> in particular must never be skipped or replaced with a blank line.\n` +
     `  4. The only text in the entire image is: <TITLE>, <REGION>, <DATE>, and "시선". No other words, numbers, watermarks, or logos.\n` +
-    `  5. Output is a single fully-opaque PNG at 1024×1536 — no transparent regions, no separate layers.\n` +
+    `  5. When the source photo shows a person, the pixel character in Zone C is a chibi-style portrait of them (matching hair/clothing colors and held prop) — not a generic mascot.\n` +
+    `  6. Output is a single fully-opaque PNG at 1024×1536 — no transparent regions, no separate layers.\n` +
     `\n` +
     `STYLE: Photographic central subject + 16-bit pixel-art frame/character/text (Animal Crossing / Stardew Valley aesthetic). Soft pastel palette around the photo. Calm Korean travel-app mood.`
   );

@@ -16,7 +16,7 @@ interface CardCreationViewProps {
   onNavigate: (screen: string) => void;
 }
 
-const BASE_FRAMES = ['기본', '바다', '숲', '노을', '도시', '블랙'];
+const BASE_FRAMES = ['기본', '바다', '숲', '노을', '블랙'];
 const AI_FRAME = 'AI';
 
 async function ensureDataUrl(src: string): Promise<string> {
@@ -144,7 +144,6 @@ export function CardCreationView({
       case '바다': return 'from-blue-50 to-cyan-50';
       case '숲':   return 'from-green-50 to-emerald-50';
       case '노을': return 'from-orange-50 to-pink-50';
-      case '도시': return 'from-gray-50 to-slate-50';
       case '블랙': return 'from-[#1a1a1a] to-[#0a0a0a]';
       default:     return 'from-[#fdfcfa] to-[#f8f8f5]';
     }
