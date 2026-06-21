@@ -51,24 +51,14 @@ export function CardCreationView({
   const compactLocation = getCompactLocationLabel(activity.location) || activity.region;
   const cardTitle = storyTitle.trim() || `"${activity.region}에서 남긴 작은 시선"`;
   const isDarkFrame = selectedFrame === '블랙';
+  // AI 프레임 PNG(2:3)가 카드 전체를 채우는 모드
+  const isAiMode = selectedFrame === AI_FRAME && !!generatedImageUrl;
 
   useEffect(() => {
     return () => {
       if (genTimerRef.current) clearTimeout(genTimerRef.current);
     };
   }, []);
-
-  // private Blob 스토어라 공개 URL을 만들 수 없어, 사진을 base64 data URL로 변환해 서버(→OpenAI)에 직접 전달
-  const toDataUrl = async (src: string): Promise<string> => {
-    if (src.startsWith('data:')) return src;
-    const blob = await (await fetch(src)).blob();
-    return await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = () => reject(new Error('이미지 변환에 실패했어요.'));
-      reader.readAsDataURL(blob);
-    });
-  };
 
   const handleGenerateAIFrame = async () => {
     if (isGenerating) return;
@@ -79,22 +69,21 @@ export function CardCreationView({
 
     const start = Date.now();
     try {
-      const photoDataUrl = await toDataUrl(photo);
+      // 사진을 서버에 보내지 않는다 — 투명 프레임만 생성 후 CSS로 원본 사진 위에 씌움
       const result = await storyApi.generateCard(deviceKey, {
         storyId,
-        photoDataUrl,
         activity: activity.title ?? activity.activityTitle ?? '',
         region: activity.region ?? '',
         title: cardTitle,
         date: activity.date ?? activity.activityDate ?? '',
         templateType: 'ai',
       });
-      console.log(`[AI card] generated in ${result.elapsedMs ?? Date.now() - start}ms`);
+      console.log(`[AI frame] generated in ${result.elapsedMs ?? Date.now() - start}ms`);
       setGeneratedImageUrl(result.url);
       setHasGeneratedAIFrame(true);
       setSelectedFrame(AI_FRAME);
     } catch (error) {
-      console.error('AI card generate failed', error);
+      console.error('AI frame generate failed', error);
       const message = error instanceof Error ? error.message : '';
       setErrorMessage(/준비 중/.test(message) ? message : 'AI 카드를 만들지 못했어요. 잠시 후 다시 시도해주세요.');
     } finally {
@@ -105,15 +94,9 @@ export function CardCreationView({
 
   const handleDownload = async () => {
     try {
-      const isAiCard = selectedFrame === AI_FRAME && Boolean(generatedImageUrl);
-      let blob: Blob;
-      if (isAiCard && generatedImageUrl) {
-        // AI 카드는 생성 시 이미 Blob/STORY_CARDS에 저장됨 → 이미지를 받아 다운로드만 수행
-        blob = await (await fetch(generatedImageUrl)).blob();
-      } else {
-        if (!cardPreviewRef.current) throw new Error('Card preview unavailable');
-        blob = await captureElementAsPng(cardPreviewRef.current);
-      }
+      // AI 프레임도 포함해 카드 전체를 캡처 (사진 + 프레임 레이어 + 텍스트 영역)
+      if (!cardPreviewRef.current) throw new Error('Card preview unavailable');
+      const blob = await captureElementAsPng(cardPreviewRef.current);
       downloadBlob(blob, `sison-card-${storyId ?? activity.id ?? 'my-card'}.png`);
       setDownloadMessage('여행 카드를 저장했어요.');
       window.setTimeout(() => {
@@ -211,14 +194,18 @@ export function CardCreationView({
             <div className="flex justify-center">
               <div
                 ref={cardPreviewRef}
-                className={`relative bg-gradient-to-br ${getFrameGradient()} p-4 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] overflow-hidden`}
+                className={`relative rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] overflow-hidden ${
+                  isAiMode
+                    ? 'bg-gray-100'
+                    : `bg-gradient-to-br ${getFrameGradient()} p-4`
+                }`}
                 style={{ width: '300px' }}
               >
-                {/* AI wave scan — mint+purple gradient sweeps top→bottom, reveals new frame */}
+                {/* AI wave scan */}
                 {showAIWave && (
                   <div
                     aria-hidden="true"
-                    className="pointer-events-none absolute inset-x-0 z-10"
+                    className="pointer-events-none absolute inset-x-0 z-30"
                     style={{
                       height: '55%',
                       background:
@@ -229,30 +216,64 @@ export function CardCreationView({
                   />
                 )}
 
-                {/* Photo */}
-                <div className="aspect-[3/4] bg-white rounded-lg overflow-hidden mb-3 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
-                  <img
-                    src={selectedFrame === AI_FRAME && generatedImageUrl ? generatedImageUrl : photo}
-                    alt="Travel memory"
-                    className={`w-full h-full ${selectedFrame === AI_FRAME && generatedImageUrl ? 'object-contain' : 'object-cover'}`}
-                  />
-                </div>
-
-                {/* Card Content */}
-                <div className="px-1.5">
-                  <p className={`line-clamp-1 text-[13px] font-semibold leading-snug ${isDarkFrame ? 'text-white' : 'text-[#2a2a2a]'}`}>
-                    {cardTitle}
-                  </p>
-                  <div className="mt-3 space-y-1">
-                    {compactLocation && (
-                      <p className={`text-[11px] font-medium leading-[1.35] ${isDarkFrame ? 'text-white/80' : 'text-[#6f6f6f]'}`}>{compactLocation}</p>
-                    )}
-                    <p className={`text-[11px] font-normal leading-[1.35] ${isDarkFrame ? 'text-white/50' : 'text-[#b6b6b6]'}`}>{activity.date}</p>
+                {isAiMode ? (
+                  /* AI 프레임 모드: 카드 전체가 프레임 (2:3 비율, 크롭 없음) */
+                  <div className="aspect-[2/3] relative">
+                    {/* 원본 사진 — 전체 배경 */}
+                    <img
+                      src={photo}
+                      alt="Travel memory"
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                    {/* AI 프레임 — 카드 전체 커버 (2:3 = 1024×1536 완벽 일치) */}
+                    <img
+                      key={generatedImageUrl}
+                      src={generatedImageUrl!}
+                      aria-hidden="true"
+                      className="absolute inset-0 w-full h-full object-cover pointer-events-none z-10"
+                    />
+                    {/* 텍스트 오버레이 — 프레임 하단 크림 영역 (Zone 6: 카드 하단 28%) */}
+                    <div className="absolute left-0 right-0 z-20 px-5" style={{ top: '77%', bottom: '5%' }}>
+                      <p className="text-[#2a2a2a] text-[10px] font-bold leading-snug line-clamp-2">
+                        {cardTitle}
+                      </p>
+                      <div className="mt-1.5 space-y-0.5">
+                        {compactLocation && (
+                          <p className="text-[#5a5a5a] text-[9px] leading-tight">{compactLocation}</p>
+                        )}
+                        <p className="text-[#9a9a9a] text-[9px]">{activity.date}</p>
+                      </div>
+                      <div className="mt-1.5 border-t border-black/10 pt-1">
+                        <p className="text-[#5F6368] text-[9px] opacity-60">시선</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="mt-3 border-t border-black/5 pt-2">
-                    <p className="text-center text-[11px] text-[#5F6368] opacity-70">시선</p>
-                  </div>
-                </div>
+                ) : (
+                  /* 기본 프레임 모드: 기존 레이아웃 */
+                  <>
+                    <div className="aspect-[3/4] bg-white rounded-lg overflow-hidden mb-3 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+                      <img
+                        src={photo}
+                        alt="Travel memory"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="px-1.5">
+                      <p className={`line-clamp-1 text-[13px] font-semibold leading-snug ${isDarkFrame ? 'text-white' : 'text-[#2a2a2a]'}`}>
+                        {cardTitle}
+                      </p>
+                      <div className="mt-3 space-y-1">
+                        {compactLocation && (
+                          <p className={`text-[11px] font-medium leading-[1.35] ${isDarkFrame ? 'text-white/80' : 'text-[#6f6f6f]'}`}>{compactLocation}</p>
+                        )}
+                        <p className={`text-[11px] font-normal leading-[1.35] ${isDarkFrame ? 'text-white/50' : 'text-[#b6b6b6]'}`}>{activity.date}</p>
+                      </div>
+                      <div className="mt-3 border-t border-black/5 pt-2">
+                        <p className="text-center text-[11px] text-[#5F6368] opacity-70">시선</p>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </section>

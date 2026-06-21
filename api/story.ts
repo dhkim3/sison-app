@@ -1,4 +1,5 @@
 import { get, put } from '@vercel/blob';
+import { Buffer } from 'node:buffer';
 import pg from 'pg';
 
 type VercelRequest = {
@@ -21,9 +22,19 @@ declare const process: {
 
 // ---- DB pool (module-scoped, reused across invocations) ----
 let pool: pg.Pool | null = null;
+let dbMissingWarnLogged = false;
+const getConnectionString = () => (process.env.POSTGRES_URL || process.env.DATABASE_URL || '').trim();
+const emptyStoryList = () => ({
+  stories: [],
+  comments: {},
+  likeCounts: {},
+  likedStoryIds: [],
+  cards: [],
+});
+
 const getPool = () => {
   if (!pool) {
-    const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+    const connectionString = getConnectionString();
     if (!connectionString) throw new Error('POSTGRES_URL이 설정되지 않았어요.');
     pool = new pg.Pool({ connectionString, ssl: { rejectUnauthorized: false }, max: 3 });
   }
@@ -76,6 +87,15 @@ const sendError = (res: VercelResponse, code: number, message: string) => {
 // ---- per-action handlers ----
 
 const handleList = async (res: VercelResponse, deviceKey: string) => {
+  if (!getConnectionString()) {
+    if (!dbMissingWarnLogged) {
+      console.warn('[api/story] POSTGRES_URL/DATABASE_URL not configured — returning empty story list');
+      dbMissingWarnLogged = true;
+    }
+    res.status(200).json({ ok: true, ...emptyStoryList() });
+    return;
+  }
+
   const db = getPool();
   const [storiesResult, commentsResult, likesResult, cardsResult] = await Promise.all([
     db.query(
@@ -265,7 +285,7 @@ const handleImage = async (res: VercelResponse, pathname: string) => {
     return;
   }
   const buffer = Buffer.from(await new Response(blob.stream).arrayBuffer());
-  res.setHeader('Content-Type', blob.contentType || inferContentType(pathname));
+  res.setHeader('Content-Type', blob.blob.contentType || inferContentType(pathname));
   res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
   res.status(200).send(buffer);
 };
@@ -286,11 +306,131 @@ const handleUpload = async (res: VercelResponse, body: Record<string, unknown>) 
 };
 
 // ---- AI card generation (OpenAI Responses API, image_generation tool) ----
-const buildCardPrompt = (activity: string, region: string) =>
-  `Soft editorial Korean travel keepsake card. Keep the uploaded photo as the focal framed image. ` +
-  `If people are clearly present in the photo, add cute 16-bit pixel-art characters of them doing ${activity || 'a volunteer activity'} ` +
-  `at ${region || 'the location'}; otherwise add ${activity || 'volunteer'}-themed pixel-art decorations around the photo. ` +
-  `Calm seaside/landmark motifs, pastel palette, gentle, no text, no logos.`;
+const getActivityDecorations = (activity: string, region: string) => {
+  const text = `${activity} ${region}`.toLowerCase();
+  if (/바다|해변|해수욕장|플로깅|해양|갯벌|항구|등대/.test(text)) {
+    return 'seashells, starfish, small waves, seagulls, lighthouse pixel-art decorations';
+  }
+  if (/숲|산|공원|산책|오름|비자림|나무|생태/.test(text)) {
+    return 'leaves, mushrooms, wildflowers, butterflies, acorns pixel-art decorations';
+  }
+  if (/도시|골목|마을|시장|거리|문화|관광/.test(text)) {
+    return 'lanterns, small signboards, cafe cups, vintage postcards pixel-art decorations';
+  }
+  if (/축제|행사|공연|페스티벌|마켓/.test(text)) {
+    return 'pennant flags, confetti, stage lights, small tickets pixel-art decorations';
+  }
+  if (/환경|정화|쓰레기|분리수거|재활용/.test(text)) {
+    return 'tongs, gloves, recycling symbols, sprouting seedlings pixel-art decorations';
+  }
+  return 'travel stamps, small map pins, vintage postcard borders, compass rose pixel-art decorations';
+};
+
+const getCardTheme = (activity: string, region: string) => {
+  const text = `${activity} ${region}`.toLowerCase();
+  if (/바다|해변|해수욕장|플로깅|해양|갯벌|항구|등대/.test(text)) {
+    return {
+      bg: 'sky-blue and ocean-gradient pastel background',
+      decorations: 'pixel-art sun with face (top-left), crabs, seashells, starfish, small waves, palm tree (bottom-left corner), coral, pebbles',
+      character: 'a cute pixel-art character in summer clothes holding a trash bag and tongs, standing on a small patch of sand',
+    };
+  }
+  if (/숲|산|공원|산책|오름|비자림|나무|생태/.test(text)) {
+    return {
+      bg: 'soft green forest-gradient pastel background',
+      decorations: 'pixel-art vines along the border, flowers in corners, mushrooms, butterflies, acorns, small birds',
+      character: 'a cute pixel-art character in a beige hat holding garden gloves, standing on a patch of grass',
+    };
+  }
+  if (/축제|행사|공연|페스티벌|마켓/.test(text)) {
+    return {
+      bg: 'warm golden-yellow festive pastel background',
+      decorations: 'pixel-art pennant flags along the top, confetti, lanterns, small stage spotlights, sparkle stars',
+      character: 'a cute pixel-art character in a colorful outfit waving, surrounded by small confetti',
+    };
+  }
+  if (/도시|골목|마을|시장|거리|문화|관광/.test(text)) {
+    return {
+      bg: 'soft lavender city-gradient pastel background',
+      decorations: 'pixel-art small buildings silhouette along the bottom, lanterns, mini cafe cups, star sparkles',
+      character: 'a cute pixel-art character in casual clothes holding a small map, standing in front of a tiny building',
+    };
+  }
+  if (/환경|정화|쓰레기|분리수거|재활용/.test(text)) {
+    return {
+      bg: 'mint-green eco pastel background',
+      decorations: 'pixel-art recycling symbol badges, sprouting seedlings in corners, small leaves, sparkle stars',
+      character: 'a cute pixel-art character wearing gloves, holding a trash bag with a recycling mark, standing on green ground',
+    };
+  }
+  return {
+    bg: 'warm cream travel pastel background',
+    decorations: 'pixel-art vintage stamps in corners, small map pins, compass rose, postmark circles, sparkle stars',
+    character: 'a cute pixel-art traveler character with a small backpack, standing and smiling',
+  };
+};
+
+// Frame-only prompt: no photo is sent to OpenAI.
+// The generated image has a transparent hole where the user's real photo will show through.
+const buildFramePrompt = (activity: string, region: string) => {
+  const theme = getCardTheme(activity, region);
+  const decos = theme.decorations.split(',').map((s) => s.trim());
+  return (
+    `You are generating a pixel-art collectible TRAVEL CARD FRAME as a transparent PNG (1024×1536 px, portrait 2:3).\n` +
+    `This frame is composited over a real photo — the photo shows through the transparent window in the center.\n` +
+    `\n` +
+    `=== ZONE LAYOUT (top to bottom, left to right) ===\n` +
+    `\n` +
+    `ZONE 1 — TOP BORDER STRIP (y: 0–90px, full width)\n` +
+    `  • Background: ${theme.bg}, solid fill.\n` +
+    `  • Pixel-art decorations: ${decos.slice(0, 4).join(', ')}, 2–3 sparkle stars (✦).\n` +
+    `  • Bottom edge of this strip: a 2px pixel-art decorative border line.\n` +
+    `\n` +
+    `ZONE 2 — PHOTO WINDOW (y: 90–1000px, x: 55–969px)\n` +
+    `  • PURE TRANSPARENT — alpha = 0, zero fill, zero color, no pixels at all.\n` +
+    `  • This is the cutout where the user's photograph will appear underneath.\n` +
+    `  • Do NOT place any pixel inside this rectangle.\n` +
+    `\n` +
+    `ZONE 3 — LEFT BORDER STRIP (x: 0–55px, y: 90–1000px)\n` +
+    `  • Same solid background color as Zone 1.\n` +
+    `  • 3–4 small pixel-art icons spaced vertically (shells, leaves, sparkles).\n` +
+    `  • Inner right edge: 2px pixel border line.\n` +
+    `\n` +
+    `ZONE 4 — RIGHT BORDER STRIP (x: 969–1024px, y: 90–1000px)\n` +
+    `  • Mirror of Zone 3.\n` +
+    `\n` +
+    `ZONE 5 — CHARACTER STRIP (y: 1000–1190px, full width)\n` +
+    `  • Solid warm-cream background (#f0e8d8).\n` +
+    `  • A flat pixel-art ground/grass line at y ≈ 1170px.\n` +
+    `  • LEFT side (x ≈ 120): ${decos[0] ?? 'palm tree'} — compact, max 160px tall.\n` +
+    `  • CENTER (x ≈ 512): ${theme.character}. IMPORTANT: character max height 110px, keep it small and cute.\n` +
+    `  • RIGHT side (x ≈ 900): ${decos[1] ?? 'starfish'} — small accent, max 80px tall.\n` +
+    `  • Tiny sparkle dots scattered in background. No element crosses upward into Zone 2 (y < 1000).\n` +
+    `\n` +
+    `ZONE 6 — TEXT BACKGROUND (y: 1190–1536px, full width)\n` +
+    `  • Solid cream-white background (#faf5ee) — the app overlays title/location/date text here.\n` +
+    `  • Left strip (x: 0–55px) and right strip (x: 969–1024px): thin 2px pixel-art border lines only.\n` +
+    `  • Center area (x: 55–969px, y: 1190–1460px): COMPLETELY EMPTY — no decorations, no pixels.\n` +
+    `  • BOTTOM ACCENT (y: 1460–1536px): decorative bottom bar.\n` +
+    `      - Far corners (x=0–80, x=944–1024): small themed corner pieces (shells, flowers, etc.).\n` +
+    `      - Center: a row of 3 small sparkle stars or a dotted pixel border line.\n` +
+    `      - Outermost bottom edge: 2px pixel border line.\n` +
+    `\n` +
+    `OUTER CARD BORDER:\n` +
+    `  • 3px pixel-art border enclosing the entire 1024×1536 card.\n` +
+    `  • Pixel-stepped rounded corners (2–3 px bevel at each corner).\n` +
+    `\n` +
+    `CRITICAL RULES (violating any = failure):\n` +
+    `  1. Zone 2 (photo window) must be PURE TRANSPARENT — not white, not semi-transparent, not light-colored.\n` +
+    `  2. No decoration from any border strip may overlap into Zone 2.\n` +
+    `  3. Characters in Zone 5 must be SMALL (≤110px tall). Do not make them oversized.\n` +
+    `  4. Zone 6 center must remain EMPTY — absolutely no icons, patterns, or fills that would block text.\n` +
+    `  5. No text, numbers, or logos anywhere in the output.\n` +
+    `\n` +
+    `STYLE: High-quality 16-bit pixel art. Animal Crossing / Stardew Valley collectible card aesthetic. ` +
+    `Soft pastel palette. Crisp pixel edges. Warm and cheerful mood.`
+  );
+};
 
 const handleCardGenerate = async (res: VercelResponse, deviceKey: string, body: Record<string, unknown>) => {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -298,29 +438,26 @@ const handleCardGenerate = async (res: VercelResponse, deviceKey: string, body: 
   const blobToken = getBlobToken();
   if (!blobToken) return sendError(res, 500, '이미지 저장소가 설정되지 않았어요.');
 
-  const photoDataUrl = str(body.photoDataUrl) || str(body.photoUrl);
-  if (!photoDataUrl || !photoDataUrl.startsWith('data:')) return sendError(res, 400, '카드로 만들 사진이 필요해요.');
-  const model = process.env.OPENAI_IMAGE_MODEL || 'gpt-5-mini';
-  const prompt = buildCardPrompt(str(body.activity), str(body.region));
+  // 사진을 OpenAI에 보내지 않는다 — 투명 중심 구멍이 있는 프레임만 생성.
+  // 프론트에서 원본 사진 위에 CSS 레이어로 씌운다.
+  // Images API(/v1/images/generations)로 직접 gpt-image-1 호출 — Responses API는 조직 검증이 필요하다.
+  const model = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1';
+  const prompt = buildFramePrompt(str(body.activity), str(body.region));
 
   const start = Date.now();
   let openaiResponse: Response;
   try {
-    openaiResponse = await fetch('https://api.openai.com/v1/responses', {
+    openaiResponse = await fetch('https://api.openai.com/v1/images/generations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model,
-        input: [
-          {
-            role: 'user',
-            content: [
-              { type: 'input_text', text: prompt },
-              { type: 'input_image', image_url: photoDataUrl },
-            ],
-          },
-        ],
-        tools: [{ type: 'image_generation' }],
+        prompt,
+        n: 1,
+        size: '1024x1536',
+        quality: 'high',
+        background: 'transparent',
+        output_format: 'png',
       }),
     });
   } catch (error) {
@@ -330,15 +467,16 @@ const handleCardGenerate = async (res: VercelResponse, deviceKey: string, body: 
 
   const payloadText = await openaiResponse.text();
   if (!openaiResponse.ok) {
-    console.error('OpenAI error:', openaiResponse.status, payloadText.slice(0, 800));
-    return sendError(res, 502, 'AI 카드 생성에 실패했어요. 잠시 후 다시 시도해주세요.');
+    console.error('OpenAI error:', openaiResponse.status, payloadText.slice(0, 1000));
+    let openaiMsg = '';
+    try { openaiMsg = (JSON.parse(payloadText) as { error?: { message?: string } }).error?.message ?? ''; } catch { /* ignore */ }
+    return sendError(res, 502, openaiMsg || 'AI 카드 생성에 실패했어요. 잠시 후 다시 시도해주세요.');
   }
 
   let imageBase64 = '';
   try {
-    const payload = JSON.parse(payloadText) as { output?: Array<{ type?: string; result?: string }> };
-    const imageCall = (payload.output || []).find((item) => item.type === 'image_generation_call' && item.result);
-    imageBase64 = imageCall?.result ?? '';
+    const payload = JSON.parse(payloadText) as { data?: Array<{ b64_json?: string }> };
+    imageBase64 = payload.data?.[0]?.b64_json ?? '';
   } catch {
     imageBase64 = '';
   }
@@ -354,22 +492,26 @@ const handleCardGenerate = async (res: VercelResponse, deviceKey: string, body: 
   });
 
   const elapsedMs = Date.now() - start;
-  try {
-    await getPool().query(
-      `insert into story_cards (id, story_id, author_key, template_type, title, subtitle, generated_image_url)
-       values ($1,$2,$3,$4,$5,$6,$7)`,
-      [
-        String(Date.now()),
-        str(body.storyId) || String(Date.now()),
-        deviceKey || null,
-        str(body.templateType) || 'ai',
-        str(body.title) || null,
-        str(body.subtitle) || null,
-        blobProxyUrl(blob.pathname),
-      ],
-    );
-  } catch (error) {
-    console.error('story_cards insert failed:', error instanceof Error ? error.message : String(error));
+  if (getConnectionString()) {
+    try {
+      await getPool().query(
+        `insert into story_cards (id, story_id, author_key, template_type, title, subtitle, generated_image_url)
+         values ($1,$2,$3,$4,$5,$6,$7)`,
+        [
+          String(Date.now()),
+          str(body.storyId) || String(Date.now()),
+          deviceKey || null,
+          str(body.templateType) || 'ai',
+          str(body.title) || null,
+          str(body.subtitle) || null,
+          blobProxyUrl(blob.pathname),
+        ],
+      );
+    } catch (error) {
+      console.error('story_cards insert failed:', error instanceof Error ? error.message : String(error));
+    }
+  } else {
+    console.warn('story_cards insert skipped: POSTGRES_URL/DATABASE_URL is not configured');
   }
 
   console.log(`[card-generate] done in ${elapsedMs}ms`);

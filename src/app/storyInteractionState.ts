@@ -315,8 +315,8 @@ const postStoryAction = async (action: string, payload: Record<string, unknown>)
 export const storyApi = {
   async list(key: string): Promise<StoryListResponse> {
     const response = await fetch(`/api/story?action=list&key=${encodeURIComponent(key)}`);
-    if (!response.ok) throw new Error('story list failed');
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data?.ok === false) throw new Error(data?.error || 'story list failed');
     return {
       stories: Array.isArray(data.stories) ? data.stories : [],
       comments: data.comments ?? {},
