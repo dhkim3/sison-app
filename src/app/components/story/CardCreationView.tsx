@@ -19,6 +19,22 @@ interface CardCreationViewProps {
 const BASE_FRAMES = ['기본', '바다', '숲', '노을', '도시', '블랙'];
 const AI_FRAME = 'AI';
 
+async function ensureDataUrl(src: string): Promise<string> {
+  if (src.startsWith('data:')) return src;
+  const response = await fetch(src, { mode: 'cors', cache: 'reload' });
+  if (!response.ok) throw new Error(`Source image fetch failed: ${response.status}`);
+  const blob = await response.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') resolve(reader.result);
+      else reject(new Error('Source image encoding failed'));
+    };
+    reader.onerror = () => reject(new Error('Source image encoding failed'));
+    reader.readAsDataURL(blob);
+  });
+}
+
 // Quiet editorial gradients for AI-generated frames
 const AI_FRAME_VARIANTS = [
   { bg: 'from-[#ede8f5] to-[#e8f0f8]' }, // lavender-sky
@@ -69,10 +85,12 @@ export function CardCreationView({
 
     const start = Date.now();
     try {
-      // 사진을 서버에 보내지 않는다 — 투명 프레임만 생성 후 CSS로 원본 사진 위에 씌움
+      // 원본 사진을 base64 dataUrl로 변환해 서버로 보낸다 — 서버는 OpenAI images/edits에 그대로 전달.
+      const sourceDataUrl = await ensureDataUrl(photo);
       const result = await storyApi.generateCard(deviceKey, {
         storyId,
-        activity: activity.title ?? activity.activityTitle ?? '',
+        dataUrl: sourceDataUrl,
+        volunteerActivity: activity.title ?? activity.activityTitle ?? '',
         region: activity.region ?? '',
         title: cardTitle,
         date: activity.date ?? activity.activityDate ?? '',
@@ -217,36 +235,14 @@ export function CardCreationView({
                 )}
 
                 {isAiMode ? (
-                  /* AI 프레임 모드: 카드 전체가 프레임 (2:3 비율, 크롭 없음) */
+                  /* AI 프레임 모드: 사진·프레임·텍스트가 한 장의 PNG로 합성되어 그대로 표시한다 */
                   <div className="aspect-[2/3] relative">
-                    {/* 원본 사진 — 전체 배경 */}
-                    <img
-                      src={photo}
-                      alt="Travel memory"
-                      className="absolute inset-0 w-full h-full object-cover"
-                    />
-                    {/* AI 프레임 — 카드 전체 커버 (2:3 = 1024×1536 완벽 일치) */}
                     <img
                       key={generatedImageUrl}
                       src={generatedImageUrl!}
-                      aria-hidden="true"
-                      className="absolute inset-0 w-full h-full object-cover pointer-events-none z-10"
+                      alt="AI generated travel card"
+                      className="absolute inset-0 w-full h-full object-cover"
                     />
-                    {/* 텍스트 오버레이 — 프레임 하단 크림 영역 (Zone 6: 카드 하단 28%) */}
-                    <div className="absolute left-0 right-0 z-20 px-5" style={{ top: '77%', bottom: '5%' }}>
-                      <p className="text-[#2a2a2a] text-[10px] font-bold leading-snug line-clamp-2">
-                        {cardTitle}
-                      </p>
-                      <div className="mt-1.5 space-y-0.5">
-                        {compactLocation && (
-                          <p className="text-[#5a5a5a] text-[9px] leading-tight">{compactLocation}</p>
-                        )}
-                        <p className="text-[#9a9a9a] text-[9px]">{activity.date}</p>
-                      </div>
-                      <div className="mt-1.5 border-t border-black/10 pt-1">
-                        <p className="text-[#5F6368] text-[9px] opacity-60">시선</p>
-                      </div>
-                    </div>
                   </div>
                 ) : (
                   /* 기본 프레임 모드: 기존 레이아웃 */

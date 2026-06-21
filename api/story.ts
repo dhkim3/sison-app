@@ -305,27 +305,7 @@ const handleUpload = async (res: VercelResponse, body: Record<string, unknown>) 
   res.status(200).json({ ok: true, url: blobProxyUrl(blob.pathname), pathname: blob.pathname });
 };
 
-// ---- AI card generation (OpenAI Responses API, image_generation tool) ----
-const getActivityDecorations = (activity: string, region: string) => {
-  const text = `${activity} ${region}`.toLowerCase();
-  if (/바다|해변|해수욕장|플로깅|해양|갯벌|항구|등대/.test(text)) {
-    return 'seashells, starfish, small waves, seagulls, lighthouse pixel-art decorations';
-  }
-  if (/숲|산|공원|산책|오름|비자림|나무|생태/.test(text)) {
-    return 'leaves, mushrooms, wildflowers, butterflies, acorns pixel-art decorations';
-  }
-  if (/도시|골목|마을|시장|거리|문화|관광/.test(text)) {
-    return 'lanterns, small signboards, cafe cups, vintage postcards pixel-art decorations';
-  }
-  if (/축제|행사|공연|페스티벌|마켓/.test(text)) {
-    return 'pennant flags, confetti, stage lights, small tickets pixel-art decorations';
-  }
-  if (/환경|정화|쓰레기|분리수거|재활용/.test(text)) {
-    return 'tongs, gloves, recycling symbols, sprouting seedlings pixel-art decorations';
-  }
-  return 'travel stamps, small map pins, vintage postcard borders, compass rose pixel-art decorations';
-};
-
+// ---- AI card generation (OpenAI Images Edits API, gpt-image-1) ----
 const getCardTheme = (activity: string, region: string) => {
   const text = `${activity} ${region}`.toLowerCase();
   if (/바다|해변|해수욕장|플로깅|해양|갯벌|항구|등대/.test(text)) {
@@ -370,65 +350,67 @@ const getCardTheme = (activity: string, region: string) => {
   };
 };
 
-// Frame-only prompt: no photo is sent to OpenAI.
-// The generated image has a transparent hole where the user's real photo will show through.
-const buildFramePrompt = (activity: string, region: string) => {
-  const theme = getCardTheme(activity, region);
-  const decos = theme.decorations.split(',').map((s) => s.trim());
+// Fully composited prompt: the user's source photo is sent as the base image to
+// /v1/images/edits and the model must return ONE finished PNG (1024×1536) that
+// already contains frame, character, and rendered title/region/date text.
+const buildFramePrompt = (
+  title: string,
+  date: string,
+  volunteerActivity: string,
+  region: string,
+) => {
+  const theme = getCardTheme(volunteerActivity, region);
+  const safeTitle = title || '시선 여행 카드';
+  const safeRegion = region || '한국';
+  const safeDate = date || '';
+  const safeActivity = volunteerActivity || '봉사 활동';
   return (
-    `You are generating a 16-bit pixel-art collectible TRAVEL CARD FRAME (1024×1536 px, portrait 2:3).\n` +
-    `This frame is a transparent PNG composited over a real photo and then underlay text.\n` +
-    `CRITICAL: Multiple areas are designated as PURE EMPTY and must contain ZERO pixels to not block underlay text.\n` +
+    `You are editing the supplied source.png into a 16-bit pixel-art collectible TRAVEL CARD (output: 1024×1536 PNG, portrait 2:3).\n` +
+    `Return ONE finished image — frame, character, and all readable text must already be baked in.\n` +
     `\n` +
-    `=== ZONE LAYOUT (top to bottom, left to right) ===\n` +
+    `=== INPUT PARAMETERS (use the literal strings inside the tags) ===\n` +
+    `<TITLE>${safeTitle}</TITLE>\n` +
+    `<REGION>${safeRegion}</REGION>\n` +
+    `<DATE>${safeDate}</DATE>\n` +
+    `<ACTIVITY>${safeActivity}</ACTIVITY>\n` +
     `\n` +
-    `ZONE 1 — TOP BORDER STRIP (y: 0–90px, full width)\n` +
-    `  • Background: ${theme.bg}, solid fill.\n` +
-    `  • Pixel-art decorations: ${decos.slice(0, 4).join(', ')}, 2–3 sparkle stars (✦).\n` +
-    `  • Bottom edge: a 2px pixel-art decorative border line.\n` +
+    `=== ZONE LAYOUT (top to bottom; coordinates assume the 1024×1536 canvas) ===\n` +
     `\n` +
-    `ZONE 2 — PHOTO WINDOW (y: 90–1000px, x: 55–969px)\n` +
-    `  • PURE TRANSPARENT — alpha = 0, zero fill, no pixels. The user's photo shows here.\n` +
+    `ZONE A — PHOTO WINDOW (y: 60–1040px, x: 70–954px)\n` +
+    `  • Take the central subject(s) of source.png — the people and the main background — and KEEP THEM RECOGNIZABLE. Faces, poses, clothing colors, and the scene must stay true to the photo.\n` +
+    `  • Re-render this region in soft 16-bit pixel art (Stardew Valley / Animal Crossing palette). Do not replace, remove, or duplicate the people.\n` +
+    `  • Fill the photo window edge-to-edge with the pixel-art photo; no transparent gaps inside Zone A.\n` +
     `\n` +
-    `ZONE 3 & 4 — SIDE BORDER STRIPS (x: 0–55px & x: 969–1024px, y: 90–1000px)\n` +
-    `  • Solid background color from Zone 1. Vertical pixel icons.\n` +
+    `ZONE B — DECORATIVE FRAME (the strip surrounding Zone A on all four sides)\n` +
+    `  • Background: ${theme.bg}, solid fill, with a pixel-art double border (outer 3px, inner 1px) around the photo window.\n` +
+    `  • Decorate corners and sides with small motifs appropriate to <ACTIVITY>: ${theme.decorations}.\n` +
+    `  • Decorations stay inside Zone B — they must NOT cover the photo window or the people inside it.\n` +
     `\n` +
-    `ZONE 5 — CHARACTER STRIP (y: 1000–1190px, full width)\n` +
-    `  • Background: Solid warm-cream (#f0e8d8).\n` +
-    `  • Character: ${theme.character}. IMPORTANT: MAX HEIGHT 110px, keep it cute and small.\n` +
-    `  • No cross-over: No part of any character or object crosses upward into Zone 2 (y < 1000).\n` +
+    `ZONE C — CHARACTER STRIP (y: 1040–1220px, full width)\n` +
+    `  • Background: solid warm-cream (#f5ecd9).\n` +
+    `  • Add one cute pixel-art character that matches <ACTIVITY>: ${theme.character}. Max height 150px; placed on the left half so it does not overlap the right-side decorations.\n` +
+    `  • Sprinkle 2–3 tiny motifs from ${theme.decorations} on the right side of the strip, small and quiet.\n` +
+    `  • The character must NOT cross above y=1040 into the photo window.\n` +
     `\n` +
-    `ZONE 6 — TEXT & LINE AREA (y: 1190–1536px, full width)\n` +
-    `  • Background: Solid cream-white (#faf5ee) for text overlay.\n` +
-    `  • This entire zone must be COMPLETELY EMPTY (zero pixels) except for the designated opaque line and bottom accent.\n` +
+    `ZONE D — TEXT PANEL (y: 1220–1460px, full width)\n` +
+    `  • Background: solid cream-white (#faf5ee).\n` +
+    `  • Render the following three lines as CRISP PIXEL-FONT TEXT, left-aligned with 60px left padding, dark slate color (#2a2a2a). Use the EXACT strings from the tags above — do not translate, paraphrase, or shorten them.\n` +
+    `      Line 1 (y≈1245, ~44px tall, bold): <TITLE> contents.\n` +
+    `      Line 2 (y≈1330, ~28px tall, regular): a small pin glyph "📍" then <REGION> contents.\n` +
+    `      Line 3 (y≈1380, ~28px tall, regular): a small calendar glyph "🗓" then <DATE> contents.\n` +
+    `  • Text must be perfectly readable — no overlapping decorations behind the letters.\n` +
     `\n` +
-    `    SUBZONE 6A — OPAQUE THICK LINE (y: 1190–1210px, full width)\n` +
-    `      • Create a distinct, 불투명한 (OPAQUE) thick pixel-art horizontal separating line.\n` +
-    `      • Style: A 10px tall solid dark-brown (#5d4037) bar with pixelated end details.\n` +
-    `\n` +
-    `    SUBZONE 6B — MAIN TEXT SPACE (y: 1210–1400px, x: 75–949px)\n` +
-    `      • Left padding: 20px (x=75). For 'Coffee Aroma', 'Gangwon', etc.\n` +
-    `      • **ABSOLUTE PURE EMPTY ZONE.** Zero pixels, zero dots, zero patterns.\n` +
-    `\n` +
-    `    SUBZONE 6C — "SIGHT" (시선) TEXT SPACE (y: 1400–1460px, full width)\n` +
-    `      • This is the **exact area** for the bottom-center "Sight" text.\n` +
-    `      • **ABSOLUTE PURE EMPTY ZONE.** Zero pixels.\n` +
-    `\n` +
-    `    SUBZONE 6D — BOTTOM ACCENT & BORDER (y: 1460–1536px)\n` +
-    `      • Border: 2px pixel border. Corner pieces.\n` +
-    `      • Center (y=1490, x=512): A small pixel-art compass rose, max 30px.\n` +
-    `\n` +
-    `OUTER CARD BORDER:\n` +
-    `  • 3px pixel-art border around entire card. Pixel-stepped rounded corners.\n` +
+    `ZONE E — BOTTOM SIGNATURE (y: 1460–1536px, full width)\n` +
+    `  • At y≈1470 draw ONE thin horizontal pixel-art guideline (1–2px tall, full width minus 80px margin on each side, color #cfc6b8).\n` +
+    `  • Below that line, centered horizontally at roughly y≈1500, render the Korean word "시선" in a small pixel font (~26px tall, color #6f6f6f).\n` +
     `\n` +
     `CRITICAL RULES (violating any = failure):\n` +
-    `  1. Zone 2 (photo window) must be PURE TRANSPARENT.\n` +
-    `  2. **SUBZONES 6B AND 6C (TEXT AREAS) MUST BE ABSOLUTE PURE EMPTY (ZERO PIXELS).** No decorations, no sparkles, no fills, no grid patterns that would obscure the text.\n` +
-    `  3. Subzone 6A must be an opaque, thick separating line.\n` +
-    `  4. The character in Zone 5 must remain cute and SMALL (≤110px). Do not make it oversized to fill space.\n` +
-    `  5. No text, numbers, or logos anywhere in the output.\n` +
+    `  1. Preserve the identity, count, and arrangement of the people from source.png inside Zone A.\n` +
+    `  2. Render <TITLE>, <REGION>, <DATE>, and the word "시선" as actual readable text in the final PNG. Do NOT leave the text panel blank.\n` +
+    `  3. The only text in the entire image is: <TITLE>, <REGION>, <DATE>, and "시선". No other words, numbers, watermarks, or logos.\n` +
+    `  4. Output is a single fully-opaque PNG at 1024×1536 — no transparent regions, no separate layers.\n` +
     `\n` +
-    `STYLE: High-quality 16-bit pixel art. Animal Crossing / Stardew Valley aesthetic. Soft pastel palette. Crisp pixel edges. Warm mood.`
+    `STYLE: High-quality 16-bit pixel art. Animal Crossing / Stardew Valley aesthetic. Soft pastel palette. Crisp pixel edges. Calm Korean travel-app mood.`
   );
 };
 
@@ -438,27 +420,38 @@ const handleCardGenerate = async (res: VercelResponse, deviceKey: string, body: 
   const blobToken = getBlobToken();
   if (!blobToken) return sendError(res, 500, '이미지 저장소가 설정되지 않았어요.');
 
-  // 사진을 OpenAI에 보내지 않는다 — 투명 중심 구멍이 있는 프레임만 생성.
-  // 프론트에서 원본 사진 위에 CSS 레이어로 씌운다.
-  // Images API(/v1/images/generations)로 직접 gpt-image-1 호출 — Responses API는 조직 검증이 필요하다.
+  // 원본 사진을 OpenAI Images Edits API(/v1/images/edits)에 그대로 전달해
+  // 프레임·캐릭터·제목/지역/날짜 텍스트가 모두 합성된 단일 PNG를 받아 온다.
+  const dataUrl = str(body.dataUrl) || str(body.imageDataUrl) || str(body.sourceDataUrl);
+  const decoded = dataUrlToBuffer(dataUrl);
+  if (!decoded) return sendError(res, 400, '원본 사진을 보내주세요. (dataUrl 누락)');
+
+  const title = str(body.title);
+  const date = str(body.date);
+  const region = str(body.region);
+  const volunteerActivity = str(body.volunteerActivity) || str(body.activity);
+
   const model = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1';
-  const prompt = buildFramePrompt(str(body.activity), str(body.region));
+  const prompt = buildFramePrompt(title, date, volunteerActivity, region);
+
+  // multipart/form-data: image + prompt + model + size + quality + n.
+  // Node 18+ / Vercel 런타임이 FormData/Blob을 글로벌로 제공한다.
+  const form = new FormData();
+  const ext = decoded.contentType.split('/')[1] || 'png';
+  form.append('image', new Blob([new Uint8Array(decoded.buffer)], { type: decoded.contentType }), `source.${ext}`);
+  form.append('prompt', prompt);
+  form.append('model', model);
+  form.append('size', '1024x1536');
+  form.append('quality', 'high');
+  form.append('n', '1');
 
   const start = Date.now();
   let openaiResponse: Response;
   try {
-    openaiResponse = await fetch('https://api.openai.com/v1/images/generations', {
+    openaiResponse = await fetch('https://api.openai.com/v1/images/edits', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model,
-        prompt,
-        n: 1,
-        size: '1024x1536',
-        quality: 'high',
-        background: 'transparent',
-        output_format: 'png',
-      }),
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: form,
     });
   } catch (error) {
     console.error('OpenAI request failed:', error instanceof Error ? error.message : String(error));
