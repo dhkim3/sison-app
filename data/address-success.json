@@ -1,0 +1,1884 @@
+[
+  {
+    "title": "완주다문화공동체 보물섬카페및 사무실 환경정비(2시간) 보물섬 프로그램 및야외행사참여(참여시간)",
+    "rawAddress": "보물섬 카페(완주군 봉동읍 만경강로 727-16 만경강생태스포츠지원센터3층) 및 야외행사장소",
+    "normalizedCandidates": [
+      "완주군 봉동읍 만경강로 727-16 만경강생태스포츠지원센터3층",
+      "보물섬 카페 및 야외행사장소",
+      "보물섬 카페 및",
+      "보물섬 카페",
+      "보물섬"
+    ],
+    "resolvedQuery": "완주군 봉동읍 만경강로 727-16 만경강생태스포츠지원센터3층",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 35.92865253376215,
+    "lng": 127.16833916074148
+  },
+  {
+    "title": "용인시론볼경기장 환경 미화 및 장애인 스포츠 활동지원",
+    "rawAddress": "경기도 용인시 처인구 양지면 죽양대로2071번길 50(용인청소년수련원) 용인시론볼경기장 사무실",
+    "normalizedCandidates": [
+      "경기도 용인시 처인구 양지면 죽양대로2071번길 50 용인시론볼경기장 사무실",
+      "경기도 용인시 처인구 양지면 죽양대로2071번길 50 용인시론볼경기장",
+      "용인시 처인구 양지면 죽양대로2071번길 50 용인시론볼경기장",
+      "경기도 용인시 처인구 양지면 죽양대로2071번길 50",
+      "용인시 처인구 양지면 죽양대로2071번길 50",
+      "경기도 용인시 처인구 양지면 죽양대로2071번길",
+      "용인시 처인구 양지면 죽양대로2071번길",
+      "경기도 용인시 처인구 양지면",
+      "용인시 처인구 양지면",
+      "경기도 용인시 처인구",
+      "용인시 처인구"
+    ],
+    "resolvedQuery": "경기도 용인시 처인구 양지면 죽양대로2071번길 50 용인시론볼경기장 사무실",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.214352628917325,
+    "lng": 127.31087434561178
+  },
+  {
+    "title": "구립증산도서관 자원봉사자 모집",
+    "rawAddress": "구립증산도서관",
+    "normalizedCandidates": [
+      "구립증산도서관"
+    ],
+    "resolvedQuery": "구립증산도서관",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.582809147698484,
+    "lng": 126.90767803183584
+  },
+  {
+    "title": "센터 내 업무 보조 및 환경 정화 유지",
+    "rawAddress": "여수시육아종합지원센터(웅천6길47)",
+    "normalizedCandidates": [
+      "웅천6길47",
+      "여수시육아종합지원센터"
+    ],
+    "resolvedQuery": "웅천6길47",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 34.749647283908914,
+    "lng": 127.6896540423624
+  },
+  {
+    "title": "서울시야생동물센터 자원봉사자 모집 공고(6월~8월)",
+    "rawAddress": "서울시야생동물센터",
+    "normalizedCandidates": [
+      "서울시야생동물센터"
+    ],
+    "resolvedQuery": "서울시야생동물센터",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 37.46400700443667,
+    "lng": 126.95223939968845
+  },
+  {
+    "title": "덕포2동 청년회와 함께하는 여름맞이 환경정비 자원봉사자 모집",
+    "rawAddress": "덕포2동 관내",
+    "normalizedCandidates": [
+      "덕포2동 관내",
+      "덕포2동"
+    ],
+    "resolvedQuery": "덕포2동",
+    "matchedType": "ROAD",
+    "confidence": "fallback",
+    "lat": 37.175498850798206,
+    "lng": 128.4760243355215
+  },
+  {
+    "title": "환경교육과 교육봉사(친환경 만들기 프로그램 운영 및 교구 제작 보조)",
+    "rawAddress": "판교환경생태학습원",
+    "normalizedCandidates": [
+      "판교환경생태학습원"
+    ],
+    "resolvedQuery": "판교환경생태학습원",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 37.399749998044825,
+    "lng": 127.10408329992882
+  },
+  {
+    "title": "[고등학생/대학생] 강북구 육아종합지원센터 체험실 및 장난감나라 봉사자 모집[토요일/13시~16시]",
+    "rawAddress": "강북구육아종합지원센터 2층 장난감나라",
+    "normalizedCandidates": [
+      "강북구육아종합지원센터 2층 장난감나라",
+      "강북구육아종합지원센터 2층",
+      "강북구육아종합지원센터"
+    ],
+    "resolvedQuery": "강북구육아종합지원센터 2층",
+    "matchedType": "ROAD",
+    "confidence": "fallback",
+    "lat": 37.640510964796064,
+    "lng": 127.01249092055798
+  },
+  {
+    "title": "전주전통술박물관 체험 보조 및 정리 (6월)",
+    "rawAddress": "전주전통술박물관 계영원",
+    "normalizedCandidates": [
+      "전주전통술박물관 계영원",
+      "전주전통술박물관"
+    ],
+    "resolvedQuery": "전주전통술박물관",
+    "matchedType": "ROAD",
+    "confidence": "fallback",
+    "lat": 35.81702017378872,
+    "lng": 127.15352343644867
+  },
+  {
+    "title": "[아름다운가게 대구침산점]6월/월~금,오전/오후 4시간  봉사자 모집 ◆(매장연락필)◆(내용필독)◆",
+    "rawAddress": "대구 북구 침산로 153 명성푸르지오 상가1층 아름다운가게 대구침산점",
+    "normalizedCandidates": [
+      "대구 북구 침산로 153 명성푸르지오 상가1층 아름다운가게 대구침산점",
+      "대구 북구 침산로 153 명성푸르지오 상가1층 아름다운가게",
+      "북구 침산로 153 명성푸르지오 상가1층 아름다운가게",
+      "대구 북구 침산로 153 명성푸르지오 상가1층",
+      "북구 침산로 153 명성푸르지오 상가1층",
+      "대구 북구 침산로 153 명성푸르지오",
+      "북구 침산로 153 명성푸르지오",
+      "대구 북구 침산로 153",
+      "북구 침산로 153",
+      "대구 북구 침산로",
+      "북구 침산로",
+      "대구 북구",
+      "북구"
+    ],
+    "resolvedQuery": "대구 북구 침산로 153 명성푸르지오 상가1층 아름다운가게 대구침산점",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 35.890114651308686,
+    "lng": 128.59006808425607
+  },
+  {
+    "title": "(성인-월요일 휴관일 오후)책마루도서관 06월 자료실 서가정리 및 환경정리",
+    "rawAddress": "부천시립책마루도서관",
+    "normalizedCandidates": [
+      "부천시립책마루도서관"
+    ],
+    "resolvedQuery": "부천시립책마루도서관",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 37.49395420104043,
+    "lng": 126.77008900021576
+  },
+  {
+    "title": "(양산동자원봉사캠프)다함께 돌자 동네 한바퀴-플로깅 환경정화 활동",
+    "rawAddress": "양산호수공원(광주 북구 하서로 311)",
+    "normalizedCandidates": [
+      "광주 북구 하서로 311",
+      "양산호수공원"
+    ],
+    "resolvedQuery": "광주 북구 하서로 311",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 35.20277023153497,
+    "lng": 126.87364923207663
+  },
+  {
+    "title": "전통혼례 봉사 요원",
+    "rawAddress": "서울시 동대문구 회기로 56 세종대왕기념관 전통혼례장",
+    "normalizedCandidates": [
+      "서울시 동대문구 회기로 56 세종대왕기념관 전통혼례장",
+      "서울시 동대문구 회기로 56 세종대왕기념관",
+      "서울시 동대문구 회기로 56",
+      "서울시 동대문구 회기로",
+      "서울시 동대문구"
+    ],
+    "resolvedQuery": "서울시 동대문구 회기로 56 세종대왕기념관 전통혼례장",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.59081899745763,
+    "lng": 127.04357874072385
+  },
+  {
+    "title": "옹달샘 작은 도서관 대출업무 및 업무지원, 미화활동",
+    "rawAddress": "옹달샘 작은도서관",
+    "normalizedCandidates": [
+      "옹달샘 작은도서관",
+      "옹달샘"
+    ],
+    "resolvedQuery": "옹달샘 작은도서관",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 34.81474023262216,
+    "lng": 126.41280830492556
+  },
+  {
+    "title": "7월 건강만보 클린만보 활동(플로깅)",
+    "rawAddress": "대송동",
+    "normalizedCandidates": [
+      "대송동"
+    ],
+    "resolvedQuery": "대송동",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 35.47335759676264,
+    "lng": 128.77313265986993
+  },
+  {
+    "title": "6월(성인) 돌아온알약 폐의약품 수집 및 환경교육 캠페인 활동",
+    "rawAddress": "비대면(온라인+오프라인)활동",
+    "normalizedCandidates": [
+      "비대면 활동",
+      "비대면"
+    ],
+    "resolvedQuery": "비대면",
+    "matchedType": "PLACE",
+    "confidence": "fallback",
+    "lat": 37.66101480068005,
+    "lng": 126.76834719973232
+  },
+  {
+    "title": "“ 하천따라 플로깅 해요~ ”",
+    "rawAddress": "나진포천 일대",
+    "normalizedCandidates": [
+      "나진포천 일대",
+      "나진포천"
+    ],
+    "resolvedQuery": "나진포천",
+    "matchedType": "PLACE",
+    "confidence": "fallback",
+    "lat": 37.93272851776445,
+    "lng": 126.21487806610583
+  },
+  {
+    "title": "6월 함께그린캠페인(비대면 환경정화활동)참여(셋째주간)",
+    "rawAddress": "성동구 관내",
+    "normalizedCandidates": [
+      "성동구 관내",
+      "성동구"
+    ],
+    "resolvedQuery": "성동구 관내",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 37.54619830066368,
+    "lng": 127.0499338998095
+  },
+  {
+    "title": "불광근린공원_우리마을 도시숲 플로깅(걸으면서 쓰레기 줍기)",
+    "rawAddress": "불광근린공원",
+    "normalizedCandidates": [
+      "불광근린공원"
+    ],
+    "resolvedQuery": "불광근린공원",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 37.61873949758648,
+    "lng": 126.93049900008558
+  },
+  {
+    "title": "지구 디톡스 청소년 거리정화 플로깅 봉사활동",
+    "rawAddress": "구로구 신도림동 태영프라자 주변",
+    "normalizedCandidates": [
+      "구로구 신도림동 태영프라자 주변",
+      "구로구 신도림동 태영프라자",
+      "구로구 신도림동",
+      "구로구"
+    ],
+    "resolvedQuery": "구로구 신도림동 태영프라자",
+    "matchedType": "ROAD",
+    "confidence": "fallback",
+    "lat": 37.506395300708164,
+    "lng": 126.88342715261055
+  },
+  {
+    "title": "봉선2동 자원봉사캠프 제석골 에코 플로깅(펫티켓 캠페인 및 환경정화 활동)",
+    "rawAddress": "봉선2동 유안근린공원 일대(광주광역시 남구 봉선로 195)",
+    "normalizedCandidates": [
+      "광주광역시 남구 봉선로 195",
+      "봉선2동 유안근린공원 일대",
+      "봉선2동 유안근린공원",
+      "봉선2동"
+    ],
+    "resolvedQuery": "광주광역시 남구 봉선로 195",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 35.12316890683768,
+    "lng": 126.91660472213749
+  },
+  {
+    "title": "k-자원봉사단 발대식 및 오리엔테이션",
+    "rawAddress": "영산강정원 일대(영산동 757-1)",
+    "normalizedCandidates": [
+      "영산동 757-1",
+      "영산강정원 일대",
+      "영산강정원"
+    ],
+    "resolvedQuery": "영산동 757-1",
+    "matchedType": "PARCEL",
+    "confidence": "exact",
+    "lat": 35.00108788052165,
+    "lng": 126.72233760843756
+  },
+  {
+    "title": "하나개해수욕장 맨발걷기 플로깅 환경보호 활동!",
+    "rawAddress": "서울숲  CU 서울숲공원2호점",
+    "normalizedCandidates": [
+      "서울숲 CU 서울숲공원2호점",
+      "서울숲 CU",
+      "서울숲"
+    ],
+    "resolvedQuery": "서울숲 CU",
+    "matchedType": "PLACE",
+    "confidence": "fallback",
+    "lat": 37.54793726656614,
+    "lng": 127.04644041827574
+  },
+  {
+    "title": "[북구자원봉사센터] 6월 북구환경살리기-구포역 GO!GO!(플로깅) 활동",
+    "rawAddress": "구포 문화예술플랫폼 앞(부산 북구 구포만세길 113)",
+    "normalizedCandidates": [
+      "부산 북구 구포만세길 113",
+      "구포 문화예술플랫폼 앞",
+      "구포 문화예술플랫폼",
+      "구포"
+    ],
+    "resolvedQuery": "부산 북구 구포만세길 113",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 35.20678208412963,
+    "lng": 128.99794271428766
+  },
+  {
+    "title": "k-자원봉사단 발대식 및 오리엔테이션",
+    "rawAddress": "영산강정원 일대(영산동 757-1)",
+    "normalizedCandidates": [
+      "영산동 757-1",
+      "영산강정원 일대",
+      "영산강정원"
+    ],
+    "resolvedQuery": "영산동 757-1",
+    "matchedType": "PARCEL",
+    "confidence": "exact",
+    "lat": 35.00108788052165,
+    "lng": 126.72233760843756
+  },
+  {
+    "title": "[비대면 봉사활동]2026 우리동네 하천 플로깅 &amp;#x27;틈만나면&amp;#x27;",
+    "rawAddress": "수원 관내 하천",
+    "normalizedCandidates": [
+      "수원 관내 하천",
+      "수원 관내",
+      "수원"
+    ],
+    "resolvedQuery": "수원",
+    "matchedType": "ROAD",
+    "confidence": "fallback",
+    "lat": 37.24393839496714,
+    "lng": 127.01845545944468
+  },
+  {
+    "title": "깨끗한 송도5동 만들기 플로깅",
+    "rawAddress": "인천시 연수구 인천타워대로 501, 송도5동 작은도서관 앞",
+    "normalizedCandidates": [
+      "인천시 연수구 인천타워대로 501, 송도5동 작은도서관 앞",
+      "인천시 연수구 인천타워대로 501, 송도5동 작은도서관",
+      "인천시 연수구 인천타워대로 501, 송도5동",
+      "인천시 연수구"
+    ],
+    "resolvedQuery": "인천시 연수구 인천타워대로 501, 송도5동 작은도서관 앞",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.41391056271066,
+    "lng": 126.62326724714691
+  },
+  {
+    "title": "[자원봉사센터] 갓생챌린지(비대면 자원봉사 프로그램 / 문의:054-771-1388)",
+    "rawAddress": "경주시 관내",
+    "normalizedCandidates": [
+      "경주시 관내",
+      "경주시"
+    ],
+    "resolvedQuery": "경주시 관내",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 35.71963671984659,
+    "lng": 129.16493719953368
+  },
+  {
+    "title": "[서울외국인주민센터] 플로깅",
+    "rawAddress": "도림천 일대",
+    "normalizedCandidates": [
+      "도림천 일대",
+      "도림천"
+    ],
+    "resolvedQuery": "도림천",
+    "matchedType": "ROAD",
+    "confidence": "fallback",
+    "lat": 37.512002377337765,
+    "lng": 126.8886316172233
+  },
+  {
+    "title": "[대면 플로깅 (오전)] 경주시 일대 - 환경정화",
+    "rawAddress": "경주시 관내",
+    "normalizedCandidates": [
+      "경주시 관내",
+      "경주시"
+    ],
+    "resolvedQuery": "경주시 관내",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 35.71963671984659,
+    "lng": 129.16493719953368
+  },
+  {
+    "title": "신규 자원봉사 인큐베이팅 교육(12회차)",
+    "rawAddress": "자원봉사센터 강의실(진남경기장 내 진남스포츠센터 3층 다목적 강의실)",
+    "normalizedCandidates": [
+      "자원봉사센터 강의실",
+      "자원봉사센터"
+    ],
+    "resolvedQuery": "자원봉사센터",
+    "matchedType": "ROAD",
+    "confidence": "fallback",
+    "lat": 37.705693098689274,
+    "lng": 127.03827415307978
+  },
+  {
+    "title": "6월 불편즐감, 길토래비 플로깅 데이!",
+    "rawAddress": "기흥레스피아 주변 하천 (반려동물놀이터가 있음)",
+    "normalizedCandidates": [
+      "기흥레스피아 주변 하천",
+      "기흥레스피아 주변",
+      "기흥레스피아"
+    ],
+    "resolvedQuery": "기흥레스피아",
+    "matchedType": "PLACE",
+    "confidence": "fallback",
+    "lat": 37.25104440210734,
+    "lng": 127.096905775157
+  },
+  {
+    "title": "[비대면] 플로깅 자원봉사활동(1인 월 2회, 1일 최대 2시간 인정)",
+    "rawAddress": "공주시 관내(플로깅 가능한 장소)",
+    "normalizedCandidates": [
+      "공주시 관내",
+      "공주시"
+    ],
+    "resolvedQuery": "공주시 관내",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 36.46623980081174,
+    "lng": 127.1362740996239
+  },
+  {
+    "title": "★제주도자원봉사센터 X 지구별약수터 지구별플로깅여행(이호테우)★",
+    "rawAddress": "이호 해안 일대",
+    "normalizedCandidates": [
+      "이호 해안 일대",
+      "이호 해안",
+      "이호"
+    ],
+    "resolvedQuery": "이호 해안",
+    "matchedType": "ROAD",
+    "confidence": "fallback",
+    "lat": 33.5031206197207,
+    "lng": 126.46017997190268
+  },
+  {
+    "title": "어르신 활동보조 및 환경정화",
+    "rawAddress": "이레요양원",
+    "normalizedCandidates": [
+      "이레요양원"
+    ],
+    "resolvedQuery": "이레요양원",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.64886910727979,
+    "lng": 127.4744044195204
+  },
+  {
+    "title": "[2026 친환경 실천 프로그램 - 승학산 건강한 숲 지키기 활동 6월]",
+    "rawAddress": "승학산 둘레길 일대",
+    "normalizedCandidates": [
+      "승학산 둘레길 일대",
+      "승학산 둘레길",
+      "승학산"
+    ],
+    "resolvedQuery": "승학산 둘레길 일대",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.53489725530828,
+    "lng": 127.05552748642836
+  },
+  {
+    "title": "대구 신천 및 김광석길 쓰담 환경정화 봉사자 모집합니다 (문자신청)",
+    "rawAddress": "대봉1동 김광석길",
+    "normalizedCandidates": [
+      "대봉1동 김광석길",
+      "대봉1동"
+    ],
+    "resolvedQuery": "대봉1동",
+    "matchedType": "ROAD",
+    "confidence": "fallback",
+    "lat": 35.19292397861389,
+    "lng": 128.07139631021417
+  },
+  {
+    "title": "어르신 활동보조 및 환경정화",
+    "rawAddress": "이레요양원",
+    "normalizedCandidates": [
+      "이레요양원"
+    ],
+    "resolvedQuery": "이레요양원",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.64886910727979,
+    "lng": 127.4744044195204
+  },
+  {
+    "title": "작은 도서관 청소 및 장서 정리, 도서 등록, 도서 라벨 작업, 도서관 지킴이",
+    "rawAddress": "경기도 화성시 봉담읍 샘마을길 41, 2층 샘마을 작은도서관",
+    "normalizedCandidates": [
+      "경기도 화성시 봉담읍 샘마을길 41, 2층 샘마을 작은도서관",
+      "경기도 화성시 봉담읍 샘마을길 41, 2층 샘마을",
+      "화성시 봉담읍 샘마을길 41, 2층 샘마을",
+      "경기도 화성시 봉담읍 샘마을길 41, 2층",
+      "화성시 봉담읍 샘마을길 41, 2층",
+      "경기도 화성시 봉담읍 샘마을길 41,",
+      "화성시 봉담읍 샘마을길 41,",
+      "경기도 화성시 봉담읍 샘마을길",
+      "화성시 봉담읍 샘마을길",
+      "경기도 화성시 봉담읍",
+      "화성시 봉담읍",
+      "경기도 화성시",
+      "화성시"
+    ],
+    "resolvedQuery": "경기도 화성시 봉담읍 샘마을길 41, 2층 샘마을 작은도서관",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.217094130996806,
+    "lng": 126.95147076974631
+  },
+  {
+    "title": "전주근대역사기념관 환경정화 및 관람 안내 자원봉사활동",
+    "rawAddress": "전북특별자치도 전주시 완산구 서원로 382",
+    "normalizedCandidates": [
+      "전북특별자치도 전주시 완산구 서원로 382",
+      "전북특별자치도 전주시 완산구 서원로",
+      "전주시 완산구 서원로",
+      "전북특별자치도 전주시 완산구",
+      "전주시 완산구"
+    ],
+    "resolvedQuery": "전북특별자치도 전주시 완산구 서원로 382",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 35.81452934726323,
+    "lng": 127.13524732617175
+  },
+  {
+    "title": "6.27(토) 자원봉사 V-day 일광해수욕장 환경정화 - 임해행정봉사실 앞",
+    "rawAddress": "일광해수욕장 일대",
+    "normalizedCandidates": [
+      "일광해수욕장 일대",
+      "일광해수욕장"
+    ],
+    "resolvedQuery": "일광해수욕장 일대",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 35.26039819967346,
+    "lng": 129.23360060044322
+  },
+  {
+    "title": "남구자원봉사센터 배수로깅 자원봉사자 모집",
+    "rawAddress": "광주 남구 독립로 2, 3층(광주남구자원봉사센터)",
+    "normalizedCandidates": [
+      "광주 남구 독립로 2,",
+      "광주 남구 독립로",
+      "남구 독립로",
+      "광주 남구",
+      "남구"
+    ],
+    "resolvedQuery": "광주 남구 독립로 2,",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 35.133930879618234,
+    "lng": 126.9019131296561
+  },
+  {
+    "title": "마을해설사와 함께하는 복병산 역사탐방 - 활동일자 확인하시고 신청하십시요.",
+    "rawAddress": "대청로99번길 일대",
+    "normalizedCandidates": [
+      "대청로99번길 일대",
+      "대청로99번길"
+    ],
+    "resolvedQuery": "대청로99번길 일대",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 35.10381833775952,
+    "lng": 129.03062000163575
+  },
+  {
+    "title": "시민과 함께하는 대구자원봉사, 우리동네 새단장 6월 활동 참여자 모집",
+    "rawAddress": "두류공원 내 대구광역시문화예술회관 앞 데크(성당못)",
+    "normalizedCandidates": [
+      "두류공원 내 대구광역시문화예술회관 앞 데크",
+      "두류공원 내 대구광역시문화예술회관 앞",
+      "두류공원 내 대구광역시문화예술회관",
+      "두류공원 내",
+      "두류공원"
+    ],
+    "resolvedQuery": "두류공원 내",
+    "matchedType": "ROAD",
+    "confidence": "fallback",
+    "lat": 35.839913369187244,
+    "lng": 128.5759627414829
+  },
+  {
+    "title": "제9회 아츠인탱크 무용축제 in Korea 자원봉사자 모집(오전팀)",
+    "rawAddress": "문화비축기지",
+    "normalizedCandidates": [
+      "문화비축기지"
+    ],
+    "resolvedQuery": "문화비축기지",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 37.5721221977071,
+    "lng": 126.89502279994518
+  },
+  {
+    "title": "제9회 아츠인탱크 무용축제 in Korea 자원봉사자 모집(오후팀)",
+    "rawAddress": "문화비축기지",
+    "normalizedCandidates": [
+      "문화비축기지"
+    ],
+    "resolvedQuery": "문화비축기지",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 37.5721221977071,
+    "lng": 126.89502279994518
+  },
+  {
+    "title": "2026 원주만두축제 자원봉사자 모집",
+    "rawAddress": "중앙동 전통시장 일원",
+    "normalizedCandidates": [
+      "중앙동 전통시장 일원",
+      "중앙동 전통시장",
+      "중앙동"
+    ],
+    "resolvedQuery": "중앙동 전통시장",
+    "matchedType": "PLACE",
+    "confidence": "fallback",
+    "lat": 37.3514482999559,
+    "lng": 127.94981559990433
+  },
+  {
+    "title": "2026 6월 마토예술제 썸머크리스-마토(Summer Christ-MATO) 운영 및 진행 보조 자원봉사 모집",
+    "rawAddress": "안정리예술인광장 일원 (평택시 팽성읍 안정쇼핑로11, 안정리예술인광장)",
+    "normalizedCandidates": [
+      "평택시 팽성읍 안정쇼핑로11, 안정리예술인광장",
+      "안정리예술인광장 일원",
+      "안정리예술인광장"
+    ],
+    "resolvedQuery": "평택시 팽성읍 안정쇼핑로11, 안정리예술인광장",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 36.959670257800525,
+    "lng": 127.04421383908698
+  },
+  {
+    "title": "제9회 아츠인탱크 무용축제 in Korea 자원봉사자 모집(저녁팀)",
+    "rawAddress": "문화비축기지",
+    "normalizedCandidates": [
+      "문화비축기지"
+    ],
+    "resolvedQuery": "문화비축기지",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 37.5721221977071,
+    "lng": 126.89502279994518
+  },
+  {
+    "title": "[용인시수지장애인복지관] 장애인식개선 우다다활동단 자원봉사자 모집",
+    "rawAddress": "용인시수지장애인복지관 및 지역사회",
+    "normalizedCandidates": [
+      "용인시수지장애인복지관 및 지역사회",
+      "용인시수지장애인복지관 및",
+      "용인시수지장애인복지관"
+    ],
+    "resolvedQuery": "용인시수지장애인복지관 및",
+    "matchedType": "PLACE",
+    "confidence": "fallback",
+    "lat": 37.32227581047668,
+    "lng": 127.09779147534722
+  },
+  {
+    "title": "비산5동 제6회 또바기 축제 자원봉사자 모집",
+    "rawAddress": "서구국민체육센터(대구 서구 문화로 72)",
+    "normalizedCandidates": [
+      "대구 서구 문화로 72",
+      "서구국민체육센터"
+    ],
+    "resolvedQuery": "대구 서구 문화로 72",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 35.87343063496834,
+    "lng": 128.5409736383063
+  },
+  {
+    "title": "제 4회 오페라 축제 공연 행사지원 자원봉사자 모집(6/25)",
+    "rawAddress": "금정문화회관 금빛누리홀",
+    "normalizedCandidates": [
+      "금정문화회관 금빛누리홀",
+      "금정문화회관"
+    ],
+    "resolvedQuery": "금정문화회관",
+    "matchedType": "ROAD",
+    "confidence": "fallback",
+    "lat": 35.24607402566176,
+    "lng": 129.09389217417913
+  },
+  {
+    "title": "수원청소년문화센터 6월 열린광장 모여락(樂)_모여봐요, 물총의 숲편 운영 및 진행 보조 봉사",
+    "rawAddress": "수원청소년문화센터 무지개광장",
+    "normalizedCandidates": [
+      "수원청소년문화센터 무지개광장",
+      "수원청소년문화센터"
+    ],
+    "resolvedQuery": "수원청소년문화센터",
+    "matchedType": "PLACE",
+    "confidence": "fallback",
+    "lat": 37.27394020059848,
+    "lng": 127.03498679993518
+  },
+  {
+    "title": "[북구청 / 성인 및 대학생 모집 / 주말오후] 제2회 수국과 함께하는 트래블로드 주간 행사",
+    "rawAddress": "대천천 누리길 축제장 및 화명수목원 일원",
+    "normalizedCandidates": [
+      "대천천 누리길 축제장 및 화명수목원 일원",
+      "대천천 누리길 축제장 및 화명수목원",
+      "대천천 누리길 축제장 및",
+      "대천천 누리길 축제장",
+      "대천천 누리길",
+      "대천천"
+    ],
+    "resolvedQuery": "대천천 누리길 축제장 및 화명수목원 일원",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.43454704555158,
+    "lng": 127.55070238413074
+  },
+  {
+    "title": "[북구청 / 성인 및 대학생 모집 / 주말오전] 제2회 수국과 함께하는 트래블로드 주간 행사",
+    "rawAddress": "대천천 누리길 축제장 및 화명수목원 일원",
+    "normalizedCandidates": [
+      "대천천 누리길 축제장 및 화명수목원 일원",
+      "대천천 누리길 축제장 및 화명수목원",
+      "대천천 누리길 축제장 및",
+      "대천천 누리길 축제장",
+      "대천천 누리길",
+      "대천천"
+    ],
+    "resolvedQuery": "대천천 누리길 축제장 및 화명수목원 일원",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.43454704555158,
+    "lng": 127.55070238413074
+  },
+  {
+    "title": "한끼나눔 기아체험, 제14회 미추홀희망나눔축제 행사 운영 보조",
+    "rawAddress": "미추홀구청 대회의실",
+    "normalizedCandidates": [
+      "미추홀구청 대회의실",
+      "미추홀구청"
+    ],
+    "resolvedQuery": "미추홀구청",
+    "matchedType": "PLACE",
+    "confidence": "fallback",
+    "lat": 37.46320434487469,
+    "lng": 126.65035540673972
+  },
+  {
+    "title": "서울시민간축제  제2회 톡톡튀는 문화예술페스티벌 행사 도우미 (저녁 지급)",
+    "rawAddress": "동대문구청",
+    "normalizedCandidates": [
+      "동대문구청"
+    ],
+    "resolvedQuery": "동대문구청",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.574358556338915,
+    "lng": 127.03996235140494
+  },
+  {
+    "title": "[북구청 / 성인 및 대학생 모집 / 주말오후] 제2회 수국과 함께하는 트래블로드 주간 행사",
+    "rawAddress": "대천천 누리길 축제장 및 화명수목원 일원",
+    "normalizedCandidates": [
+      "대천천 누리길 축제장 및 화명수목원 일원",
+      "대천천 누리길 축제장 및 화명수목원",
+      "대천천 누리길 축제장 및",
+      "대천천 누리길 축제장",
+      "대천천 누리길",
+      "대천천"
+    ],
+    "resolvedQuery": "대천천 누리길 축제장 및 화명수목원 일원",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.43454704555158,
+    "lng": 127.55070238413074
+  },
+  {
+    "title": "[북구청 / 성인 및 대학생 모집 / 주말오전] 제2회 수국과 함께하는 트래블로드 주간 행사",
+    "rawAddress": "대천천 누리길 축제장 및 화명수목원 일원",
+    "normalizedCandidates": [
+      "대천천 누리길 축제장 및 화명수목원 일원",
+      "대천천 누리길 축제장 및 화명수목원",
+      "대천천 누리길 축제장 및",
+      "대천천 누리길 축제장",
+      "대천천 누리길",
+      "대천천"
+    ],
+    "resolvedQuery": "대천천 누리길 축제장 및 화명수목원 일원",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.43454704555158,
+    "lng": 127.55070238413074
+  },
+  {
+    "title": "2026 하하호호 어린이 대축제(제5회 어린이범죄예방뮤지컬) 자원봉사자 모집",
+    "rawAddress": "순천만생태문화교육원",
+    "normalizedCandidates": [
+      "순천만생태문화교육원"
+    ],
+    "resolvedQuery": "순천만생태문화교육원",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 34.93035916720965,
+    "lng": 127.5144766005736
+  },
+  {
+    "title": "제 4회 오페라 축제 공연 행사지원 자원봉사자 모집(6/26)",
+    "rawAddress": "금정문화회관 금빛누리홀",
+    "normalizedCandidates": [
+      "금정문화회관 금빛누리홀",
+      "금정문화회관"
+    ],
+    "resolvedQuery": "금정문화회관",
+    "matchedType": "ROAD",
+    "confidence": "fallback",
+    "lat": 35.24607402566176,
+    "lng": 129.09389217417913
+  },
+  {
+    "title": "안전하고 쿨링한 여름나기, 한끼나눔 기아체험 \"제14회 미추홀희망나눔축제\" 참여자 모집",
+    "rawAddress": "미추홀구청 대회의실 및 관내 대상자 가정",
+    "normalizedCandidates": [
+      "미추홀구청 대회의실 및 관내 대상자 가정",
+      "미추홀구청 대회의실 및 관내 대상자",
+      "미추홀구청 대회의실 및 관내",
+      "미추홀구청 대회의실 및",
+      "미추홀구청 대회의실",
+      "미추홀구청"
+    ],
+    "resolvedQuery": "미추홀구청",
+    "matchedType": "PLACE",
+    "confidence": "fallback",
+    "lat": 37.46320434487469,
+    "lng": 126.65035540673972
+  },
+  {
+    "title": "[진주체험분원] 경남교육청 유아교육원 진주체험분원 ' 6월 생각쑥쑥 토요 과학체험 ' 자원봉사자 모집",
+    "rawAddress": "경상남도교육청 유아교육원 진주체험분원(경남 진주시 진의로 160)",
+    "normalizedCandidates": [
+      "경남 진주시 진의로 160",
+      "경상남도교육청 유아교육원 진주체험분원",
+      "경상남도교육청 유아교육원",
+      "경상남도교육청"
+    ],
+    "resolvedQuery": "경남 진주시 진의로 160",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 35.20033063697021,
+    "lng": 128.22220198356717
+  },
+  {
+    "title": "6-4 인천부내초등학교 과학 축제 교내 과학 부스 운영 지원",
+    "rawAddress": "인천광역시 부평구 수변로 129, 부내초등학교 강당 2층",
+    "normalizedCandidates": [
+      "인천광역시 부평구 수변로 129, 부내초등학교 강당",
+      "인천광역시 부평구 수변로 129, 부내초등학교",
+      "부평구 수변로 129, 부내초등학교",
+      "인천광역시 부평구 수변로 129,",
+      "부평구 수변로 129,",
+      "인천광역시 부평구 수변로",
+      "부평구 수변로",
+      "인천광역시 부평구",
+      "부평구"
+    ],
+    "resolvedQuery": "인천광역시 부평구 수변로 129, 부내초등학교 강당",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.49815307740954,
+    "lng": 126.74170209148372
+  },
+  {
+    "title": "[주안영상미디어센터] 미디어체험행사 질서유지 및 안내활동",
+    "rawAddress": "주안영상미디어센터 8층",
+    "normalizedCandidates": [
+      "주안영상미디어센터"
+    ],
+    "resolvedQuery": "주안영상미디어센터",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 37.460858601337115,
+    "lng": 126.6806315994738
+  },
+  {
+    "title": "중구1인가구지원센터 외부 홍보활동 및 이동상담",
+    "rawAddress": "서울시 중구 다산로8길 32",
+    "normalizedCandidates": [
+      "서울시 중구 다산로8길 32",
+      "서울시 중구 다산로8길",
+      "서울시 중구"
+    ],
+    "resolvedQuery": "서울시 중구 다산로8길 32",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.55239415014073,
+    "lng": 127.0114518016965
+  },
+  {
+    "title": "제20회 문화체육관광부장관기 전국국학기공대회 행사보조진행 자원봉사자 모집",
+    "rawAddress": "5.18기념문화센터",
+    "normalizedCandidates": [
+      "5.18기념문화센터"
+    ],
+    "resolvedQuery": "5.18기념문화센터",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 35.158322098423575,
+    "lng": 126.85756230030275
+  },
+  {
+    "title": "제20회 문화체육관광부장관기 전국국학기공대회 행사보조진행 자원봉사자 모집",
+    "rawAddress": "5.18기념문화센터",
+    "normalizedCandidates": [
+      "5.18기념문화센터"
+    ],
+    "resolvedQuery": "5.18기념문화센터",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 35.158322098423575,
+    "lng": 126.85756230030275
+  },
+  {
+    "title": "[2026 내리문화공원 수국 전시회] 자원봉사자 모집",
+    "rawAddress": "경기도 평택시 내리길 64-23 내리문화공원 일원",
+    "normalizedCandidates": [
+      "경기도 평택시 내리길 64-23 내리문화공원 일원",
+      "23 내리문화공원 일원",
+      "23 내리문화공원",
+      "23"
+    ],
+    "resolvedQuery": "경기도 평택시 내리길 64-23 내리문화공원 일원",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 36.975254950907285,
+    "lng": 127.0325592777775
+  },
+  {
+    "title": "(성인)여성 봉사자 모집-어린이집 행사 보조",
+    "rawAddress": "에버그린어린이집",
+    "normalizedCandidates": [
+      "에버그린어린이집"
+    ],
+    "resolvedQuery": "에버그린어린이집",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 37.61100090435391,
+    "lng": 127.15620499949483
+  },
+  {
+    "title": "[2026 내리문화공원 수국 전시회] 자원봉사자 모집 (오후)",
+    "rawAddress": "경기도 평택시 내리길 64-23 내리문화공원 일원",
+    "normalizedCandidates": [
+      "경기도 평택시 내리길 64-23 내리문화공원 일원",
+      "23 내리문화공원 일원",
+      "23 내리문화공원",
+      "23"
+    ],
+    "resolvedQuery": "경기도 평택시 내리길 64-23 내리문화공원 일원",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 36.975254950907285,
+    "lng": 127.0325592777775
+  },
+  {
+    "title": "★(북구자원봉사센터) IBK 사랑의 밥차 활동 자원봉사자 모집★",
+    "rawAddress": "양산호수공원 일대 (광주 북구 하서로 311)",
+    "normalizedCandidates": [
+      "광주 북구 하서로 311",
+      "양산호수공원 일대",
+      "양산호수공원"
+    ],
+    "resolvedQuery": "광주 북구 하서로 311",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 35.20277023153497,
+    "lng": 126.87364923207663
+  },
+  {
+    "title": "[구립동대문장애인종합복지관] 문화예술프로그램 '꼼지락공방' 자원봉사자 모집",
+    "rawAddress": "동대문장애인종합복지관",
+    "normalizedCandidates": [
+      "동대문장애인종합복지관"
+    ],
+    "resolvedQuery": "동대문장애인종합복지관",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 37.72640680086947,
+    "lng": 127.05425440023123
+  },
+  {
+    "title": "무안장애인자립생활센터 활동지원 자원봉사자 모집",
+    "rawAddress": "무안장애인자립생활센터 및 남악 일대",
+    "normalizedCandidates": [
+      "무안장애인자립생활센터 및 남악 일대",
+      "무안장애인자립생활센터 및 남악",
+      "무안장애인자립생활센터 및",
+      "무안장애인자립생활센터"
+    ],
+    "resolvedQuery": "무안장애인자립생활센터 및 남악",
+    "matchedType": "PLACE",
+    "confidence": "fallback",
+    "lat": 34.8124829623493,
+    "lng": 126.4612765326379
+  },
+  {
+    "title": "여주도서관 자료실 서가정리 및 주변 환경정리 자원봉사 모집(2026년 4월~6월)",
+    "rawAddress": "여주도서관",
+    "normalizedCandidates": [
+      "여주도서관"
+    ],
+    "resolvedQuery": "여주도서관",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 37.29971460126419,
+    "lng": 127.651152999618
+  },
+  {
+    "title": "제21회 부산국제매직페스티벌 - 제8회 버스킹챔피언십 - 운영 지원 봉사자 모집",
+    "rawAddress": "해운대 해수욕장 일대",
+    "normalizedCandidates": [
+      "해운대 해수욕장 일대",
+      "해운대 해수욕장",
+      "해운대"
+    ],
+    "resolvedQuery": "해운대 해수욕장",
+    "matchedType": "ROAD",
+    "confidence": "fallback",
+    "lat": 35.15841955474253,
+    "lng": 129.15288990833835
+  },
+  {
+    "title": "[이문어린이도서관] 프로그램 및 행사 운영 보조 자원봉사자 모집 (숲속자라미)",
+    "rawAddress": "이문어린이도서관 마당",
+    "normalizedCandidates": [
+      "이문어린이도서관 마당",
+      "이문어린이도서관"
+    ],
+    "resolvedQuery": "이문어린이도서관",
+    "matchedType": "PLACE",
+    "confidence": "fallback",
+    "lat": 37.59888250110383,
+    "lng": 127.05382300056083
+  },
+  {
+    "title": "사)강릉관광진흥협회와 함께하는 강릉항 일대 환경정화 캠페인",
+    "rawAddress": "강릉 항",
+    "normalizedCandidates": [
+      "강릉 항",
+      "강릉"
+    ],
+    "resolvedQuery": "강릉 항",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.768356053055015,
+    "lng": 128.88509290933484
+  },
+  {
+    "title": "Asia Invitational & Classic 서포터즈",
+    "rawAddress": "사근진 해변 해중 공원",
+    "normalizedCandidates": [
+      "사근진 해변 해중 공원",
+      "사근진 해변 해중",
+      "사근진 해변",
+      "사근진"
+    ],
+    "resolvedQuery": "사근진 해변",
+    "matchedType": "PLACE",
+    "confidence": "fallback",
+    "lat": 37.812756201325314,
+    "lng": 128.8988299005023
+  },
+  {
+    "title": "가플지우 X블루사이렌  이달의 바다 해양정화활동 - 경남 남해 송정솔바람해수욕장",
+    "rawAddress": "집결지 : 경남 남해군 미조면 송정솔바람해변 캠핑장 입구 캐노피 '흰색 대형 막구조물(안내판 뒤편)'",
+    "normalizedCandidates": [
+      "경남 남해군 미조면 송정솔바람해변 캠핑장 입구 캐노피 흰색 대형 막구조물",
+      "경남 남해군 미조면 송정솔바람해변 캠핑장 입구 캐노피 흰색 대형",
+      "경남 남해군 미조면 송정솔바람해변 캠핑장 입구 캐노피 흰색",
+      "남해군 미조면 송정솔바람해변 캠핑장 입구 캐노피 흰색",
+      "경남 남해군 미조면 송정솔바람해변 캠핑장 입구 캐노피",
+      "남해군 미조면 송정솔바람해변 캠핑장 입구 캐노피",
+      "경남 남해군 미조면 송정솔바람해변 캠핑장 입구",
+      "남해군 미조면 송정솔바람해변 캠핑장 입구",
+      "경남 남해군 미조면",
+      "남해군 미조면"
+    ],
+    "resolvedQuery": "경남 남해군 미조면",
+    "matchedType": "ROAD",
+    "confidence": "fallback",
+    "lat": 34.72085795830321,
+    "lng": 128.0329359071865
+  },
+  {
+    "title": "[수영구청 일자리경제과] 2026년 수영구사회적경제마켓 '모리마켓'",
+    "rawAddress": "광안리 해변 (수영구생활문화센터 맞은편)",
+    "normalizedCandidates": [
+      "광안리 해변",
+      "광안리"
+    ],
+    "resolvedQuery": "광안리 해변",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 35.14614454407353,
+    "lng": 129.11532523755602
+  },
+  {
+    "title": "「시민 누구나 함께하는 V-day」 환경정화활동 자원봉사자 모집",
+    "rawAddress": "감지해변(자갈마당)",
+    "normalizedCandidates": [
+      "감지해변"
+    ],
+    "resolvedQuery": "감지해변",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 35.06042677918067,
+    "lng": 129.0782015214138
+  },
+  {
+    "title": "휴먼인러브 해양쓰레기수&플로깅 \"쓰레기없는 깨끗한 바다\"",
+    "rawAddress": "경남 남해군 미조면 미송로 11-31(본촌어촌계 인근 해변 및 방파제 일대)",
+    "normalizedCandidates": [
+      "경남 남해군 미조면 미송로 11-31",
+      "31"
+    ],
+    "resolvedQuery": "경남 남해군 미조면 미송로 11-31",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 34.71620833559027,
+    "lng": 128.04447645896036
+  },
+  {
+    "title": "(오전)하니데이케어센터 어르신 활동보조 및 센터 환경 정리",
+    "rawAddress": "수영구 광안해변로278번길42, 오션브릿지 2층 하니데이케어센터",
+    "normalizedCandidates": [
+      "수영구 광안해변로278번길42, 오션브릿지 2층 하니데이케어센터",
+      "수영구 광안해변로278번길42, 오션브릿지 2층",
+      "수영구 광안해변로278번길42, 오션브릿지",
+      "수영구 광안해변로278번길42,",
+      "수영구"
+    ],
+    "resolvedQuery": "수영구 광안해변로278번길42, 오션브릿지 2층 하니데이케어센터",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 35.15395272529242,
+    "lng": 129.12452053005768
+  },
+  {
+    "title": "해양정화활동",
+    "rawAddress": "압해읍 학교리 해변일원",
+    "normalizedCandidates": [
+      "압해읍 학교리 해변일원",
+      "압해읍 학교리"
+    ],
+    "resolvedQuery": "압해읍 학교리",
+    "matchedType": "ROAD",
+    "confidence": "fallback",
+    "lat": 34.88093405205939,
+    "lng": 126.31318133849403
+  },
+  {
+    "title": "(2인 이상 팀 구성) 6월 청정 제주 만들기 자원봉사활동 「제주! 봉그라」",
+    "rawAddress": "제주 지역 환경정화가 필요한 곳",
+    "normalizedCandidates": [
+      "제주 지역 환경정화가 필요한 곳",
+      "제주 지역 환경정화가 필요한",
+      "지역 환경정화가 필요한",
+      "제주 지역 환경정화가",
+      "지역 환경정화가",
+      "제주 지역",
+      "지역",
+      "제주"
+    ],
+    "resolvedQuery": "제주 지역",
+    "matchedType": "PLACE",
+    "confidence": "fallback",
+    "lat": 33.48598778333001,
+    "lng": 126.47362006019677
+  },
+  {
+    "title": "2026년 국제 연안 정화의 날 바다대청소 자원봉사 9_클린스웰 앱 이용 (통영 내 활동)",
+    "rawAddress": "통영",
+    "normalizedCandidates": [
+      "통영"
+    ],
+    "resolvedQuery": "통영",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 34.879802120646644,
+    "lng": 128.4186667739408
+  },
+  {
+    "title": "(오후)하니데이케어센터 어르신 활동보조 및 센터 환경 정리",
+    "rawAddress": "수영구 광안해변로278번길42, 오션브릿지 2층 하니데이케어센터",
+    "normalizedCandidates": [
+      "수영구 광안해변로278번길42, 오션브릿지 2층 하니데이케어센터",
+      "수영구 광안해변로278번길42, 오션브릿지 2층",
+      "수영구 광안해변로278번길42, 오션브릿지",
+      "수영구 광안해변로278번길42,",
+      "수영구"
+    ],
+    "resolvedQuery": "수영구 광안해변로278번길42, 오션브릿지 2층 하니데이케어센터",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 35.15395272529242,
+    "lng": 129.12452053005768
+  },
+  {
+    "title": "오전*동부소방서_해변순찰 및 안전계도*",
+    "rawAddress": "일산동행정복지센터 맞은편 해변 몽골텐트",
+    "normalizedCandidates": [
+      "일산동행정복지센터 맞은편 해변 몽골텐트",
+      "일산동행정복지센터 맞은편 해변",
+      "일산동행정복지센터 맞은편",
+      "일산동행정복지센터"
+    ],
+    "resolvedQuery": "일산동행정복지센터",
+    "matchedType": "PLACE",
+    "confidence": "fallback",
+    "lat": 37.34967310012155,
+    "lng": 127.94214019919377
+  },
+  {
+    "title": "2026 유아문화예술교육 지원사업 자원봉사자모집",
+    "rawAddress": "사천시 청년센터",
+    "normalizedCandidates": [
+      "사천시 청년센터",
+      "사천시"
+    ],
+    "resolvedQuery": "사천시",
+    "matchedType": "ROAD",
+    "confidence": "fallback",
+    "lat": 35.08773414479814,
+    "lng": 128.08874519972392
+  },
+  {
+    "title": "오후*동부소방서_해변순찰 및 안전계도*",
+    "rawAddress": "일산동행정복지센터 맞은편 해변 몽골텐트",
+    "normalizedCandidates": [
+      "일산동행정복지센터 맞은편 해변 몽골텐트",
+      "일산동행정복지센터 맞은편 해변",
+      "일산동행정복지센터 맞은편",
+      "일산동행정복지센터"
+    ],
+    "resolvedQuery": "일산동행정복지센터",
+    "matchedType": "PLACE",
+    "confidence": "fallback",
+    "lat": 37.34967310012155,
+    "lng": 127.94214019919377
+  },
+  {
+    "title": "(오후)하니데이케어센터 어르신 활동보조 및 센터 환경 정리",
+    "rawAddress": "수영구 광안해변로278번길42, 오션브릿지 2층 하니데이케어센터",
+    "normalizedCandidates": [
+      "수영구 광안해변로278번길42, 오션브릿지 2층 하니데이케어센터",
+      "수영구 광안해변로278번길42, 오션브릿지 2층",
+      "수영구 광안해변로278번길42, 오션브릿지",
+      "수영구 광안해변로278번길42,",
+      "수영구"
+    ],
+    "resolvedQuery": "수영구 광안해변로278번길42, 오션브릿지 2층 하니데이케어센터",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 35.15395272529242,
+    "lng": 129.12452053005768
+  },
+  {
+    "title": "[일산, 호수공원] The 행복한도서관 도서 정리 & 행정 보조 & 환경정리(20~30세 신청)",
+    "rawAddress": "고양시 일산동구 고봉로 20-5 포오스프라자2차 301호(라페스타, 호수공원, 강선마을17단지 건너편)",
+    "normalizedCandidates": [
+      "고양시 일산동구 고봉로 20-5 포오스프라자2차",
+      "5 포오스프라자2차"
+    ],
+    "resolvedQuery": "고양시 일산동구 고봉로 20-5 포오스프라자2차",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.664263004287434,
+    "lng": 126.76513022946656
+  },
+  {
+    "title": "(오전)하니데이케어센터 어르신 활동보조 및 센터 환경 정리",
+    "rawAddress": "수영구 광안해변로278번길42, 오션브릿지 2층 하니데이케어센터",
+    "normalizedCandidates": [
+      "수영구 광안해변로278번길42, 오션브릿지 2층 하니데이케어센터",
+      "수영구 광안해변로278번길42, 오션브릿지 2층",
+      "수영구 광안해변로278번길42, 오션브릿지",
+      "수영구 광안해변로278번길42,",
+      "수영구"
+    ],
+    "resolvedQuery": "수영구 광안해변로278번길42, 오션브릿지 2층 하니데이케어센터",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 35.15395272529242,
+    "lng": 129.12452053005768
+  },
+  {
+    "title": "대구광역시장애인문화예술진흥회에서 무료급식 자원봉사자를 모집합니다.",
+    "rawAddress": "함지공원",
+    "normalizedCandidates": [
+      "함지공원"
+    ],
+    "resolvedQuery": "함지공원",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 35.941833231470525,
+    "lng": 128.56852680327913
+  },
+  {
+    "title": "서울숲 나비정원 안내 및 관리(오후)",
+    "rawAddress": "서울숲(나비정원)",
+    "normalizedCandidates": [
+      "서울숲"
+    ],
+    "resolvedQuery": "서울숲",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.555186764108754,
+    "lng": 127.03479826898506
+  },
+  {
+    "title": "서울숲 나비정원 안내 및 관리(오전)",
+    "rawAddress": "서울숲(나비정원)",
+    "normalizedCandidates": [
+      "서울숲"
+    ],
+    "resolvedQuery": "서울숲",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.555186764108754,
+    "lng": 127.03479826898506
+  },
+  {
+    "title": "경산시삼성현문화관 환경정비 및 질서유지(고등학생 이상)",
+    "rawAddress": "경산시 남산면 삼성현공원로 59  삼성현문화관",
+    "normalizedCandidates": [
+      "경산시 남산면 삼성현공원로 59 삼성현문화관",
+      "경산시 남산면 삼성현공원로 59",
+      "경산시 남산면 삼성현공원로",
+      "경산시 남산면",
+      "경산시"
+    ],
+    "resolvedQuery": "경산시 남산면 삼성현공원로 59 삼성현문화관",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 35.801693058631784,
+    "lng": 128.79661262308264
+  },
+  {
+    "title": "서울숲 곤충식물원 안내 및 관리(오전)",
+    "rawAddress": "서울숲(곤충식물원)",
+    "normalizedCandidates": [
+      "서울숲"
+    ],
+    "resolvedQuery": "서울숲",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.555186764108754,
+    "lng": 127.03479826898506
+  },
+  {
+    "title": "서울숲 곤충식물원 안내 및 관리(오후)",
+    "rawAddress": "서울숲(곤충식물원)",
+    "normalizedCandidates": [
+      "서울숲"
+    ],
+    "resolvedQuery": "서울숲",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.555186764108754,
+    "lng": 127.03479826898506
+  },
+  {
+    "title": "강남도서관 스마트도서관 환경정화",
+    "rawAddress": "청담근린공원 내 스마트도서관  * 청담역 11번 출구에서 도보로 약 3분 소요",
+    "normalizedCandidates": [
+      "청담근린공원 내 스마트도서관 * 청담역 11번 출구에서 도보로 약 3분 소요",
+      "청담근린공원 내 스마트도서관 * 청담역 11번 출구에서 도보로 약 3분",
+      "청담근린공원 내 스마트도서관 * 청담역 11번 출구에서 도보로 약",
+      "청담근린공원 내 스마트도서관 * 청담역 11번 출구에서 도보로",
+      "청담근린공원 내 스마트도서관 * 청담역 11번 출구에서",
+      "청담근린공원 내 스마트도서관 * 청담역 11번",
+      "청담근린공원 내 스마트도서관 * 청담역",
+      "청담근린공원 내 스마트도서관 *",
+      "청담근린공원 내 스마트도서관",
+      "청담근린공원 내",
+      "청담근린공원"
+    ],
+    "resolvedQuery": "청담근린공원 내",
+    "matchedType": "PLACE",
+    "confidence": "fallback",
+    "lat": 37.518662958858584,
+    "lng": 127.06564354075638
+  },
+  {
+    "title": "[옥구공원숲속작은도서관] 도서대출, 반납 등 도서관 지원 활동(수요일)",
+    "rawAddress": "경기 시흥시 서해안로 277",
+    "normalizedCandidates": [
+      "경기 시흥시 서해안로 277",
+      "경기 시흥시 서해안로",
+      "시흥시 서해안로",
+      "경기 시흥시",
+      "시흥시"
+    ],
+    "resolvedQuery": "경기 시흥시 서해안로 277",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.35452292443471,
+    "lng": 126.70991599430175
+  },
+  {
+    "title": "[충주시-함길고] 길고양이 급식소 청결 관리와 주변 청소 및 고양이 밥주기",
+    "rawAddress": "호암지 산책로 길고양이 급식소 5개소(호암동 산 76-7 일대)",
+    "normalizedCandidates": [
+      "호암동 산 76-7 일대",
+      "호암지 산책로 길고양이 급식소 5개소",
+      "호암지 산책로 길고양이 급식소",
+      "호암지 산책로 길고양이",
+      "호암지 산책로",
+      "호암지"
+    ],
+    "resolvedQuery": "호암동 산 76-7 일대",
+    "matchedType": "PARCEL",
+    "confidence": "exact",
+    "lat": 36.96004450004199,
+    "lng": 127.92203315983005
+  },
+  {
+    "title": "서울숲 목요가드닝(유해식물 쏙쏙) 자원봉사",
+    "rawAddress": "서울숲공원 전역",
+    "normalizedCandidates": [
+      "서울숲공원 전역",
+      "서울숲공원"
+    ],
+    "resolvedQuery": "서울숲공원",
+    "matchedType": "PLACE",
+    "confidence": "fallback",
+    "lat": 37.54366089234036,
+    "lng": 127.0410892407514
+  },
+  {
+    "title": "[오전] 아차산숲속도서관 자원봉사자 모집 (7월~9월): 9:00~13:00",
+    "rawAddress": "아차산숲속도서관 (서울시 광진구 영화사로 139)",
+    "normalizedCandidates": [
+      "서울시 광진구 영화사로 139",
+      "아차산숲속도서관"
+    ],
+    "resolvedQuery": "서울시 광진구 영화사로 139",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.5524740815746,
+    "lng": 127.1008157777963
+  },
+  {
+    "title": "[오후] 아차산숲속도서관 자원봉사자 모집 (7월~9월): 14:00~18:00",
+    "rawAddress": "아차산숲속도서관 (서울시 광진구 영화사로 139)",
+    "normalizedCandidates": [
+      "서울시 광진구 영화사로 139",
+      "아차산숲속도서관"
+    ],
+    "resolvedQuery": "서울시 광진구 영화사로 139",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.5524740815746,
+    "lng": 127.1008157777963
+  },
+  {
+    "title": "지역사회활동 자원봉사자 모집",
+    "rawAddress": "대전광역시립장애인종합복지관",
+    "normalizedCandidates": [
+      "대전광역시립장애인종합복지관"
+    ],
+    "resolvedQuery": "대전광역시립장애인종합복지관",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 36.32167588004189,
+    "lng": 127.32108616222074
+  },
+  {
+    "title": "[한강생태이음봉사단]암사생태공원 생태모니터링 및 환경정화활동",
+    "rawAddress": "암사생태공원 일대",
+    "normalizedCandidates": [
+      "암사생태공원 일대",
+      "암사생태공원"
+    ],
+    "resolvedQuery": "암사생태공원",
+    "matchedType": "PLACE",
+    "confidence": "fallback",
+    "lat": 37.55430058138026,
+    "lng": 127.12254962593057
+  },
+  {
+    "title": "우리꽃식물원 안내 및 주차관리 등",
+    "rawAddress": "화성시 우리꽃식물원",
+    "normalizedCandidates": [
+      "화성시 우리꽃식물원",
+      "화성시"
+    ],
+    "resolvedQuery": "화성시 우리꽃식물원",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.11597658658049,
+    "lng": 126.8816767272439
+  },
+  {
+    "title": "숲길생태보전활동",
+    "rawAddress": "배산 숲길 일대 / 모이는 곳 : 연제문화체육공원 시설안내판 앞(9시 50분까지)",
+    "normalizedCandidates": [
+      "9시 50분까지",
+      "배산 숲길 일대 / 모이는 곳 : 연제문화체육공원 시설안내판 앞",
+      "배산 숲길 일대 / 모이는 곳 : 연제문화체육공원 시설안내판",
+      "배산 숲길 일대 / 모이는 곳 : 연제문화체육공원",
+      "배산 숲길 일대 / 모이는 곳 :",
+      "배산 숲길 일대 / 모이는 곳",
+      "배산 숲길 일대 / 모이는",
+      "배산 숲길 일대 /",
+      "배산 숲길 일대",
+      "배산 숲길",
+      "배산"
+    ],
+    "resolvedQuery": "배산",
+    "matchedType": "ROAD",
+    "confidence": "fallback",
+    "lat": 35.179996037993654,
+    "lng": 129.10443792157497
+  },
+  {
+    "title": "[진접읍] 2026년 6월 진접푸른숲도서관 성인 자원봉사 모집(오전)",
+    "rawAddress": "진접푸른숲도서관",
+    "normalizedCandidates": [
+      "진접푸른숲도서관"
+    ],
+    "resolvedQuery": "진접푸른숲도서관",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 37.71568860211245,
+    "lng": 127.19292235922138
+  },
+  {
+    "title": "[진접읍] 2026년 6월 진접푸른숲도서관 성인 자원봉사 모집(오후)",
+    "rawAddress": "진접푸른숲도서관",
+    "normalizedCandidates": [
+      "진접푸른숲도서관"
+    ],
+    "resolvedQuery": "진접푸른숲도서관",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 37.71568860211245,
+    "lng": 127.19292235922138
+  },
+  {
+    "title": "어르신 대상 문화 공연 자원봉사자 모집합니다.",
+    "rawAddress": "실버스테이트 요양원",
+    "normalizedCandidates": [
+      "실버스테이트 요양원",
+      "실버스테이트"
+    ],
+    "resolvedQuery": "실버스테이트 요양원",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 37.40146310046071,
+    "lng": 126.94810799969676
+  },
+  {
+    "title": "어르신 대상 문화 공연 자원봉사자 모집합니다.",
+    "rawAddress": "실버스테이트 요양원",
+    "normalizedCandidates": [
+      "실버스테이트 요양원",
+      "실버스테이트"
+    ],
+    "resolvedQuery": "실버스테이트 요양원",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 37.40146310046071,
+    "lng": 126.94810799969676
+  },
+  {
+    "title": "김포시육아종합지원센터 업무지원 (오전)",
+    "rawAddress": "김포시육아종합지원센터 운영실 및 공용 공간 (장난감 도서관, 아이사랑놀이터 등)",
+    "normalizedCandidates": [
+      "김포시육아종합지원센터 운영실 및 공용 공간",
+      "김포시육아종합지원센터 운영실 및 공용",
+      "김포시육아종합지원센터 운영실 및",
+      "김포시육아종합지원센터 운영실",
+      "김포시육아종합지원센터"
+    ],
+    "resolvedQuery": "김포시육아종합지원센터",
+    "matchedType": "PLACE",
+    "confidence": "fallback",
+    "lat": 37.64659092576522,
+    "lng": 126.67015680948484
+  },
+  {
+    "title": "[오전]대구약령시한의약박물관 한복문화체험실 자원봉사자 모집(6월 봉사)",
+    "rawAddress": "대구약령시한의약박물관 2층 한복문화체험실",
+    "normalizedCandidates": [
+      "대구약령시한의약박물관 2층 한복문화체험실",
+      "대구약령시한의약박물관 2층",
+      "대구약령시한의약박물관"
+    ],
+    "resolvedQuery": "대구약령시한의약박물관 2층",
+    "matchedType": "PLACE",
+    "confidence": "fallback",
+    "lat": 35.86852879978769,
+    "lng": 128.58990400085824
+  },
+  {
+    "title": "[오후]대구약령시한의약박물관 한복문화체험실 자원봉사자 모집(6월 봉사)",
+    "rawAddress": "대구약령시한의약박물관 2층 한복문화체험실",
+    "normalizedCandidates": [
+      "대구약령시한의약박물관 2층 한복문화체험실",
+      "대구약령시한의약박물관 2층",
+      "대구약령시한의약박물관"
+    ],
+    "resolvedQuery": "대구약령시한의약박물관 2층",
+    "matchedType": "PLACE",
+    "confidence": "fallback",
+    "lat": 35.86852879978769,
+    "lng": 128.58990400085824
+  },
+  {
+    "title": "김포시육아종합지원센터 업무지원 (오후)",
+    "rawAddress": "김포시육아종합지원센터 운영실 및 공용 공간 (장난감 도서관, 아이사랑놀이터 등)",
+    "normalizedCandidates": [
+      "김포시육아종합지원센터 운영실 및 공용 공간",
+      "김포시육아종합지원센터 운영실 및 공용",
+      "김포시육아종합지원센터 운영실 및",
+      "김포시육아종합지원센터 운영실",
+      "김포시육아종합지원센터"
+    ],
+    "resolvedQuery": "김포시육아종합지원센터",
+    "matchedType": "PLACE",
+    "confidence": "fallback",
+    "lat": 37.64659092576522,
+    "lng": 126.67015680948484
+  },
+  {
+    "title": "[상계도서관] 시니어리터러시 프로그램 보조",
+    "rawAddress": "상계도서관",
+    "normalizedCandidates": [
+      "상계도서관"
+    ],
+    "resolvedQuery": "상계도서관",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 37.67851190050013,
+    "lng": 127.05191800003517
+  },
+  {
+    "title": "청년 오디오북 낭독봉사 '심우장愛書' 2기 참여자 모집",
+    "rawAddress": "만해 한용운 심우장(6월 22일), 성북역사문화센터(6월 29일), 성북점자도서관 녹음실(7월 6일)",
+    "normalizedCandidates": [
+      "만해 한용운 심우장 , 성북역사문화센터 , 성북점자도서관 녹음실",
+      "만해 한용운 심우장 , 성북역사문화센터 , 성북점자도서관",
+      "만해 한용운 심우장 , 성북역사문화센터 ,",
+      "만해 한용운 심우장 , 성북역사문화센터",
+      "만해 한용운 심우장 ,",
+      "만해 한용운 심우장",
+      "만해 한용운",
+      "만해"
+    ],
+    "resolvedQuery": "만해 한용운 심우장 ,",
+    "matchedType": "PLACE",
+    "confidence": "fallback",
+    "lat": 37.59361390091482,
+    "lng": 126.99164499985208
+  },
+  {
+    "title": "(오전) 2026 키즈아트페어 전시 도우미",
+    "rawAddress": "강릉아트센터 전시실 1,2,3",
+    "normalizedCandidates": [
+      "강릉아트센터 전시실 1,2,3",
+      "서울 강릉아트센터 전시실 1,2,3",
+      "강릉아트센터 전시실",
+      "강릉아트센터"
+    ],
+    "resolvedQuery": "강릉아트센터",
+    "matchedType": "PLACE",
+    "confidence": "fallback",
+    "lat": 37.77208993074724,
+    "lng": 128.89573599954684
+  },
+  {
+    "title": "김포시육아종합지원센터 풍무분소 업무 지원(오후)",
+    "rawAddress": "김포시육아종합지원센터 풍무분소 운영실 및 공용 공간 (아이사랑놀이터, 장난감도서관 등)",
+    "normalizedCandidates": [
+      "김포시육아종합지원센터 풍무분소 운영실 및 공용 공간",
+      "서울 김포시육아종합지원센터 풍무분소 운영실 및 공용 공간",
+      "김포시육아종합지원센터 풍무분소 운영실 및 공용",
+      "김포시육아종합지원센터 풍무분소 운영실 및",
+      "김포시육아종합지원센터 풍무분소 운영실",
+      "김포시육아종합지원센터 풍무분소",
+      "김포시육아종합지원센터"
+    ],
+    "resolvedQuery": "김포시육아종합지원센터",
+    "matchedType": "PLACE",
+    "confidence": "fallback",
+    "lat": 37.64659092576522,
+    "lng": 126.67015680948484
+  },
+  {
+    "title": "김포시육아종합지원센터 풍무분소 업무 지원(오전)",
+    "rawAddress": "김포시육아종합지원센터 풍무분소 운영실 및 공용 공간 (아이사랑놀이터, 장난감도서관 등)",
+    "normalizedCandidates": [
+      "김포시육아종합지원센터 풍무분소 운영실 및 공용 공간",
+      "서울 김포시육아종합지원센터 풍무분소 운영실 및 공용 공간",
+      "김포시육아종합지원센터 풍무분소 운영실 및 공용",
+      "김포시육아종합지원센터 풍무분소 운영실 및",
+      "김포시육아종합지원센터 풍무분소 운영실",
+      "김포시육아종합지원센터 풍무분소",
+      "김포시육아종합지원센터"
+    ],
+    "resolvedQuery": "김포시육아종합지원센터",
+    "matchedType": "PLACE",
+    "confidence": "fallback",
+    "lat": 37.64659092576522,
+    "lng": 126.67015680948484
+  },
+  {
+    "title": "아이사랑꿈터 연수구1호점 오전자원봉사자 모집안내",
+    "rawAddress": "아이사랑꿈터 연수구1호점",
+    "normalizedCandidates": [
+      "아이사랑꿈터 연수구1호점",
+      "서울 아이사랑꿈터 연수구1호점",
+      "아이사랑꿈터"
+    ],
+    "resolvedQuery": "아이사랑꿈터 연수구1호점",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 37.409848404321764,
+    "lng": 126.66461496060884
+  },
+  {
+    "title": "아이사랑꿈터 연수구1호점 오후자원봉사자 모집안내",
+    "rawAddress": "아이사랑꿈터 연수구1호점",
+    "normalizedCandidates": [
+      "아이사랑꿈터 연수구1호점",
+      "서울 아이사랑꿈터 연수구1호점",
+      "아이사랑꿈터"
+    ],
+    "resolvedQuery": "아이사랑꿈터 연수구1호점",
+    "matchedType": "PLACE",
+    "confidence": "exact",
+    "lat": 37.409848404321764,
+    "lng": 126.66461496060884
+  },
+  {
+    "title": "강원도박문제예방치유센터 업무지원",
+    "rawAddress": "강원도박문제예방치유센터",
+    "normalizedCandidates": [
+      "강원도박문제예방치유센터",
+      "서울 강원도박문제예방치유센터"
+    ],
+    "resolvedQuery": "서울",
+    "matchedType": "DISTRICT",
+    "confidence": "fallback",
+    "lat": 37.58901793708132,
+    "lng": 126.96977355216097
+  },
+  {
+    "title": "[굿윌스토어 안산상록점_사동/오전]장애인 근로자 업무 지원 및 보조",
+    "rawAddress": "경기도 안산시 상록구 용신로 244",
+    "normalizedCandidates": [
+      "경기도 안산시 상록구 용신로 244",
+      "경기도 안산시 상록구 용신로",
+      "안산시 상록구 용신로",
+      "경기도 안산시 상록구",
+      "안산시 상록구"
+    ],
+    "resolvedQuery": "경기도 안산시 상록구 용신로 244",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.30310386995959,
+    "lng": 126.84941870359938
+  },
+  {
+    "title": "[굿윌스토어 안산상록점_사동/오후]장애인 근로자 업무 지원 및 보조",
+    "rawAddress": "경기도 안산시 상록구 용신로 244",
+    "normalizedCandidates": [
+      "경기도 안산시 상록구 용신로 244",
+      "경기도 안산시 상록구 용신로",
+      "안산시 상록구 용신로",
+      "경기도 안산시 상록구",
+      "안산시 상록구"
+    ],
+    "resolvedQuery": "경기도 안산시 상록구 용신로 244",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.30310386995959,
+    "lng": 126.84941870359938
+  },
+  {
+    "title": "[안양시 실버스테이트요양원] ★어르신들과 함께하는 업무 지원 자원봉사자 모집합니다★",
+    "rawAddress": "경기도 안양시 동안구 관악대로 225 실버스테이트 요양원",
+    "normalizedCandidates": [
+      "경기도 안양시 동안구 관악대로 225 실버스테이트 요양원",
+      "경기도 안양시 동안구 관악대로 225 실버스테이트",
+      "안양시 동안구 관악대로 225 실버스테이트",
+      "경기도 안양시 동안구 관악대로 225",
+      "안양시 동안구 관악대로 225",
+      "경기도 안양시 동안구 관악대로",
+      "안양시 동안구 관악대로",
+      "경기도 안양시 동안구",
+      "안양시 동안구"
+    ],
+    "resolvedQuery": "경기도 안양시 동안구 관악대로 225 실버스테이트 요양원",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.40146757977526,
+    "lng": 126.94809664670532
+  },
+  {
+    "title": "[굿윌스토어 안산상록점_사동/저녁]장애인 근로자 업무 지원 및 보조",
+    "rawAddress": "경기도 안산시 상록구 용신로 244",
+    "normalizedCandidates": [
+      "경기도 안산시 상록구 용신로 244",
+      "경기도 안산시 상록구 용신로",
+      "안산시 상록구 용신로",
+      "경기도 안산시 상록구",
+      "안산시 상록구"
+    ],
+    "resolvedQuery": "경기도 안산시 상록구 용신로 244",
+    "matchedType": "ROAD",
+    "confidence": "exact",
+    "lat": 37.30310386995959,
+    "lng": 126.84941870359938
+  },
+  {
+    "title": "미술관 전시장 지킴이",
+    "rawAddress": "영은미술관 전시장 내부",
+    "normalizedCandidates": [
+      "영은미술관 전시장 내부",
+      "서울 영은미술관 전시장 내부",
+      "영은미술관 전시장",
+      "영은미술관"
+    ],
+    "resolvedQuery": "영은미술관",
+    "matchedType": "ROAD",
+    "confidence": "fallback",
+    "lat": 37.41184491492253,
+    "lng": 127.26832899289667
+  }
+]
