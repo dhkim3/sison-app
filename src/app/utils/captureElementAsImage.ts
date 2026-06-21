@@ -487,6 +487,7 @@ export async function captureElementAsPng(element: HTMLElement, scale = 2, optio
       return await captureElementWithCanvasFallback(element, width, height, Math.min(scale, 2), backgroundColor);
     }
 
+    try {
     const clone = element.cloneNode(true) as HTMLElement;
     copyComputedStyles(element, clone);
     await inlineImages(element, clone);
@@ -523,6 +524,13 @@ export async function captureElementAsPng(element: HTMLElement, scale = 2, optio
     context.drawImage(image, 0, 0, width, height);
 
     return await canvasToPngBlob(canvas);
+    } catch (svgError) {
+      // Some Android/Samsung Internet builds fail on the SVG foreignObject path
+      // (tainted canvas / foreignObject rendering limits). Fall back to the
+      // manual canvas renderer so downloads still succeed there.
+      console.warn('foreignObject capture failed, falling back to canvas renderer', svgError);
+      return await captureElementWithCanvasFallback(element, width, height, Math.min(scale, 2), backgroundColor);
+    }
   } catch (error) {
     console.error('captureElementAsPng failed', { error, debugInfo });
     throw error;

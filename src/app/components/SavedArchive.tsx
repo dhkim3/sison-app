@@ -374,7 +374,7 @@ export function SavedArchive({
                 <>
                   <div className="mb-4">
                     <p className="text-[12px] text-[#aaa]">
-                      여행 중 만난 순간들
+                      {stories.length}개의 스토리
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -504,7 +504,7 @@ export function SavedArchive({
       )}
 
       <StoryDetailSheet
-        story={selectedStory}
+        story={selectedStory ? { ...selectedStory, isMine: true } : null}
         isOpen={selectedStory !== null}
         onClose={() => setSelectedStory(null)}
         isLiked={selectedStory ? storyInteractions.isStoryLiked(selectedStory.id) : false}
@@ -514,6 +514,7 @@ export function SavedArchive({
         onToggleLike={(story) => storyInteractions.onToggleStoryLike(story.id)}
         onOpenComments={setCommentStory}
         onAddComment={(story, body) => storyInteractions.onAddStoryComment(story.id, body)}
+        onDeleteComment={(story, commentId) => storyInteractions.onDeleteStoryComment(story.id, commentId)}
         onDelete={handleDeleteStory}
       />
 

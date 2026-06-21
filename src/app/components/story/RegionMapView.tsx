@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { ArrowLeft, Plus } from 'lucide-react';
 import { BottomTabBar } from '../BottomTabBar';
 import { PageShell } from '../PageShell';
@@ -16,6 +16,8 @@ interface RegionMapViewProps {
   onSelectRegion: (region: string | null) => void;
   storyInteractions: StoryInteractionProps;
   userStories?: StoryItem[];
+  onCreateCard?: (story: StoryItem) => void;
+  onDeleteStory?: (story: StoryItem) => void;
 }
 
 interface RegionMarker {
@@ -67,6 +69,39 @@ const mapViewBox = {
 const storyListPageSize = 10;
 
 const storyImage = (fileName: string) => `/activity-images/${fileName}`;
+
+// 지역 중심 좌표 (위치정보법 대응: GPS 좌표는 단말기 안에서만 사용하고 서버로 전송하지 않음)
+const REGION_COORDS: Record<string, [number, number]> = {
+  서울: [37.5665, 126.978],
+  경기: [37.41, 127.52],
+  인천: [37.456, 126.705],
+  강원: [37.8, 128.3],
+  충북: [36.8, 127.7],
+  충남: [36.5, 126.8],
+  대전: [36.35, 127.385],
+  전북: [35.7, 127.1],
+  전남: [34.9, 126.9],
+  광주: [35.16, 126.851],
+  경북: [36.3, 128.8],
+  대구: [35.871, 128.601],
+  경남: [35.4, 128.2],
+  울산: [35.539, 129.311],
+  부산: [35.18, 129.075],
+  제주: [33.5, 126.53],
+};
+
+const findNearestRegion = (latitude: number, longitude: number) => {
+  let nearest: string | null = null;
+  let nearestDistance = Infinity;
+  for (const [name, [lat, lng]] of Object.entries(REGION_COORDS)) {
+    const distance = (latitude - lat) ** 2 + (longitude - lng) ** 2;
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      nearest = name;
+    }
+  }
+  return nearest;
+};
 
 const createMockStory = (
   id: number,
@@ -164,13 +199,31 @@ export function RegionMapView({
   onSelectRegion,
   storyInteractions,
   userStories = [],
+  onCreateCard,
+  onDeleteStory,
 }: RegionMapViewProps) {
   const [selectedStory, setSelectedStory] = useState<StoryItem | null>(null);
   const [commentStory, setCommentStory] = useState<StoryItem | null>(null);
   const [activeStoryList, setActiveStoryList] = useState<'recent' | 'current-location' | null>(null);
   const [recentFullStoryCount, setRecentFullStoryCount] = useState(storyListPageSize);
   const stories = [...userStories, ...mockStories];
-  const currentRegion = '부산';
+  const [currentRegion, setCurrentRegion] = useState('부산');
+
+  // 단말기 GPS로 현재 위치를 가져와 '가장 가까운 지역'으로만 변환해 사용한다.
+  // 좌표 원본은 서버로 전송/저장하지 않는다(위치정보법 대응). 거부/실패 시 기본값 유지.
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const nearest = findNearestRegion(position.coords.latitude, position.coords.longitude);
+        if (nearest) setCurrentRegion(nearest);
+      },
+      () => {
+        /* 권한 거부·실패: 기본 지역 유지 */
+      },
+      { timeout: 8000, maximumAge: 600000 },
+    );
+  }, []);
   const visibleStories = selectedRegion
     ? stories.filter((s) => s.region === selectedRegion)
     : stories;
@@ -559,6 +612,15 @@ export function RegionMapView({
         onToggleLike={(story) => storyInteractions.onToggleStoryLike(story.id)}
         onOpenComments={setCommentStory}
         onAddComment={(story, body) => storyInteractions.onAddStoryComment(story.id, body)}
+        onDeleteComment={(story, commentId) => storyInteractions.onDeleteStoryComment(story.id, commentId)}
+        onCreateCard={(story) => {
+          setSelectedStory(null);
+          onCreateCard?.(story);
+        }}
+        onDelete={(story) => {
+          setSelectedStory(null);
+          onDeleteStory?.(story);
+        }}
       />
 
       <StoryCommentSheet

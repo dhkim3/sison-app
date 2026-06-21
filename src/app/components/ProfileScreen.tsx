@@ -18,13 +18,15 @@ import type { SavedArchiveTab } from './SavedArchive';
 
 interface ProfileScreenProps {
   onNavigate: (screen: string, options?: { savedTab?: SavedArchiveTab }) => void;
+  nickname?: string;
+  onNicknameChange?: (nickname: string) => void;
 }
 
-export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
+export function ProfileScreen({ onNavigate, nickname, onNicknameChange }: ProfileScreenProps) {
   const [activeSettingsDetail, setActiveSettingsDetail] = useState<SettingsDetail | null>(null);
   const [profile, setProfile] = useState({
     imageUrl: 'https://images.unsplash.com/photo-1516962126636-27ad087061cc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=200',
-    nickname: '여행자',
+    nickname: nickname ?? '여행자',
     bio: '여행 속 작은 순간들을 기록하고 있어요',
   });
   const [profileImageObjectUrl, setProfileImageObjectUrl] = useState<string | null>(null);
@@ -126,6 +128,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
 
     setProfile(nextProfile);
     setProfileDraft(nextProfile);
+    onNicknameChange?.(nextProfile.nickname);
     setIsProfileEditorOpen(false);
   };
 

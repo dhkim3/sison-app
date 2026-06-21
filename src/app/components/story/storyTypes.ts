@@ -17,4 +17,5 @@ export interface StoryItem {
   activityDate?: string;
   createdAt?: string;
   tags?: string[];
+  isMine?: boolean;
 }

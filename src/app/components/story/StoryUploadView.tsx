@@ -46,8 +46,13 @@ export function StoryUploadView({
     const file = event.target.files?.[0];
     if (!file || !file.type.startsWith('image/')) return;
 
-    const previewUrl = URL.createObjectURL(file);
-    onPhotosChange([previewUrl]);
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        onPhotosChange([reader.result]);
+      }
+    };
+    reader.readAsDataURL(file);
     event.target.value = '';
   };
 
@@ -226,16 +231,6 @@ export function StoryUploadView({
               className="w-full bg-[#2a2a2a] text-white py-3.5 rounded-xl transition-all hover:bg-[#1a1a1a] text-[14px] font-medium shadow-[0_1px_3px_rgba(0,0,0,0.1)]"
             >
               업로드
-            </button>
-
-            <button
-              type="button"
-              onClick={onCreateCard}
-              disabled={photos.length === 0}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#17233d_0%,#2f4d78_52%,#6a5aa8_100%)] py-3.5 text-[14px] font-medium text-white shadow-[0_8px_18px_rgba(50,68,112,0.14)] transition-all hover:brightness-[1.04] active:scale-[0.99] disabled:bg-none disabled:bg-[#f1f1ec] disabled:text-[#b8b5ad] disabled:shadow-none disabled:hover:brightness-100 disabled:active:scale-100"
-            >
-              <Sparkles className="w-4.5 h-4.5" strokeWidth={2} />
-              <span>나만의 AI 카드 만들기</span>
             </button>
           </section>
         </div>

@@ -14,10 +14,13 @@ import {
   type ActivitySaveRecord,
 } from './activitySaveState';
 import {
+  getDeviceKey,
   initialStoryComments,
+  storyApi,
   type StoryComment,
   type StoryInteractionProps,
 } from './storyInteractionState';
+import type { StoryItem } from './components/story/storyTypes';
 import {
   addRecentSearch,
   initialSearchState,
@@ -46,6 +49,9 @@ export default function App() {
   const [restoredDetailActivity, setRestoredDetailActivity] = useState<ActivitySaveRecord | null>(null);
   const [saveFeedback, setSaveFeedback] = useState<{ message: string; isVisible: boolean } | null>(null);
   const [savedArchiveTab, setSavedArchiveTab] = useState<SavedArchiveTab>(0);
+  const [deviceKey] = useState(() => getDeviceKey());
+  const [userStories, setUserStories] = useState<StoryItem[]>([]);
+  const [profileNickname, setProfileNickname] = useState('여행자');
   const saveFeedbackTimers = useRef<number[]>([]);
 
   useLayoutEffect(() => {
@@ -80,6 +86,31 @@ export default function App() {
   useEffect(() => () => {
     saveFeedbackTimers.current.forEach((timer) => window.clearTimeout(timer));
   }, []);
+
+  // 앱 시작 시 DB에서 스토리/좋아요/댓글 복원 (시드 댓글 위에 DB 댓글을 덧붙임)
+  useEffect(() => {
+    if (!deviceKey) return;
+    let cancelled = false;
+    storyApi
+      .list(deviceKey)
+      .then((data) => {
+        if (cancelled) return;
+        setUserStories(data.stories);
+        setLikedStoryIds(data.likedStoryIds);
+        setStoryComments((currentComments) => {
+          const merged: Record<number, StoryComment[]> = { ...currentComments };
+          for (const [storyId, list] of Object.entries(data.comments)) {
+            const id = Number(storyId);
+            merged[id] = [...(initialStoryComments[id] ?? []), ...list];
+          }
+          return merged;
+        });
+      })
+      .catch((error) => console.error('story list load failed', error));
+    return () => {
+      cancelled = true;
+    };
+  }, [deviceKey]);
 
   const showSaveFeedback = (message: string) => {
     saveFeedbackTimers.current.forEach((timer) => window.clearTimeout(timer));
@@ -216,35 +247,74 @@ export default function App() {
     return [...activities, activity];
   }, []);
 
+  const handleCreateStory = (story: StoryItem) => {
+    const ownedStory: StoryItem = { ...story, author: profileNickname, authorName: profileNickname };
+    setUserStories((current) => [ownedStory, ...current]);
+    if (deviceKey) {
+      storyApi.createStory(deviceKey, ownedStory).catch((error) => console.error('create story failed', error));
+    }
+  };
+
+  const handleDeleteStory = (story: StoryItem) => {
+    setUserStories((current) => current.filter((item) => item.id !== story.id));
+    setLikedStoryIds((currentIds) => currentIds.filter((id) => id !== story.id));
+    setStoryComments((currentComments) => {
+      if (!currentComments[story.id]) return currentComments;
+      const nextComments = { ...currentComments };
+      delete nextComments[story.id];
+      return nextComments;
+    });
+    if (deviceKey) {
+      storyApi.deleteStory(deviceKey, story.id).catch((error) => console.error('delete story failed', error));
+    }
+  };
+
   const storyInteractions: StoryInteractionProps = {
     isStoryLiked: (storyId) => likedStoryIds.includes(storyId),
     getStoryLikeCount: (story) => story.likes + (likedStoryIds.includes(story.id) ? 1 : 0),
     getStoryCommentCount: (story) => storyComments[story.id]?.length ?? story.comments,
     getStoryComments: (storyId) => storyComments[storyId] ?? [],
     onToggleStoryLike: (storyId) => {
+      const isLiked = likedStoryIds.includes(storyId);
       setLikedStoryIds((currentIds) =>
         currentIds.includes(storyId)
           ? currentIds.filter((id) => id !== storyId)
-          : [...currentIds, storyId]
+          : [...currentIds, storyId],
       );
+      if (deviceKey) {
+        (isLiked ? storyApi.unlike : storyApi.like)(deviceKey, storyId).catch((error) =>
+          console.error('like sync failed', error),
+        );
+      }
     },
     onAddStoryComment: (storyId, body) => {
+      const text = body.trim();
+      if (!text) return;
+
+      const tempId = Date.now();
       setStoryComments((currentComments) => {
         const comments = currentComments[storyId] ?? [];
-
         return {
           ...currentComments,
-          [storyId]: [
-            ...comments,
-            {
-              id: Date.now(),
-              author: '나',
-              body,
-              time: '방금',
-            },
-          ],
+          [storyId]: [...comments, { id: tempId, author: profileNickname, body: text, time: '방금', isMine: true }],
         };
       });
+
+      if (deviceKey) {
+        storyApi
+          .addComment(deviceKey, storyId, profileNickname, text)
+          .then((response) => {
+            const real = (response as { comment?: StoryComment }).comment;
+            if (!real) return;
+            setStoryComments((currentComments) => ({
+              ...currentComments,
+              [storyId]: (currentComments[storyId] ?? []).map((comment) =>
+                comment.id === tempId ? { ...comment, id: real.id, time: real.time, isMine: true } : comment,
+              ),
+            }));
+          })
+          .catch((error) => console.error('add comment failed', error));
+      }
     },
     onUpdateStoryComment: (storyId, commentId, body) => {
       const nextBody = body.trim();
@@ -256,7 +326,7 @@ export default function App() {
         return {
           ...currentComments,
           [storyId]: comments.map((comment) =>
-            comment.id === commentId && comment.author === '나'
+            comment.id === commentId && comment.isMine
               ? { ...comment, body: nextBody, edited: true }
               : comment
           ),
@@ -269,9 +339,13 @@ export default function App() {
 
         return {
           ...currentComments,
-          [storyId]: comments.filter((comment) => comment.id !== commentId || comment.author !== '나'),
+          [storyId]: comments.filter((comment) => !(comment.id === commentId && comment.isMine)),
         };
       });
+
+      if (deviceKey) {
+        storyApi.deleteComment(deviceKey, commentId).catch((error) => console.error('delete comment failed', error));
+      }
     },
     onRemoveStory: (storyId) => {
       setLikedStoryIds((currentIds) => currentIds.filter((id) => id !== storyId));
@@ -315,7 +389,16 @@ export default function App() {
           onExitComplete={handleAIRecommendationExitComplete}
         />
       )}
-      {currentScreen === 'story' && <StoryCreation onNavigate={handleNavigate} storyInteractions={storyInteractions} />}
+      {currentScreen === 'story' && (
+        <StoryCreation
+          onNavigate={handleNavigate}
+          storyInteractions={storyInteractions}
+          userStories={userStories}
+          profileNickname={profileNickname}
+          onCreateStory={handleCreateStory}
+          onDeleteStory={handleDeleteStory}
+        />
+      )}
       {currentScreen === 'saved' && (
         <SavedArchive
           onNavigate={handleNavigate}
@@ -327,7 +410,13 @@ export default function App() {
           onArchiveTabChange={setSavedArchiveTab}
         />
       )}
-      {currentScreen === 'profile' && <ProfileScreen onNavigate={handleNavigate} />}
+      {currentScreen === 'profile' && (
+        <ProfileScreen
+          onNavigate={handleNavigate}
+          nickname={profileNickname}
+          onNicknameChange={setProfileNickname}
+        />
+      )}
 
       {restoredDetailActivity && aiRecommendationState === 'closed' && (
         <EnhancedDetailBottomSheet

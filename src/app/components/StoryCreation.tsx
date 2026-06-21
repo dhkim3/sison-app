@@ -3,18 +3,22 @@ import { RegionMapView } from './story/RegionMapView';
 import { MyActivitiesView } from './story/MyActivitiesView';
 import { StoryUploadView } from './story/StoryUploadView';
 import { CardCreationView } from './story/CardCreationView';
-import type { StoryInteractionProps } from '../storyInteractionState';
+import { storyApi, type StoryInteractionProps } from '../storyInteractionState';
 import type { StoryItem } from './story/storyTypes';
 import { scrollToTop } from '../utils/scrollToTop';
 
 interface StoryCreationProps {
   onNavigate: (screen: string) => void;
   storyInteractions: StoryInteractionProps;
+  userStories: StoryItem[];
+  profileNickname: string;
+  onCreateStory: (story: StoryItem) => void;
+  onDeleteStory: (story: StoryItem) => void;
 }
 
 type StoryView = 'map' | 'my-activities' | 'upload' | 'card';
 
-export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationProps) {
+export function StoryCreation({ onNavigate, storyInteractions, userStories, profileNickname, onCreateStory, onDeleteStory }: StoryCreationProps) {
   const [currentView, setCurrentView] = useState<StoryView>('map');
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
@@ -23,7 +27,7 @@ export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationPr
   const [storyText, setStoryText] = useState('');
   const [didTrySubmitStory, setDidTrySubmitStory] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
-  const [createdStories, setCreatedStories] = useState<StoryItem[]>([]);
+  const [cardStoryId, setCardStoryId] = useState<number | undefined>(undefined);
 
   useLayoutEffect(() => {
     scrollToTop();
@@ -207,10 +211,37 @@ export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationPr
     setCurrentView('card');
   };
 
-  const handleSaveStory = () => {
+  // C-2: 내가 올린 스토리에서 'AI 카드 제작'으로 진입
+  const handleCreateCardFromStory = (story: StoryItem) => {
+    setSelectedActivity({
+      id: story.id,
+      title: story.activityTitle ?? story.relatedActivity ?? story.title,
+      region: story.region,
+      location: story.location ?? story.region,
+      date: story.activityDate ?? '',
+      imageUrl: story.imageUrl,
+    });
+    setUploadedPhotos([story.imageUrl]);
+    setStoryTitle(story.title);
+    setCardStoryId(story.id);
+    setCurrentView('card');
+  };
+
+  const handleSaveStory = async () => {
     if (storyTitle.trim().length === 0) {
       setDidTrySubmitStory(true);
       return;
+    }
+
+    setSaveMessage('스토리를 저장하고 있어요…');
+
+    let imageUrl = uploadedPhotos[0] ?? selectedActivity?.imageUrl ?? '';
+    if (imageUrl.startsWith('data:')) {
+      try {
+        imageUrl = await storyApi.uploadPhoto(imageUrl);
+      } catch (error) {
+        console.error('photo upload failed', error);
+      }
     }
 
     const nextStory: StoryItem = {
@@ -219,23 +250,22 @@ export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationPr
       region: selectedActivity?.region ?? '여행',
       city: selectedActivity?.location?.split(' ')[1] ?? selectedActivity?.region ?? '여행',
       location: selectedActivity?.location ?? selectedActivity?.region ?? '여행지',
-      author: '여행자',
-      authorName: '여행자',
+      author: profileNickname,
+      authorName: profileNickname,
       likes: 0,
       likeCount: 0,
       comments: 0,
-      imageUrl: uploadedPhotos[0] ?? selectedActivity?.imageUrl ?? '',
+      imageUrl,
       body: storyText.trim(),
       content: storyText.trim(),
       relatedActivity: selectedActivity?.title,
       activityTitle: selectedActivity?.title,
       activityDate: selectedActivity?.date,
       createdAt: '방금 전',
-      tags: [selectedActivity?.region, '나의기록'].filter(Boolean),
+      tags: [],
     };
 
-    console.log('story uploaded', nextStory);
-    setCreatedStories((currentStories) => [nextStory, ...currentStories]);
+    onCreateStory(nextStory);
     setSaveMessage('스토리가 저장되었어요.');
     window.setTimeout(() => {
       handleBackToMap(true);
@@ -251,7 +281,9 @@ export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationPr
           selectedRegion={selectedRegion}
           onSelectRegion={setSelectedRegion}
           storyInteractions={storyInteractions}
-          userStories={createdStories}
+          userStories={userStories}
+          onCreateCard={handleCreateCardFromStory}
+          onDeleteStory={onDeleteStory}
         />
       )}
 
@@ -292,7 +324,9 @@ export function StoryCreation({ onNavigate, storyInteractions }: StoryCreationPr
           activity={selectedActivity}
           photo={uploadedPhotos[0]}
           storyTitle={storyTitle}
-          onBack={() => setCurrentView('upload')}
+          storyId={cardStoryId}
+          onBack={() => handleBackToMap()}
+          onSaved={() => handleBackToMap()}
           onNavigate={onNavigate}
         />
       )}

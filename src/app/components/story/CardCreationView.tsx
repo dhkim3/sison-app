@@ -4,16 +4,19 @@ import { BottomTabBar } from '../BottomTabBar';
 import { PageShell } from '../PageShell';
 import { getCompactLocationLabel } from '../TravelCardCarousel';
 import { captureElementAsPng, downloadBlob } from '../../utils/captureElementAsImage';
+import { getDeviceKey, storyApi } from '../../storyInteractionState';
 
 interface CardCreationViewProps {
   activity: any;
   photo: string;
   storyTitle?: string;
+  storyId?: number;
   onBack: () => void;
+  onSaved?: () => void;
   onNavigate: (screen: string) => void;
 }
 
-const BASE_FRAMES = ['기본', '바다', '숲', '노을', '도시'];
+const BASE_FRAMES = ['기본', '바다', '숲', '노을', '도시', '블랙'];
 const AI_FRAME = 'AI';
 
 // Quiet editorial gradients for AI-generated frames
@@ -27,7 +30,9 @@ export function CardCreationView({
   activity,
   photo,
   storyTitle = '',
+  storyId,
   onBack,
+  onSaved,
   onNavigate,
 }: CardCreationViewProps) {
   const [selectedFrame, setSelectedFrame] = useState<string>('기본');
@@ -37,11 +42,15 @@ export function CardCreationView({
   const [aiVariantIndex, setAiVariantIndex] = useState(AI_FRAME_VARIANTS.length - 1);
   const [showAIWave, setShowAIWave] = useState(false);
   const [downloadMessage, setDownloadMessage] = useState('');
+  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
   const cardPreviewRef = useRef<HTMLDivElement | null>(null);
   const genTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const deviceKey = getDeviceKey();
 
   const compactLocation = getCompactLocationLabel(activity.location) || activity.region;
   const cardTitle = storyTitle.trim() || `"${activity.region}에서 남긴 작은 시선"`;
+  const isDarkFrame = selectedFrame === '블랙';
 
   useEffect(() => {
     return () => {
@@ -49,34 +58,68 @@ export function CardCreationView({
     };
   }, []);
 
-  const handleGenerateAIFrame = () => {
-    if (isGenerating) return;
-    if (genTimerRef.current) clearTimeout(genTimerRef.current);
+  // 사진을 OpenAI가 접근 가능한 절대 URL로 변환 (data: → Blob 업로드, 상대경로 → origin 부착)
+  const resolvePhotoUrl = async () => {
+    if (photo.startsWith('data:')) return await storyApi.uploadPhoto(photo);
+    if (/^https?:\/\//.test(photo)) return photo;
+    return `${window.location.origin}${photo.startsWith('/') ? '' : '/'}${photo}`;
+  };
 
-    const nextIndex = (aiVariantIndex + 1) % AI_FRAME_VARIANTS.length;
-    setAiVariantIndex(nextIndex);
+  const handleGenerateAIFrame = async () => {
+    if (isGenerating) return;
+    setErrorMessage('');
+    setAiVariantIndex((aiVariantIndex + 1) % AI_FRAME_VARIANTS.length);
     setIsGenerating(true);
     setShowAIWave(true);
 
-    genTimerRef.current = setTimeout(() => {
-      setShowAIWave(false);
-      setIsGenerating(false);
+    const start = Date.now();
+    try {
+      const photoUrl = await resolvePhotoUrl();
+      const result = await storyApi.generateCard(deviceKey, {
+        storyId,
+        photoUrl,
+        activity: activity.title ?? activity.activityTitle ?? '',
+        region: activity.region ?? '',
+        title: cardTitle,
+        date: activity.date ?? activity.activityDate ?? '',
+        templateType: 'ai',
+      });
+      console.log(`[AI card] generated in ${result.elapsedMs ?? Date.now() - start}ms`);
+      setGeneratedImageUrl(result.url);
       setHasGeneratedAIFrame(true);
       setSelectedFrame(AI_FRAME);
-    }, 2000);
+    } catch (error) {
+      console.error('AI card generate failed', error);
+      const message = error instanceof Error ? error.message : '';
+      setErrorMessage(/준비 중/.test(message) ? message : 'AI 카드를 만들지 못했어요. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setShowAIWave(false);
+      setIsGenerating(false);
+    }
   };
 
   const handleDownload = async () => {
     try {
-      if (!cardPreviewRef.current) throw new Error('Card preview unavailable');
-      const blob = await captureElementAsPng(cardPreviewRef.current);
-      downloadBlob(blob, `sison-travel-card-${activity.id ?? 'my-card'}.png`);
+      const isAiCard = selectedFrame === AI_FRAME && Boolean(generatedImageUrl);
+      let blob: Blob;
+      if (isAiCard && generatedImageUrl) {
+        // AI 카드는 생성 시 이미 Blob/STORY_CARDS에 저장됨 → 이미지를 받아 다운로드만 수행
+        blob = await (await fetch(generatedImageUrl)).blob();
+      } else {
+        if (!cardPreviewRef.current) throw new Error('Card preview unavailable');
+        blob = await captureElementAsPng(cardPreviewRef.current);
+      }
+      downloadBlob(blob, `sison-card-${storyId ?? activity.id ?? 'my-card'}.png`);
       setDownloadMessage('여행 카드를 저장했어요.');
+      window.setTimeout(() => {
+        setDownloadMessage('');
+        onSaved?.();
+      }, 1000);
     } catch (error) {
-      console.error('card preview download failed', error);
+      console.error('card save failed', error);
       setDownloadMessage('카드를 저장하지 못했어요. 잠시 후 다시 시도해주세요.');
+      window.setTimeout(() => setDownloadMessage(''), 2200);
     }
-    window.setTimeout(() => setDownloadMessage(''), 2200);
   };
 
   const getFrameGradient = () => {
@@ -90,6 +133,7 @@ export function CardCreationView({
       case '숲':   return 'from-green-50 to-emerald-50';
       case '노을': return 'from-orange-50 to-pink-50';
       case '도시': return 'from-gray-50 to-slate-50';
+      case '블랙': return 'from-[#1a1a1a] to-[#0a0a0a]';
       default:     return 'from-[#fdfcfa] to-[#f8f8f5]';
     }
   };
@@ -119,11 +163,6 @@ export function CardCreationView({
         <div className="px-6 py-5 space-y-6">
           {/* Frame Selection */}
           <section>
-            <div className="mb-3.5">
-              <h4 className="text-[#2a2a2a] mb-0.5 font-semibold">프레임 선택</h4>
-              <p className="text-[11px] text-[#bbb]">원하는 분위기를 골라보세요</p>
-            </div>
-
             <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2">
               {BASE_FRAMES.map((frame) => (
                 <button
@@ -183,25 +222,25 @@ export function CardCreationView({
                 {/* Photo */}
                 <div className="aspect-[3/4] bg-white rounded-lg overflow-hidden mb-3 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
                   <img
-                    src={photo}
+                    src={selectedFrame === AI_FRAME && generatedImageUrl ? generatedImageUrl : photo}
                     alt="Travel memory"
-                    className="w-full h-full object-cover"
+                    className={`w-full h-full ${selectedFrame === AI_FRAME && generatedImageUrl ? 'object-contain' : 'object-cover'}`}
                   />
                 </div>
 
                 {/* Card Content */}
                 <div className="px-1.5">
-                  <p className="line-clamp-1 text-[13px] font-semibold leading-snug text-[#2a2a2a]">
+                  <p className={`line-clamp-1 text-[13px] font-semibold leading-snug ${isDarkFrame ? 'text-white' : 'text-[#2a2a2a]'}`}>
                     {cardTitle}
                   </p>
                   <div className="mt-3 space-y-1">
                     {compactLocation && (
-                      <p className="text-[11px] font-medium leading-[1.35] text-[#6f6f6f]">{compactLocation}</p>
+                      <p className={`text-[11px] font-medium leading-[1.35] ${isDarkFrame ? 'text-white/80' : 'text-[#6f6f6f]'}`}>{compactLocation}</p>
                     )}
-                    <p className="text-[11px] font-normal leading-[1.35] text-[#b6b6b6]">{activity.date}</p>
+                    <p className={`text-[11px] font-normal leading-[1.35] ${isDarkFrame ? 'text-white/50' : 'text-[#b6b6b6]'}`}>{activity.date}</p>
                   </div>
-                  <div className="mt-3 border-t border-black/5 pt-2">
-                    <p className="text-center text-[11px] text-[#999] opacity-70">시선</p>
+                  <div className={`mt-3 border-t pt-2 ${isDarkFrame ? 'border-white/15' : 'border-black/5'}`}>
+                    <p className={`text-center text-[11px] opacity-70 ${isDarkFrame ? 'text-white/70' : 'text-[#999]'}`}>시선</p>
                   </div>
                 </div>
               </div>
@@ -231,6 +270,11 @@ export function CardCreationView({
                   : 'AI 프레임 만들기'}
               </span>
             </button>
+            {errorMessage && (
+              <p className="mt-2 text-center text-[12px] leading-5 text-[#b76e65]" role="status" aria-live="polite">
+                {errorMessage}
+              </p>
+            )}
           </section>
 
           {/* Download */}
@@ -241,7 +285,7 @@ export function CardCreationView({
               className="w-full bg-white border border-black/10 text-[#2a2a2a] py-3.5 rounded-xl transition-all hover:bg-[#f8f8f5] flex items-center justify-center gap-2 text-[14px] font-medium"
             >
               <Download className="w-4.5 h-4.5" strokeWidth={2} />
-              <span>다운로드</span>
+              <span>저장</span>
             </button>
 
             {downloadMessage && (
@@ -252,6 +296,16 @@ export function CardCreationView({
           </section>
         </div>
       </PageShell>
+
+      {isGenerating && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 px-8 backdrop-blur-sm">
+          <div className="w-full max-w-[280px] rounded-3xl bg-white px-6 py-7 text-center shadow-2xl">
+            <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-[#e8e6f5] border-t-[#7c74d6]" />
+            <p className="text-[15px] font-semibold text-[#2a2a2a]">AI 카드를 만들고 있어요</p>
+            <p className="mt-1.5 text-[12.5px] leading-5 text-[#999]">잠시 걸릴 수 있어요. 화면을 닫지 말고 기다려주세요.</p>
+          </div>
+        </div>
+      )}
 
       <BottomTabBar activeTab="story" onNavigate={onNavigate} />
     </>

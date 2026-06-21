@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Heart, MessageCircle, MapPin, Trash2, X } from 'lucide-react';
+import { Heart, MessageCircle, MapPin, Sparkles, Trash2, X } from 'lucide-react';
 import type { StoryComment } from '../../storyInteractionState';
 import type { StoryItem } from './storyTypes';
 import { useBottomSheetScrollLock } from '../useBottomSheetScrollLock';
@@ -15,6 +15,8 @@ interface StoryDetailSheetProps {
   onToggleLike?: (story: StoryItem) => void;
   onOpenComments?: (story: StoryItem) => void;
   onAddComment?: (story: StoryItem, body: string) => void;
+  onDeleteComment?: (story: StoryItem, commentId: number) => void;
+  onCreateCard?: (story: StoryItem) => void;
   onDelete?: (story: StoryItem) => void;
 }
 
@@ -29,6 +31,8 @@ export function StoryDetailSheet({
   onToggleLike,
   onOpenComments,
   onAddComment,
+  onDeleteComment,
+  onCreateCard,
   onDelete,
 }: StoryDetailSheetProps) {
   const [visibleCommentCount, setVisibleCommentCount] = useState(2);
@@ -79,7 +83,17 @@ export function StoryDetailSheet({
               <span>{story.region}</span>
             </div>
             <div className="flex items-center gap-2">
-              {onDelete && (
+              {story.isMine && onCreateCard && (
+                <button
+                  type="button"
+                  onClick={() => onCreateCard(story)}
+                  className="flex items-center gap-1.5 rounded-full bg-[#efecfc] px-3 py-1.5 text-[12px] font-medium text-[#5a56d0] transition-colors hover:bg-[#e5e1fa]"
+                >
+                  <Sparkles className="h-3.5 w-3.5" strokeWidth={2} />
+                  AI 카드 제작
+                </button>
+              )}
+              {story.isMine && onDelete && (
                 <button
                   type="button"
                   onClick={() => setIsDeleteConfirmOpen((isOpen) => !isOpen)}
@@ -102,7 +116,7 @@ export function StoryDetailSheet({
 
           {isDeleteConfirmOpen && (
             <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-[#f8f8f5] px-3.5 py-3">
-              <p className="text-[12.5px] text-[#777]">이 기록을 정리할까요?</p>
+              <p className="text-[12.5px] text-[#777]">이 스토리를 삭제할까요?</p>
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
@@ -143,7 +157,7 @@ export function StoryDetailSheet({
 
             <p className="mt-4 text-[15px] leading-7 text-[#5a5a5a]">{story.body}</p>
 
-            {(story.activityTitle || story.relatedActivity || story.location || story.activityDate || story.tags?.length) && (
+            {(story.activityTitle || story.relatedActivity || story.location || story.activityDate) && (
               <div className="mt-4 rounded-2xl bg-[#f8f8f5] px-4 py-3">
                 {(story.activityTitle || story.relatedActivity) && (
                   <p className="text-[13px] font-medium text-[#4f5f54]">
@@ -154,15 +168,6 @@ export function StoryDetailSheet({
                   <p className="mt-1 text-[12px] leading-5 text-[#8d8982]">
                     {[story.location, story.activityDate].filter(Boolean).join(' · ')}
                   </p>
-                )}
-                {story.tags && story.tags.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {story.tags.map((tag) => (
-                      <span key={tag} className="rounded-full bg-white px-2 py-1 text-[11px] text-[#8b958d]">
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
                 )}
               </div>
             )}
@@ -199,6 +204,15 @@ export function StoryDetailSheet({
                       <div className="flex items-center gap-2">
                         <p className="text-[12.5px] font-medium text-[#2a2a2a]">{comment.author}</p>
                         {comment.time && <p className="text-[11px] text-[#b0aca5]">{comment.time}</p>}
+                        {comment.isMine && onDeleteComment && (
+                          <button
+                            type="button"
+                            onClick={() => onDeleteComment(story, comment.id)}
+                            className="ml-auto text-[11px] text-[#b8867e] transition-opacity hover:opacity-70"
+                          >
+                            삭제
+                          </button>
+                        )}
                       </div>
                       <p className="mt-1 text-[13px] leading-6 text-[#666]">{comment.body}</p>
                     </div>
@@ -226,7 +240,7 @@ export function StoryDetailSheet({
                   value={draftComment}
                   onChange={(event) => setDraftComment(event.target.value)}
                   rows={1}
-                  placeholder="조용한 시선을 남겨보세요"
+                  placeholder={`${story.author}님에게 댓글 추가`}
                   className="min-h-[42px] flex-1 resize-none rounded-2xl border border-black/5 bg-[#f8f8f5] px-4 py-3 text-[13px] leading-5 text-[#2a2a2a] outline-none placeholder:text-[#bbb] focus:bg-white focus:ring-1 focus:ring-[#a8d5ba]/45"
                 />
                 <button

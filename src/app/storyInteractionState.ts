@@ -9,6 +9,7 @@ export interface StoryComment {
   time: string;
   createdAt?: string;
   edited?: boolean;
+  isMine?: boolean;
 }
 
 const createComment = (id: number, authorName: string, content: string, createdAt: string): StoryComment => ({
@@ -247,7 +248,7 @@ const storyCommentSeeds: Record<number, Array<Omit<StoryComment, 'id'>>> = {
 export const initialStoryComments: Record<number, StoryComment[]> = Object.fromEntries(
   Object.entries(storyCommentSeeds).map(([storyId, comments]) => [
     Number(storyId),
-    comments.map((comment, index) => createComment(index + 1, comment.author, comment.body, comment.time)),
+    comments.map((comment, index) => createComment(-(index + 1), comment.author, comment.body, comment.time)),
   ]),
 );
 
@@ -262,3 +263,69 @@ export interface StoryInteractionProps {
   onDeleteStoryComment: (storyId: number, commentId: number) => void;
   onRemoveStory?: (storyId: number) => void;
 }
+
+// ---- device identity (no auth) ----
+const DEVICE_KEY_STORAGE = 'sison_device_key';
+
+export const getDeviceKey = (): string => {
+  if (typeof window === 'undefined') return '';
+  try {
+    let key = window.localStorage.getItem(DEVICE_KEY_STORAGE);
+    if (!key) {
+      key = window.crypto?.randomUUID?.() ?? `dev-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      window.localStorage.setItem(DEVICE_KEY_STORAGE, key);
+    }
+    return key;
+  } catch {
+    return '';
+  }
+};
+
+// ---- story API client ----
+export interface StoryListResponse {
+  stories: StoryItem[];
+  comments: Record<number, StoryComment[]>;
+  likeCounts: Record<number, number>;
+  likedStoryIds: number[];
+}
+
+const postStoryAction = async (action: string, payload: Record<string, unknown>) => {
+  const response = await fetch(`/api/story?action=${action}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data?.ok === false) {
+    throw new Error(data?.error || `story ${action} failed (${response.status})`);
+  }
+  return data;
+};
+
+export const storyApi = {
+  async list(key: string): Promise<StoryListResponse> {
+    const response = await fetch(`/api/story?action=list&key=${encodeURIComponent(key)}`);
+    if (!response.ok) throw new Error('story list failed');
+    const data = await response.json();
+    return {
+      stories: Array.isArray(data.stories) ? data.stories : [],
+      comments: data.comments ?? {},
+      likeCounts: data.likeCounts ?? {},
+      likedStoryIds: Array.isArray(data.likedStoryIds) ? data.likedStoryIds : [],
+    };
+  },
+  createStory: (key: string, story: Partial<StoryItem>) => postStoryAction('create', { key, story }),
+  deleteStory: (key: string, id: number | string) => postStoryAction('delete', { key, id: String(id) }),
+  addComment: (key: string, storyId: number | string, authorName: string, body: string) =>
+    postStoryAction('comment', { key, storyId: String(storyId), authorName, body }),
+  deleteComment: (key: string, commentId: number | string) =>
+    postStoryAction('comment-delete', { key, commentId: String(commentId) }),
+  like: (key: string, storyId: number | string) => postStoryAction('like', { key, storyId: String(storyId) }),
+  unlike: (key: string, storyId: number | string) => postStoryAction('unlike', { key, storyId: String(storyId) }),
+  uploadPhoto: async (dataUrl: string): Promise<string> => {
+    const data = await postStoryAction('upload', { dataUrl });
+    return data.url as string;
+  },
+  generateCard: (key: string, params: Record<string, unknown>): Promise<{ url: string; elapsedMs: number }> =>
+    postStoryAction('card-generate', { key, ...params }) as Promise<{ url: string; elapsedMs: number }>,
+};
