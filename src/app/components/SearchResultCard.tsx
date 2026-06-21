@@ -64,11 +64,11 @@ export function SearchResultCard({
         </div>
 
         <div className="space-y-2 mb-4">
-          <div className="flex items-center gap-2 text-sm font-normal text-[#8f8f8f]">
+          <div className="flex items-center gap-2 text-sm font-normal text-[#5F6368]">
             <MapPin className="w-4 h-4 text-[#c9897e]" strokeWidth={2} />
             <span>{location} · {distance}</span>
           </div>
-          <div className="flex items-center gap-2 text-sm font-normal text-[#8f8f8f]">
+          <div className="flex items-center gap-2 text-sm font-normal text-[#5F6368]">
             <Clock className="w-4 h-4 text-[#b8b2aa]" strokeWidth={2} />
             <span>{time}</span>
           </div>
@@ -76,7 +76,7 @@ export function SearchResultCard({
 
         <div className="pt-4 border-t border-black/5">
           <p className="text-sm text-[#5a5a5a] leading-relaxed">
-            <span className="text-xs text-[#999] block mb-1">추천 이유</span>
+            <span className="text-xs text-[#5F6368] block mb-1">추천 이유</span>
             "{reason}"
           </p>
         </div>

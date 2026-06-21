@@ -57,7 +57,7 @@ export function AICardPreview({
               <img src={photoUrl} alt="Preview" className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <span className="text-sm text-[#999]">사진을 선택해주세요</span>
+                <span className="text-sm text-[#5F6368]">사진을 선택해주세요</span>
               </div>
             )}
           </div>
@@ -81,7 +81,7 @@ export function AICardPreview({
                 <img src={photoUrl} alt="Preview" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                  <span className="text-sm text-[#999]">사진을 선택해주세요</span>
+                  <span className="text-sm text-[#5F6368]">사진을 선택해주세요</span>
                 </div>
               )}
             </div>
@@ -91,7 +91,7 @@ export function AICardPreview({
                 date={date}
                 locationLabel={locationLabel}
                 titleClassName="text-xs font-semibold text-[#2a2a2a]"
-                signatureClassName="text-xs text-[#999]"
+                signatureClassName="text-xs text-[#5F6368]"
               />
             </div>
           </div>
@@ -106,7 +106,7 @@ export function AICardPreview({
               <img src={photoUrl} alt="Preview" className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <span className="text-sm text-[#999]">사진을 선택해주세요</span>
+                <span className="text-sm text-[#5F6368]">사진을 선택해주세요</span>
               </div>
             )}
           </div>
@@ -124,7 +124,7 @@ export function AICardPreview({
               <img src={photoUrl} alt="Preview" className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <span className="text-sm text-[#999]">사진을 선택해주세요</span>
+                <span className="text-sm text-[#5F6368]">사진을 선택해주세요</span>
               </div>
             )}
           </div>

@@ -366,6 +366,37 @@ export function normalizeVolunteerAddress(rawAddress: string, region = ''): stri
     if (stripped) push(stripped);
   }
 
+  // 10. 시설형 주소 → 위치 접두사 + "동" 변형 후보 추가
+  //     예) "흑석꿈 우리동네키움센터" → locPrefix="흑석꿈" → "흑석꿈동", "흑석동"
+  //     예) "봉천종합사회복지관" → locPart="봉천" → "봉천동"
+  //     → geocodeAddress 내 DISTRICT 폴백(L4/L2)에서 실제 행정구역으로 연결됨
+  if (!hasAdminDivision(addrBase)) {
+    const FACILITY_SUFFIX_RE =
+      /(?:우리동네키움센터|키움센터|종합사회복지관|사회복지관|복지관|종합복지관|주민센터|행정복지센터|청소년문화의집|청소년센터|청소년관|문화의집|문화센터|문화원|생활체육관|체육관|도서관|경로당|어린이집|작은도서관|센터)$/;
+
+    const facilTokens = addrBase.trim().split(/\s+/);
+
+    // Case A: 공백 구분 — 마지막 토큰이 시설 유형
+    // "흑석꿈 우리동네키움센터" → lastTok="우리동네키움센터", locPrefix="흑석꿈"
+    if (facilTokens.length >= 2 && FACILITY_SUFFIX_RE.test(facilTokens[facilTokens.length - 1])) {
+      const locPrefix = facilTokens.slice(0, -1).join(' ');
+      if (locPrefix.length >= 2) {
+        push(`${locPrefix}동`);
+        if (locPrefix.length >= 3) push(`${locPrefix.slice(0, -1)}동`);
+      }
+    }
+
+    // Case B: 단일 복합 시설명 — "봉천종합사회복지관" → locPart="봉천"
+    if (facilTokens.length === 1) {
+      const m = addrBase.match(/^(.{1,10}?)(?:우리동네키움센터|키움센터|종합사회복지관|사회복지관|복지관|종합복지관|주민센터|행정복지센터|청소년문화의집|청소년센터|청소년관|문화의집|문화센터|문화원|생활체육관|체육관|도서관|경로당|어린이집|작은도서관|센터)$/);
+      if (m && m[1].length >= 2 && m[1].length <= 6) {
+        const locPart = m[1];
+        push(`${locPart}동`);
+        if (locPart.length >= 3) push(`${locPart.slice(0, -1)}동`);
+      }
+    }
+  }
+
   return result;
 }
 

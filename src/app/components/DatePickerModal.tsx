@@ -65,7 +65,7 @@ export function DatePickerModal({
                 onChange={(e) => setStartDate(e.target.value)}
                 className="w-full px-4 py-4 rounded-2xl bg-[#f8f8f5] border border-transparent focus:border-[#a8d5ba] focus:bg-white outline-none transition-colors"
               />
-              <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#999] pointer-events-none" strokeWidth={2} />
+              <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#5F6368] pointer-events-none" strokeWidth={2} />
             </div>
           </div>
 
@@ -80,7 +80,7 @@ export function DatePickerModal({
                 min={startDate}
                 className="w-full px-4 py-4 rounded-2xl bg-[#f8f8f5] border border-transparent focus:border-[#a8d5ba] focus:bg-white outline-none transition-colors"
               />
-              <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#999] pointer-events-none" strokeWidth={2} />
+              <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#5F6368] pointer-events-none" strokeWidth={2} />
             </div>
           </div>
 

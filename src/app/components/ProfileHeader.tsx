@@ -23,7 +23,7 @@ export function ProfileHeader({
         )}
       </div>
       <p className="text-[18px] font-semibold leading-tight text-[#2a2a2a]">{nickname}</p>
-      <p className="mx-auto mt-2 max-w-[260px] text-[14px] leading-6 text-[#999]">{bio}</p>
+      <p className="mx-auto mt-2 max-w-[260px] text-[14px] leading-6 text-[#5F6368]">{bio}</p>
       <button
         type="button"
         onClick={onEditClick}

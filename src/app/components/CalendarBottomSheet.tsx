@@ -164,7 +164,7 @@ export function CalendarBottomSheet({
               <div
                 key={day}
                 className={`text-center text-xs py-2 ${
-                  index === 0 ? 'text-[#ff6b6b]' : index === 6 ? 'text-[#4a90e2]' : 'text-[#999]'
+                  index === 0 ? 'text-[#ff6b6b]' : index === 6 ? 'text-[#4a90e2]' : 'text-[#5F6368]'
                 }`}
               >
                 {day}

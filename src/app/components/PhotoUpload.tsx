@@ -33,8 +33,8 @@ export function PhotoUpload({ photos, onAddPhoto, onRemovePhoto, maxPhotos = 5 }
             onClick={onAddPhoto}
             className="aspect-square rounded-2xl bg-[#f8f8f5] border-2 border-dashed border-[#e0e0e0] flex flex-col items-center justify-center gap-2 hover:border-[#a8d5ba] transition-colors"
           >
-            <Camera className="w-6 h-6 text-[#999]" strokeWidth={2} />
-            <span className="text-xs text-[#999]">{photos.length}/{maxPhotos}</span>
+            <Camera className="w-6 h-6 text-[#5F6368]" strokeWidth={2} />
+            <span className="text-xs text-[#5F6368]">{photos.length}/{maxPhotos}</span>
           </button>
         )}
       </div>

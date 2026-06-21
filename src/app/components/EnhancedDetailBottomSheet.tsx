@@ -568,7 +568,7 @@ export function EnhancedDetailBottomSheet({
                 className={`flex-shrink-0 rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors ${
                   hasMapQuery
                     ? 'bg-[#f8f8f5] text-[#5a5a5a] hover:bg-[#e8f5ed] hover:text-[#2a2a2a]'
-                    : 'cursor-not-allowed bg-[#f5f5f2] text-[#bbb]'
+                    : 'cursor-not-allowed bg-[#f5f5f2] text-[#9AA0A6]'
                 }`}
               >
                 {hasMapQuery ? '카카오맵' : '지도 확인 필요'}
@@ -589,7 +589,7 @@ export function EnhancedDetailBottomSheet({
                 />
               </div>
               <div className="flex-1 flex items-center">
-                <p className={`${isActiveRecruitmentStatus ? 'font-medium text-[#5f9f74]' : 'text-[#999]'}`}>
+                <p className={`${isActiveRecruitmentStatus ? 'font-medium text-[#5f9f74]' : 'text-[#5F6368]'}`}>
                   {recruitmentStatus}
                 </p>
               </div>
@@ -607,7 +607,7 @@ export function EnhancedDetailBottomSheet({
                     key={label}
                     className="grid grid-cols-[82px_minmax(0,1fr)] gap-3 border-b border-black/[0.04] py-3 last:border-b-0"
                   >
-                    <span className="text-[12.5px] text-[#999]">{label}</span>
+                    <span className="text-[12.5px] text-[#5F6368]">{label}</span>
                     <span className="min-w-0 break-words text-[13px] leading-relaxed text-[#2a2a2a]">{value}</span>
                   </div>
                 ))}
@@ -623,7 +623,7 @@ export function EnhancedDetailBottomSheet({
                     key={label}
                     className="grid grid-cols-[82px_minmax(0,1fr)] gap-3 border-b border-black/[0.04] py-3 last:border-b-0"
                   >
-                    <span className="text-[12.5px] text-[#999]">{label}</span>
+                    <span className="text-[12.5px] text-[#5F6368]">{label}</span>
                     <span className="text-[13px] leading-relaxed text-[#2a2a2a]">{value}</span>
                   </div>
                 ))}

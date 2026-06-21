@@ -160,7 +160,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
             <header className="sison-top-bar sticky top-0 z-20 bg-[#fdfcfa]/95 backdrop-blur-sm">
               <div className="px-5 py-3.5">
                 <h2 className="text-xl font-bold text-[#2a2a2a] leading-tight">내 정보</h2>
-                <p className="text-[12px] text-[#aaa] mt-0.5">나의 여행 기록</p>
+                <p className="text-[12px] text-[#7A7F87] mt-0.5">나의 여행 기록</p>
               </div>
             </header>
 
@@ -200,7 +200,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
 
               {/* Logout */}
               <section className="px-5">
-                <button type="button" className="w-full py-3 text-sm text-[#999] hover:text-[#5a5a5a] transition-colors flex items-center justify-center gap-2">
+                <button type="button" className="w-full py-3 text-sm text-[#5F6368] hover:text-[#5a5a5a] transition-colors flex items-center justify-center gap-2">
                   <LogOut className="w-4 h-4" strokeWidth={2} />
                   <span>로그아웃</span>
                 </button>
@@ -226,7 +226,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-[17px] font-semibold text-[#2a2a2a]">프로필 편집</h3>
-                <p className="mt-1 text-[12px] leading-5 text-[#aaa]">여행자다운 이름과 문장을 함께 다듬어보세요</p>
+                <p className="mt-1 text-[12px] leading-5 text-[#7A7F87]">여행자다운 이름과 문장을 함께 다듬어보세요</p>
               </div>
               <button
                 type="button"
@@ -249,7 +249,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px] font-medium text-[#2a2a2a]">프로필 사진</p>
-                  <p className="mt-1 text-[12px] leading-5 text-[#aaa]">여행의 분위기가 느껴지는 사진을 골라주세요</p>
+                  <p className="mt-1 text-[12px] leading-5 text-[#7A7F87]">여행의 분위기가 느껴지는 사진을 골라주세요</p>
                   <button
                     type="button"
                     onClick={() => profileImageInputRef.current?.click()}
@@ -300,12 +300,12 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                   onChange={(event) => handleDraftBioChange(event.target.value)}
                   placeholder="조용한 여행의 문장을 적어보세요"
                   rows={3}
-                  className="mt-2 w-full resize-none rounded-2xl bg-[#f8f8f5] px-4 py-3 text-[15px] leading-7 text-[#2a2a2a] outline-none ring-1 ring-black/5 transition-shadow placeholder:text-[#bbb] focus:ring-[#a8d5ba]/70"
+                  className="mt-2 w-full resize-none rounded-2xl bg-[#f8f8f5] px-4 py-3 text-[15px] leading-7 text-[#2a2a2a] outline-none ring-1 ring-black/5 transition-shadow placeholder:text-[#9AA0A6] focus:ring-[#a8d5ba]/70"
                 />
               </div>
               <div className="mt-2 flex items-center justify-between">
-                <p className="text-[11px] text-[#bbb]">저장하면 프로필에 반영돼요</p>
-                <span className="text-[11px] text-[#bbb]">{profileDraft.bio.length} / {bioMaxLength}</span>
+                <p className="text-[11px] text-[#9AA0A6]">저장하면 프로필에 반영돼요</p>
+                <span className="text-[11px] text-[#9AA0A6]">{profileDraft.bio.length} / {bioMaxLength}</span>
               </div>
               <div className="mt-5 flex gap-2">
                 <button

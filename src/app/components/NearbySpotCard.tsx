@@ -22,7 +22,7 @@ export function NearbySpotCard({
       </div>
 
       <div className="p-4">
-        <div className="text-xs text-[#999] mb-1">{category}</div>
+        <div className="text-xs text-[#5F6368] mb-1">{category}</div>
         <h5 className="text-sm text-[#2a2a2a] mb-2 line-clamp-1">{title}</h5>
         <p className="text-xs text-[#5a5a5a]">{distance}</p>
       </div>

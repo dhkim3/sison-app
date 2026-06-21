@@ -30,7 +30,7 @@ export function NotificationItem({
             {title}
           </p>
           {description && (
-            <p className="mt-1 text-[12px] leading-[1.5] text-[#8f8f8f]">
+            <p className="mt-1 text-[12px] leading-[1.5] text-[#5F6368]">
               {description}
             </p>
           )}

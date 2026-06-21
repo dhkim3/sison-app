@@ -1002,7 +1002,7 @@ export function SearchTab({
               <h2 className="text-xl font-bold text-[#2a2a2a] leading-tight">{hasSearched ? '검색 결과' : '검색'}</h2>
             </div>
             {!hasSearched && (
-              <p className="text-[12px] text-[#aaa] mt-0.5">여행지에서 참여할 활동 찾기</p>
+              <p className="text-[12px] text-[#7A7F87] mt-0.5">여행지에서 참여할 활동 찾기</p>
             )}
           </div>
 
@@ -1057,7 +1057,7 @@ export function SearchTab({
             {/* Results Count */}
             {shouldShowResultCount && (
               <div className="px-5 py-3">
-                <p className="text-[13px] text-[#999]">
+                <p className="text-[13px] text-[#5F6368]">
                   {isLoadingResults ? (
                     '1365에서 활동을 찾고 있어요'
                   ) : (
@@ -1074,13 +1074,13 @@ export function SearchTab({
               {isLoadingResults && (
                 <div className="rounded-3xl bg-white border border-black/5 px-5 py-8 text-center shadow-sm">
                   <p className="text-[15px] font-medium text-[#2a2a2a]">활동을 불러오는 중이에요</p>
-                  <p className="mt-1.5 text-[13px] text-[#999]">잠시만 기다려주세요</p>
+                  <p className="mt-1.5 text-[13px] text-[#5F6368]">잠시만 기다려주세요</p>
                 </div>
               )}
               {!isLoadingResults && searchError && (
                 <div className="rounded-3xl bg-white border border-black/5 px-5 py-8 text-center shadow-sm">
                   <p className="text-[15px] font-medium text-[#2a2a2a]">{searchError}</p>
-                  <p className="mt-1.5 text-[13px] text-[#999]">검색어나 일정을 조금 바꿔 다시 시도해보세요</p>
+                  <p className="mt-1.5 text-[13px] text-[#5F6368]">검색어나 일정을 조금 바꿔 다시 시도해보세요</p>
                 </div>
               )}
               {!isMissingDestinationSearch && !isLoadingResults && !searchError && visibleResults.map((activity) => (
@@ -1110,7 +1110,7 @@ export function SearchTab({
                   <p className="text-[15px] font-medium text-[#2a2a2a]">
                     {isMissingDestinationSearch ? '여행지를 입력해 주세요' : '조건에 맞는 활동이 아직 없어요'}
                   </p>
-                  <p className="mt-1.5 text-[13px] text-[#999]">
+                  <p className="mt-1.5 text-[13px] text-[#5F6368]">
                     {isMissingDestinationSearch
                       ? '가고 싶은 지역을 입력하면 근처 활동을 찾아드릴게요.'
                       : '다른 여행지나 일정을 선택해 다시 찾아보세요.'}

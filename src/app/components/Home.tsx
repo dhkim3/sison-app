@@ -116,9 +116,9 @@ function ActivityState({
 
   return (
     <div className="rounded-2xl border border-black/[0.04] bg-white px-4 py-5 text-center shadow-[0_2px_12px_rgba(39,45,40,0.035)]">
-      <p className="text-[13px] font-medium text-[#8f8f8f]">{state === 'empty' && emptyTitle ? emptyTitle : message.title}</p>
+      <p className="text-[13px] font-medium text-[#5F6368]">{state === 'empty' && emptyTitle ? emptyTitle : message.title}</p>
       {message.description && (
-        <p className="mt-1.5 text-[12px] font-normal text-[#aaa]">{message.description}</p>
+        <p className="mt-1.5 text-[12px] font-normal text-[#7A7F87]">{message.description}</p>
       )}
     </div>
   );
@@ -240,16 +240,16 @@ function HiddenPlaceActivityCard({
           onBookmarkClick();
         }}
         aria-label={isSaved ? '저장 취소' : '활동 저장'}
-        className="absolute right-3.5 top-3.5 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/92 text-[#5a5a5a] shadow-[0_6px_16px_rgba(0,0,0,0.12)] backdrop-blur-sm transition-all hover:bg-white active:scale-95"
+        className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/92 text-[#5a5a5a] shadow-[0_5px_14px_rgba(0,0,0,0.11)] backdrop-blur-sm transition-all hover:bg-white active:scale-95"
       >
         <Bookmark
-          className={`h-4 w-4 ${isSaved ? 'fill-[#a8d5ba] text-[#7fb894]' : 'text-[#5a5a5a]'}`}
+          className={`h-3.5 w-3.5 ${isSaved ? 'fill-[#a8d5ba] text-[#7fb894]' : 'text-[#5a5a5a]'}`}
           strokeWidth={2}
         />
       </button>
 
       <div className="pointer-events-none absolute inset-y-0 left-0 flex w-full flex-col justify-center px-4 py-4 text-white">
-        <h4 className="line-clamp-2 pr-[52px] text-[15px] font-medium leading-[1.3] text-white drop-shadow-sm">
+        <h4 className="line-clamp-2 pr-[44px] text-[15px] font-medium leading-[1.3] text-white drop-shadow-sm">
           {activity.title}
         </h4>
         <div className="mt-2 space-y-1.5">
@@ -347,19 +347,19 @@ function RecentTimelineActivityCard({
 
             <div className="mt-3 space-y-1.5">
               {dateTime && (
-                <div className="flex items-center gap-2 text-[12.5px] font-normal leading-none text-[#8f8f8f]">
+                <div className="flex items-center gap-2 text-[12.5px] font-normal leading-none text-[#5F6368]">
                   <Calendar className="h-3.5 w-3.5 flex-shrink-0 text-[#a8d5ba]" strokeWidth={2} />
                   <span className="line-clamp-1">{dateTime}</span>
                 </div>
               )}
               {activity.location && (
-                <div className="flex items-center gap-2 text-[12.5px] font-normal leading-none text-[#8f8f8f]">
+                <div className="flex items-center gap-2 text-[12.5px] font-normal leading-none text-[#5F6368]">
                   <MapPin className="h-3.5 w-3.5 flex-shrink-0 text-[#c9897e]" strokeWidth={2} />
                   <span className="line-clamp-1">{activity.location}</span>
                 </div>
               )}
               {recruitmentMetadata && (
-                <div className="flex items-center gap-2 text-[12px] font-normal leading-none text-[#8f8f8f]">
+                <div className="flex items-center gap-2 text-[12px] font-normal leading-none text-[#5F6368]">
                   <Clock className="h-3.5 w-3.5 flex-shrink-0 text-[#b8b2aa]" strokeWidth={1.8} />
                   <span>{recruitmentMetadata}</span>
                 </div>
@@ -629,7 +629,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
           <div className="px-5 py-3.5 flex items-center justify-between">
             <div>
               <h1 className="text-xl font-bold text-[#2a2a2a] leading-tight">시선</h1>
-              <p className="text-[12px] text-[#aaa] mt-0.5">새로운 시선을 만나는 여행</p>
+              <p className="text-[12px] text-[#7A7F87] mt-0.5">새로운 시선을 만나는 여행</p>
             </div>
             <button
               type="button"
@@ -804,7 +804,7 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
             <section key={section.title}>
               <div className="mb-3.5">
                 <h3 className="text-[15px] font-semibold text-[#2a2a2a] mb-1">{section.title}</h3>
-                <p className="text-[12px] text-[#aaa]">{section.description}</p>
+                <p className="text-[12px] text-[#7A7F87]">{section.description}</p>
               </div>
               <div className="space-y-2.5">
                 {section.state !== 'success' && <ActivityState state={section.state} emptyTitle={section.emptyTitle} />}

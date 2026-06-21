@@ -42,7 +42,7 @@ export function SavedActivityCard({
           className={`absolute top-3 left-3 flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full backdrop-blur-sm ${
             isRecruiting
               ? 'font-medium text-[#5f9f74] bg-white/90'
-              : 'text-[#999] bg-white/90'
+              : 'text-[#5F6368] bg-white/90'
           }`}
         >
           <span className={`w-1.5 h-1.5 rounded-full ${isRecruiting ? 'bg-[#6fa985]' : 'bg-[#999]'}`} />
@@ -55,12 +55,12 @@ export function SavedActivityCard({
 
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <MapPin className="w-3.5 h-3.5 text-[#999]" strokeWidth={2} />
-            <span className="text-sm font-normal text-[#8f8f8f]">{location}</span>
+            <MapPin className="w-3.5 h-3.5 text-[#c9897e]" strokeWidth={2} />
+            <span className="text-sm font-normal text-[#5F6368]">{location}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Calendar className="w-3.5 h-3.5 text-[#999]" strokeWidth={2} />
-            <span className="text-sm font-normal text-[#8f8f8f]">{date}</span>
+            <Calendar className="w-3.5 h-3.5 text-[#a8d5ba]" strokeWidth={2} />
+            <span className="text-sm font-normal text-[#5F6368]">{date}</span>
           </div>
         </div>
       </div>

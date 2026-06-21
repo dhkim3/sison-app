@@ -28,7 +28,7 @@ export function TravelCardDetailSheet({ card, isOpen, onClose }: TravelCardDetai
         className="bottom-sheet-panel fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-[430px] flex-col overflow-hidden rounded-t-[2rem] bg-[#fdfcfa] shadow-2xl animate-slide-up"
       >
         <div className="z-10 flex flex-shrink-0 items-center justify-between border-b border-black/5 bg-[#fdfcfa]/95 px-5 py-4 backdrop-blur-sm">
-          <p className="text-[12px] font-medium text-[#999]">저장한 여행 카드</p>
+          <p className="text-[12px] font-medium text-[#5F6368]">저장한 여행 카드</p>
           <button
             type="button"
             onClick={onClose}
@@ -72,7 +72,7 @@ export function TravelCardDetailSheet({ card, isOpen, onClose }: TravelCardDetai
             <section className="rounded-3xl bg-white border border-black/5 px-5 py-4 shadow-sm">
               <div className="mb-3 flex items-center justify-between">
                 <h4 className="text-[14px] font-semibold text-[#2a2a2a]">함께 저장된 활동</h4>
-                <span className="text-[12px] text-[#999]">{activities.length}개</span>
+                <span className="text-[12px] text-[#5F6368]">{activities.length}개</span>
               </div>
               <div className="space-y-2.5">
                 {activities.map((activity) => (

@@ -50,7 +50,7 @@ export function TravelCardCarousel({ cards, onCardClick }: TravelCardCarouselPro
                 <p className="text-xs font-normal leading-[1.35] text-[#b6b6b6]">{card.date}</p>
               </div>
               <div className="mt-3 border-t border-black/5 pt-2">
-                <p className="text-center text-xs text-[#999] opacity-70">시선</p>
+                <p className="text-center text-xs text-[#5F6368] opacity-70">시선</p>
               </div>
             </div>
           </button>

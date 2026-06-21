@@ -112,7 +112,7 @@ export function DefaultSearchState({
               placeholder="어디로 떠나시나요?"
               value={destination}
               onChange={(e) => onDestinationChange(e.target.value)}
-              className="flex-1 text-sm placeholder:text-[#999] outline-none bg-transparent"
+              className="flex-1 text-sm placeholder:text-[#5F6368] outline-none bg-transparent"
             />
             <div
               className={`absolute bottom-0 left-0 h-px w-full bg-black/5 transition-opacity duration-300 ease-out ${
@@ -170,7 +170,7 @@ export function DefaultSearchState({
                   onDateClear();
                 }}
                 aria-label="일정 초기화"
-                className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-[#aaa] transition-colors hover:text-[#777] active:scale-95"
+                className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-[#7A7F87] transition-colors hover:text-[#777] active:scale-95"
               >
                 <X className="h-3 w-3" strokeWidth={2} />
               </button>
@@ -203,7 +203,7 @@ export function DefaultSearchState({
                   onPeopleClear();
                 }}
                 aria-label="인원 초기화"
-                className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-[#aaa] transition-colors hover:text-[#777] active:scale-95"
+                className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-[#7A7F87] transition-colors hover:text-[#777] active:scale-95"
               >
                 <X className="h-3 w-3" strokeWidth={2} />
               </button>
@@ -251,7 +251,7 @@ export function DefaultSearchState({
                 </div>
                 <div className="min-w-0">
                   <p className="text-[14px] font-medium leading-snug text-[#2a2a2a]">{region.name}</p>
-                  <p className="mt-0.5 text-[12px] leading-[18px] text-[#999]">{region.description}</p>
+                  <p className="mt-0.5 text-[12px] leading-[18px] text-[#5F6368]">{region.description}</p>
                 </div>
               </div>
             </button>

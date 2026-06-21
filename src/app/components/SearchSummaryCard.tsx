@@ -49,7 +49,7 @@ export function SearchSummaryCard({
               className={
                 isPrimary && isSelected
                   ? 'text-[15px] text-[#2a2a2a]'
-                  : `text-sm ${isSelected ? 'text-[#5a5a5a]' : 'text-[#aaa]'}`
+                  : `text-sm ${isSelected ? 'text-[#5a5a5a]' : 'text-[#7A7F87]'}`
               }
             >
               {label}

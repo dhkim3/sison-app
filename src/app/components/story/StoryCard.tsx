@@ -76,7 +76,7 @@ export function StoryCard({
           {story.title}
         </p>
         <p
-          className={`${showEngagement ? 'mb-1.5' : ''} text-[11px] text-[#999] leading-snug`}
+          className={`${showEngagement ? 'mb-1.5' : ''} text-[11px] text-[#5F6368] leading-snug`}
           style={{
             display: '-webkit-box',
             WebkitLineClamp: 1,
@@ -96,7 +96,7 @@ export function StoryCard({
                 event.stopPropagation();
                 onToggleLike?.(story);
               }}
-              className={`flex items-center gap-1 text-[10px] transition-colors ${isLiked ? 'text-[#7fb894]' : 'text-[#999]'}`}
+              className={`flex items-center gap-1 text-[10px] transition-colors ${isLiked ? 'text-[#7fb894]' : 'text-[#5F6368]'}`}
             >
               <Heart className={`w-3 h-3 ${isLiked ? 'fill-[#a8d5ba]' : ''}`} strokeWidth={1.8} />
               {likeCount}
@@ -107,7 +107,7 @@ export function StoryCard({
                 event.stopPropagation();
                 onOpenComments?.(story);
               }}
-              className="flex items-center gap-1 text-[10px] text-[#999] transition-colors hover:text-[#6fa985]"
+              className="flex items-center gap-1 text-[10px] text-[#5F6368] transition-colors hover:text-[#6fa985]"
             >
               <MessageCircle className="w-3 h-3" strokeWidth={1.8} />
               {commentCount}

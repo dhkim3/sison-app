@@ -13,7 +13,7 @@ export function SearchCard({ onSearch }: SearchCardProps) {
           <input
             type="text"
             placeholder="어디로 떠나시나요?"
-            className="flex-1 outline-none bg-transparent placeholder:text-[#999]"
+            className="flex-1 outline-none bg-transparent placeholder:text-[#5F6368]"
             onClick={onSearch}
             readOnly
           />

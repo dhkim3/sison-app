@@ -4,6 +4,11 @@
   --font-size: 16px;
   --background: #ffffff;
   --foreground: oklch(0.145 0 0);
+  --sison-text-primary: #242424;
+  --sison-text-secondary: #5F6368;
+  --sison-text-tertiary: #7A7F87;
+  --sison-text-muted: #9AA0A6;
+  --sison-text-disabled: #B8BDC5;
   --card: #ffffff;
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);

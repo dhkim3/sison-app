@@ -106,6 +106,18 @@ const loadingMessages = [
   '가벼운 활동을 고르고 있어요',
   '일정에 맞는 추천을 정리하고 있어요',
 ];
+const buildLoadingMessages = (
+  regionValue: string,
+  dateValue: string,
+  timeValue: string,
+  moodValue: string,
+) => [
+  regionValue ? `${regionValue} 활동을 살펴보고 있어요` : loadingMessages[0],
+  dateValue ? '일정에 맞는 활동을 찾고 있어요' : '가능한 일정을 확인하고 있어요',
+  timeValue ? '참여 시간을 비교하고 있어요' : loadingMessages[2],
+  moodValue ? '활동 성향을 분석하고 있어요' : '선호 활동을 분석하고 있어요',
+  '추천 결과를 정리하고 있어요',
+];
 const defaultActivityPreferenceText = '여행 중 부담 없이 참여할 수 있는 조용하고 가벼운 활동';
 const maxPreferenceTextLength = 200;
 const maxRecommendationCacheEntries = 20;
@@ -458,6 +470,7 @@ const getDeckCardStyle = (
   isDragging: boolean,
   _enterDirection: 1 | -1 | null,
   _isEntering: boolean,
+  interactionType: 'button' | 'swipe' | null,
 ) => {
   const isActive = depth === 0;
   const clampedDepth = Math.min(depth, 3);
@@ -468,8 +481,8 @@ const getDeckCardStyle = (
   const opacityByDepth = [1, 0.9, 0.76, 0];
   const scale = scaleByDepth[clampedDepth] ?? 0.9;
   const translateY = translateYByDepth[clampedDepth] ?? -30;
-  const translateX = isActive ? dragOffset : 0;
-  const rotate = isActive ? dragOffset / 48 : 0;
+  const translateX = isActive && interactionType !== 'button' ? dragOffset : 0;
+  const rotate = isActive && interactionType !== 'button' ? dragOffset / 48 : 0;
 
   return {
     zIndex: 30 - clampedDepth,
@@ -489,16 +502,17 @@ const getDeckCardStyle = (
 const getExitingDeckCardStyle = (direction: 1 | -1) => {
   const prefersReducedMotion = typeof window !== 'undefined'
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const exitOffset = direction === 1 ? -72 : 72;
+  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 430;
+  const exitOffset = direction === 1 ? -viewportWidth * 1.12 : viewportWidth * 1.12;
 
   return {
     zIndex: 40,
     opacity: 0,
-    transform: `translate3d(${exitOffset}px, 0, 0) scale(0.96) rotate(${exitOffset / 42}deg)`,
+    transform: `translate3d(${exitOffset}px, 0, 0) scale(0.96) rotate(${direction === 1 ? -9 : 9}deg)`,
     boxShadow: '0 12px 28px rgba(38,28,66,0.10)',
     transition: prefersReducedMotion
       ? 'none'
-      : 'transform 220ms cubic-bezier(0.22, 1, 0.36, 1), opacity 200ms ease-out, box-shadow 220ms ease-out',
+      : 'transform 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease-out, box-shadow 260ms ease-out',
   };
 };
 
@@ -929,6 +943,7 @@ export function HomeAIRecommendationFlow({
   const [deckDragOffset, setDeckDragOffset] = useState(0);
   const [isDeckDragging, setIsDeckDragging] = useState(false);
   const [deckTransitionDirection, setDeckTransitionDirection] = useState<1 | -1 | null>(null);
+  const [deckInteractionType, setDeckInteractionType] = useState<'button' | 'swipe' | null>(null);
   const [isDeckEntering, setIsDeckEntering] = useState(false);
   const [exitingRecommendationIndex, setExitingRecommendationIndex] = useState<number | null>(null);
   const calendarAdvanceTimerRef = useRef<number | null>(null);
@@ -937,7 +952,14 @@ export function HomeAIRecommendationFlow({
   const loadingTextFadeTimerRef = useRef<number | null>(null);
   const loadingStartedAtRef = useRef(0);
   const sheetScrollRef = useRef<HTMLDivElement | null>(null);
+  const moodInputRef = useRef<HTMLInputElement | null>(null);
   const deckDragStartXRef = useRef(0);
+  const deckDragStartYRef = useRef(0);
+  const deckDragLastXRef = useRef(0);
+  const deckDragLastTimeRef = useRef(0);
+  const deckDragVelocityXRef = useRef(0);
+  const deckDragFrameRef = useRef<number | null>(null);
+  const deckPendingDragOffsetRef = useRef(0);
   const deckSuppressClickRef = useRef(false);
   const recommendationRequestInFlightRef = useRef(false);
   const recommendationRequestIdRef = useRef(0);
@@ -962,6 +984,22 @@ export function HomeAIRecommendationFlow({
       window.clearTimeout(calendarAdvanceTimerRef.current);
       calendarAdvanceTimerRef.current = null;
     }
+  };
+
+  const keepMoodInputVisible = () => {
+    const inputElement = moodInputRef.current;
+    if (!inputElement) return;
+
+    const scrollInputIntoView = () => {
+      inputElement.scrollIntoView({
+        block: 'center',
+        inline: 'nearest',
+        behavior: 'smooth',
+      });
+    };
+
+    scrollInputIntoView();
+    window.setTimeout(scrollInputIntoView, 280);
   };
 
   const cancelActiveRecommendationRequest = () => {
@@ -997,6 +1035,7 @@ export function HomeAIRecommendationFlow({
     setDeckDragOffset(0);
     setIsDeckDragging(false);
     setDeckTransitionDirection(null);
+    setDeckInteractionType(null);
     setIsDeckEntering(false);
     setExitingRecommendationIndex(null);
   };
@@ -1056,6 +1095,32 @@ export function HomeAIRecommendationFlow({
     timeLabel && { label: timeLabel, targetStep: 2 },
     mood && { label: `${mood} 활동`, targetStep: 3 },
   ].filter(Boolean) as Array<{ label: string; targetStep: number }>;
+  const loadingConditionBubbles = [
+    {
+      label: region ? `${region}에서` : '여행지에서',
+      caption: '위치 조건 확인 중',
+      icon: <MapPin className="h-4 w-4" strokeWidth={2.2} />,
+      className: 'left-0 top-3 w-[132px]',
+    },
+    {
+      label: dateLabel || '여행 일정',
+      caption: '일정 조건 분석 중',
+      icon: <Calendar className="h-4 w-4" strokeWidth={2.2} />,
+      className: 'right-0 top-[72px] w-[154px]',
+    },
+    {
+      label: timeLabel || '참여 시간',
+      caption: '활동 시간 검토 중',
+      icon: <Clock className="h-4 w-4" strokeWidth={2.2} />,
+      className: 'left-1 bottom-[64px] w-[126px]',
+    },
+    {
+      label: mood || '활동 성향',
+      caption: '활동 유형 분석 중',
+      icon: <Route className="h-4 w-4" strokeWidth={2.2} />,
+      className: 'right-1 bottom-2 w-[148px]',
+    },
+  ];
   const aiRegionSuggestions = useMemo(() => {
     const filteredSuggestions = filterLocationSuggestions(draftRegion);
 
@@ -1218,8 +1283,9 @@ export function HomeAIRecommendationFlow({
   const startRecommendationLoadingState = () => {
     clearLoadingTimers();
     loadingStartedAtRef.current = Date.now();
+    const nextLoadingMessages = buildLoadingMessages(region, dateLabel, timeLabel, mood);
     setLoadingMessageIndex(0);
-    setAiLoadingMessage(loadingMessages[0]);
+    setAiLoadingMessage(nextLoadingMessages[0]);
     setIsAiLoadingTextVisible(true);
     setStep(4);
     loadingMessageTimerRef.current = window.setInterval(() => {
@@ -1230,13 +1296,13 @@ export function HomeAIRecommendationFlow({
       loadingTextFadeTimerRef.current = window.setTimeout(() => {
         loadingTextFadeTimerRef.current = null;
         setLoadingMessageIndex((currentIndex) => {
-          const nextIndex = (currentIndex + 1) % loadingMessages.length;
-          setAiLoadingMessage(loadingMessages[nextIndex]);
+          const nextIndex = (currentIndex + 1) % nextLoadingMessages.length;
+          setAiLoadingMessage(nextLoadingMessages[nextIndex]);
           return nextIndex;
         });
         setIsAiLoadingTextVisible(true);
       }, 240);
-    }, 2600);
+    }, 1800);
   };
 
   const finishRecommendationLoadingState = () => {
@@ -1510,14 +1576,25 @@ export function HomeAIRecommendationFlow({
     setDeckTransitionDirection(null);
     setIsDeckEntering(false);
     setExitingRecommendationIndex(null);
+    if (deckDragFrameRef.current) {
+      window.cancelAnimationFrame(deckDragFrameRef.current);
+      deckDragFrameRef.current = null;
+    }
   }, [recommendationCount]);
 
-  const moveRecommendation = (direction: 1 | -1 = 1, indexDelta: 1 | -1 = direction) => {
+  const moveRecommendation = (
+    direction: 1 | -1 = 1,
+    indexDelta: 1 | -1 = direction,
+    interactionType: 'button' | 'swipe' = 'button',
+  ) => {
     if (!canMoveRecommendation || deckTransitionDirection !== null) return;
 
     setIsDeckDragging(false);
     setDeckDragOffset(0);
-    setExitingRecommendationIndex(activeRecommendationIndex);
+    deckPendingDragOffsetRef.current = 0;
+    deckDragVelocityXRef.current = 0;
+    setDeckInteractionType(interactionType);
+    setExitingRecommendationIndex(interactionType === 'swipe' ? activeRecommendationIndex : null);
     setDeckTransitionDirection(direction);
     setIsDeckEntering(false);
     setActiveRecommendationIndex((current) =>
@@ -1526,11 +1603,14 @@ export function HomeAIRecommendationFlow({
 
     window.setTimeout(() => {
       setDeckDragOffset(0);
+      deckPendingDragOffsetRef.current = 0;
+      deckDragVelocityXRef.current = 0;
       setDeckTransitionDirection(null);
+      setDeckInteractionType(null);
       setIsDeckEntering(false);
       setExitingRecommendationIndex(null);
       deckSuppressClickRef.current = false;
-    }, 360);
+    }, interactionType === 'swipe' ? 360 : 320);
   };
 
   const handleDeckPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -1539,6 +1619,11 @@ export function HomeAIRecommendationFlow({
     if (target.closest('button')) return;
 
     deckDragStartXRef.current = event.clientX;
+    deckDragStartYRef.current = event.clientY;
+    deckDragLastXRef.current = event.clientX;
+    deckDragLastTimeRef.current = event.timeStamp || performance.now();
+    deckDragVelocityXRef.current = 0;
+    deckPendingDragOffsetRef.current = 0;
     deckSuppressClickRef.current = false;
     setIsDeckDragging(true);
     setDeckDragOffset(0);
@@ -1547,21 +1632,50 @@ export function HomeAIRecommendationFlow({
 
   const handleDeckPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!isDeckDragging) return;
-    const nextOffset = event.clientX - deckDragStartXRef.current;
-    setDeckDragOffset(Math.max(Math.min(nextOffset, 150), -150));
+    const rawOffset = event.clientX - deckDragStartXRef.current;
+    const verticalOffset = event.clientY - deckDragStartYRef.current;
+    const horizontalLimit = typeof window !== 'undefined' ? window.innerWidth : 430;
+    const nextOffset = Math.max(Math.min(rawOffset, horizontalLimit), -horizontalLimit);
+    const now = event.timeStamp || performance.now();
+    const elapsed = Math.max(now - deckDragLastTimeRef.current, 1);
+
+    deckDragVelocityXRef.current = (event.clientX - deckDragLastXRef.current) / elapsed;
+    deckDragLastXRef.current = event.clientX;
+    deckDragLastTimeRef.current = now;
+    deckPendingDragOffsetRef.current = nextOffset;
+
+    if (Math.abs(rawOffset) > Math.abs(verticalOffset) && Math.abs(rawOffset) > 4) {
+      event.preventDefault();
+    }
+
+    if (!deckDragFrameRef.current) {
+      deckDragFrameRef.current = window.requestAnimationFrame(() => {
+        deckDragFrameRef.current = null;
+        setDeckDragOffset(deckPendingDragOffsetRef.current);
+      });
+    }
   };
 
   const settleDeckDrag = (shouldOpenOnTap = false) => {
     if (!isDeckDragging) return;
-    const threshold = 56;
-    const dragDistance = Math.abs(deckDragOffset);
+    if (deckDragFrameRef.current) {
+      window.cancelAnimationFrame(deckDragFrameRef.current);
+      deckDragFrameRef.current = null;
+    }
+    const cardWidth = 332;
+    const threshold = cardWidth * 0.25;
+    const finalDragOffset = deckPendingDragOffsetRef.current;
+    const dragDistance = Math.abs(finalDragOffset);
+    const velocityX = deckDragVelocityXRef.current;
 
     if (dragDistance > 8) {
       deckSuppressClickRef.current = true;
     }
 
-    if (dragDistance >= threshold && canMoveRecommendation) {
-      moveRecommendation(deckDragOffset < 0 ? 1 : -1, 1);
+    if ((dragDistance >= threshold || Math.abs(velocityX) > 0.45) && canMoveRecommendation) {
+      const direction = finalDragOffset < 0 || velocityX < -0.45 ? 1 : -1;
+      setDeckDragOffset(finalDragOffset);
+      moveRecommendation(direction, direction, 'swipe');
       return;
     }
 
@@ -1573,6 +1687,8 @@ export function HomeAIRecommendationFlow({
       if (activeActivity) {
         deckSuppressClickRef.current = true;
         setDeckDragOffset(0);
+        deckPendingDragOffsetRef.current = 0;
+        deckDragVelocityXRef.current = 0;
         setIsDeckDragging(false);
         onOpenActivity(activeActivity);
         window.setTimeout(() => {
@@ -1583,6 +1699,8 @@ export function HomeAIRecommendationFlow({
     }
 
     setDeckDragOffset(0);
+    deckPendingDragOffsetRef.current = 0;
+    deckDragVelocityXRef.current = 0;
     setIsDeckDragging(false);
     if (dragDistance > 8) {
       window.setTimeout(() => {
@@ -1591,10 +1709,12 @@ export function HomeAIRecommendationFlow({
     }
   };
 
+  const activeLoadingConditionIndex = Math.min(loadingMessageIndex, loadingConditionBubbles.length);
+
   if (!shouldRender) return null;
 
   return (
-    <div className="bottom-sheet-viewport z-[70] flex items-end justify-center">
+    <div className="bottom-sheet-viewport z-[70] flex items-end justify-center overflow-x-hidden overscroll-x-none">
       <div
         className={`absolute inset-0 bg-[#eef3ff]/62 backdrop-blur-[3px] transition-opacity ${
           isPresented ? 'opacity-100' : 'opacity-0'
@@ -1606,7 +1726,7 @@ export function HomeAIRecommendationFlow({
         aria-hidden="true"
       />
       <div
-        className={`bottom-sheet-panel bottom-sheet-panel-tall relative flex w-full max-w-[430px] transform-gpu flex-col overflow-hidden rounded-t-[28px] border border-[#e2e8f7] bg-[#fbfcff] shadow-[0_-18px_48px_rgba(87,101,145,0.16)] transition-[transform,opacity] will-change-transform ${
+        className={`bottom-sheet-panel bottom-sheet-panel-tall relative flex w-full max-w-[430px] transform-gpu flex-col overflow-hidden overflow-x-hidden overscroll-x-none rounded-t-[28px] border border-[#e2e8f7] bg-[#fbfcff] shadow-[0_-18px_48px_rgba(87,101,145,0.16)] transition-[transform,opacity] will-change-transform ${
           isPresented ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
         }`}
         style={{
@@ -1639,14 +1759,14 @@ export function HomeAIRecommendationFlow({
 
         <div
           ref={sheetScrollRef}
-          className={`bottom-sheet-scrollable relative min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(24px+env(safe-area-inset-bottom))] pt-[calc(24px+env(safe-area-inset-top))] ${
+          className={`bottom-sheet-scrollable relative min-h-0 flex-1 overflow-x-hidden overscroll-x-none px-5 pb-[calc(24px+env(safe-area-inset-bottom))] pt-[calc(24px+env(safe-area-inset-top))] ${
             step === 4
-              ? 'bg-[radial-gradient(circle_at_50%_20%,rgba(139,92,246,0.14),transparent_34%),radial-gradient(circle_at_50%_88%,rgba(192,132,252,0.18),transparent_38%),linear-gradient(180deg,#faf8ff_0%,#fffefe_46%,#f3f0ff_100%)]'
-              : ''
+              ? 'overflow-y-hidden bg-[radial-gradient(circle_at_50%_20%,rgba(139,92,246,0.14),transparent_34%),radial-gradient(circle_at_50%_88%,rgba(192,132,252,0.18),transparent_38%),linear-gradient(180deg,#faf8ff_0%,#fffefe_46%,#f3f0ff_100%)]'
+              : 'overflow-y-auto'
           }`}
           data-bottom-sheet-scrollable="true"
         >
-          <div className="mb-5 flex gap-1.5">
+          <div className={`${step === 4 ? 'mb-3' : 'mb-5'} flex gap-1.5`}>
             {[0, 1, 2, 3].map((item) => (
               <span
                 key={item}
@@ -1659,8 +1779,8 @@ export function HomeAIRecommendationFlow({
             ))}
           </div>
 
-          {selectedSummary.length > 0 && (
-            <div className="mb-6 flex flex-wrap gap-2">
+          {step !== 4 && selectedSummary.length > 0 && (
+            <div className={`${step === 4 ? 'mb-3' : 'mb-6'} flex flex-wrap gap-2`}>
               {selectedSummary.map((item) => (
                 <button
                   key={`${item.targetStep}-${item.label}`}
@@ -1669,7 +1789,7 @@ export function HomeAIRecommendationFlow({
                   disabled={item.targetStep === step}
                   className={`rounded-full border px-3 py-1.5 text-[12px] font-medium shadow-[0_8px_18px_rgba(94,110,180,0.07)] transition-all active:scale-[0.98] ${
                     item.targetStep === step
-                      ? 'cursor-default border-[#e5e8f6] bg-white/56 text-[#9aa2b7]'
+                      ? 'cursor-default border-[#e5e8f6] bg-white/56 text-[#7A7F87]'
                       : 'border-[#dce2fb] bg-white/82 text-[#5d6a86] hover:border-[#cbd4fb] hover:bg-white'
                   }`}
                 >
@@ -1696,7 +1816,7 @@ export function HomeAIRecommendationFlow({
                   placeholder="어디에서 활동을 찾을까요?"
                   className={aiInputClassName}
                 />
-                <p className="mb-2 text-[12px] font-medium text-[#7a8499]">
+                <p className="mb-2 text-[12px] font-medium text-[#7A7F87]">
                   {draftRegion.trim() ? '여행지 제안' : '자주 찾는 여행지'}
                 </p>
                 <div className="mb-4 flex min-h-[70px] flex-wrap content-start gap-2">
@@ -1717,7 +1837,7 @@ export function HomeAIRecommendationFlow({
                       </button>
                     ))
                   ) : (
-                    <span className="rounded-full border border-[#e2e6fb] bg-white/60 px-3 py-2 text-[12px] font-medium text-[#98a1b8]">
+                    <span className="rounded-full border border-[#e2e6fb] bg-white/60 px-3 py-2 text-[12px] font-medium text-[#7A7F87]">
                       어울리는 여행지를 찾고 있어요
                     </span>
                   )}
@@ -1753,7 +1873,7 @@ export function HomeAIRecommendationFlow({
                       <h3 className="text-[16px] font-semibold text-[#303850]">
                         {currentMonth.getFullYear()}년 {currentMonth.getMonth() + 1}월
                       </h3>
-                      <p className="mt-1 text-[11.5px] text-[#8b94aa]">
+                      <p className="mt-1 text-[11.5px] text-[#7A7F87]">
                         시작일과 마지막 날을 차례로 골라주세요
                       </p>
                     </div>
@@ -1819,7 +1939,7 @@ export function HomeAIRecommendationFlow({
                     className={`mt-4 flex min-h-[28px] items-center gap-2 rounded-2xl px-3 py-2 text-[12.5px] transition-all ${
                       selectedStartDate && selectedEndDate
                         ? 'bg-[#f2f4ff] text-[#5964a8] shadow-[inset_0_0_0_1px_rgba(125,141,255,0.08)]'
-                        : 'bg-transparent text-[#7a8499]'
+                        : 'bg-transparent text-[#7A7F87]'
                     }`}
                   >
                     <Calendar className="h-3.5 w-3.5 text-[#7d8dff]" strokeWidth={2} />
@@ -1838,7 +1958,7 @@ export function HomeAIRecommendationFlow({
                           clearSelectedDateRange();
                         }}
                         aria-label="여행 일정 초기화"
-                        className="-mr-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/80 text-[#9aa2b7] transition-colors hover:bg-white hover:text-[#68738f] active:scale-95"
+                        className="-mr-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/80 text-[#7A7F87] transition-colors hover:bg-white hover:text-[#68738f] active:scale-95"
                       >
                         <X className="h-3.5 w-3.5" strokeWidth={2} />
                       </button>
@@ -1884,6 +2004,7 @@ export function HomeAIRecommendationFlow({
                   어떤 활동이면 좋을까요?
                 </h2>
                 <input
+                  ref={moodInputRef}
                   value={mood}
                   onChange={(event) => {
                     setMood(event.target.value);
@@ -1896,7 +2017,7 @@ export function HomeAIRecommendationFlow({
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') void parseActivityPreference();
                   }}
-                  autoFocus
+                  onFocus={keepMoodInputVisible}
                   placeholder="어떤 활동이면 좋을까요?"
                   className={aiInputClassName}
                 />
@@ -1931,82 +2052,101 @@ export function HomeAIRecommendationFlow({
             )}
 
             {step === 4 && (
-              <section className="-mx-5 -mb-[calc(24px+env(safe-area-inset-bottom))] min-h-[calc(100dvh-210px)] overflow-hidden px-5 pb-[calc(42px+env(safe-area-inset-bottom))] pt-12 text-center">
-                <div className="relative mx-auto flex max-w-[330px] flex-col items-center">
+              <section className="-mx-5 -mb-[calc(24px+env(safe-area-inset-bottom))] flex min-h-[calc(var(--sison-sheet-tall-height)-150px)] overflow-hidden px-5 pb-[calc(22px+env(safe-area-inset-bottom))] pt-2 text-center">
+                <div className="relative mx-auto flex w-full max-w-[340px] flex-col items-center justify-center">
                   <div
                     aria-hidden="true"
-                    className="absolute left-1/2 top-6 h-56 w-56 -translate-x-1/2 rounded-full bg-[#a78bfa]/14 blur-3xl"
+                    className="absolute left-1/2 top-10 h-56 w-56 -translate-x-1/2 rounded-full bg-[#a78bfa]/16 blur-3xl"
                   />
                   <div
                     aria-hidden="true"
-                    className="absolute bottom-8 right-2 h-36 w-36 rounded-full bg-[#c084fc]/12 blur-3xl"
+                    className="absolute bottom-8 right-2 h-28 w-28 rounded-full bg-[#c084fc]/12 blur-3xl"
                   />
 
-                  <div className="relative mx-auto flex max-w-[330px] flex-col items-center">
-                    <div className="relative mb-14 h-[214px] w-[268px]" aria-hidden="true">
-                      <span className="sison-ai-loading-orbit absolute left-1/2 top-1/2 h-[154px] w-[154px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#a78bfa]/22" />
-                      <span className="sison-ai-loading-scan-ring absolute left-1/2 top-1/2 h-[112px] w-[112px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-[#8b5cf6]/22" />
-                      <svg className="absolute left-[39px] top-[58px] h-[88px] w-[188px] text-[#8b5cf6]/20" viewBox="0 0 188 88" fill="none">
+                  <div className="relative mx-auto flex w-full max-w-[340px] flex-col items-center">
+                    <div className="relative mb-6 h-[286px] w-full max-w-[340px]" aria-hidden="true">
+                      <svg className="sison-ai-condition-orbit absolute left-1/2 top-[132px] h-[218px] w-[286px] -translate-x-1/2 -translate-y-1/2 text-[#8b5cf6]/24" viewBox="0 0 286 218" fill="none">
                         <path
-                          d="M8 69C39 18 75 18 94 44C116 75 147 71 180 17"
+                          d="M34 58C81 14 156 15 217 61C268 100 254 157 202 184C134 220 50 188 32 123C24 94 34 70 54 56"
                           stroke="currentColor"
                           strokeWidth="2"
                           strokeLinecap="round"
-                          strokeDasharray="5 9"
+                          strokeDasharray="7 10"
                         />
+                        <path d="M217 61L230 64L222 75" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M35 124L25 115L38 111" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
+                      <span className="sison-ai-loading-scan-ring absolute left-1/2 top-[132px] h-[142px] w-[142px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-[#8b5cf6]/22" />
 
-                      <div className="sison-ai-loading-mini-card absolute left-2 top-8 h-[54px] w-[82px] rounded-2xl border border-white/75 bg-white/78 px-3 py-2.5 text-left shadow-[0_12px_28px_rgba(92,71,139,0.10)] backdrop-blur">
-                        <span className="mb-2 block h-2 w-8 rounded-full bg-[#d9ccff]" />
-                        <span className="mb-1.5 block h-1.5 w-12 rounded-full bg-[#ece7ff]" />
-                        <span className="block h-1.5 w-9 rounded-full bg-[#f0ecff]" />
-                      </div>
-                      <div className="sison-ai-loading-mini-card absolute right-3 top-[26px] h-[58px] w-[86px] rounded-2xl border border-white/75 bg-white/82 px-3 py-2.5 text-left shadow-[0_12px_28px_rgba(92,71,139,0.10)] backdrop-blur" style={{ animationDelay: '520ms' }}>
-                        <span className="mb-2 block h-2 w-7 rounded-full bg-[#cdbbff]" />
-                        <span className="mb-1.5 block h-1.5 w-12 rounded-full bg-[#ebe5ff]" />
-                        <span className="block h-1.5 w-10 rounded-full bg-[#f1edff]" />
-                      </div>
-                      <div className="sison-ai-loading-mini-card absolute bottom-5 left-[72px] h-[56px] w-[92px] rounded-2xl border border-white/75 bg-white/80 px-3 py-2.5 text-left shadow-[0_12px_28px_rgba(92,71,139,0.10)] backdrop-blur" style={{ animationDelay: '1040ms' }}>
-                        <span className="mb-2 block h-2 w-9 rounded-full bg-[#d8c9ff]" />
-                        <span className="mb-1.5 block h-1.5 w-14 rounded-full bg-[#ebe6ff]" />
-                        <span className="block h-1.5 w-11 rounded-full bg-[#f1edff]" />
-                      </div>
+                      {loadingConditionBubbles.map((item, index) => {
+                        const isActive = index === activeLoadingConditionIndex;
+                        const isComplete = activeLoadingConditionIndex === loadingConditionBubbles.length || index < activeLoadingConditionIndex;
+                        return (
+                          <div
+                            key={item.label}
+                            className={`sison-ai-condition-bubble absolute ${item.className} rounded-[22px] border px-3 py-2.5 text-left backdrop-blur-md transition-all duration-300 ${
+                              isActive
+                                ? 'sison-ai-condition-bubble-active border-[#cdbbff] bg-white/94 opacity-100 shadow-[0_16px_36px_rgba(139,92,246,0.20)]'
+                                : isComplete
+                                  ? 'border-white/75 bg-white/82 opacity-90 shadow-[0_10px_24px_rgba(82,58,135,0.09)]'
+                                  : 'border-white/60 bg-white/58 opacity-45 shadow-[0_8px_20px_rgba(82,58,135,0.06)]'
+                            }`}
+                          >
+                            {isActive && <span className="sison-ai-condition-packet" />}
+                            <div className="flex items-center gap-2">
+                              <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${
+                                isActive ? 'bg-[#8b5cf6] text-white' : 'bg-[#f3f0ff] text-[#8b5cf6]'
+                              }`}>
+                                {item.icon}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-[12.5px] font-bold leading-tight text-[#514165]">
+                                  {item.label}
+                                </p>
+                                <p className="mt-1 truncate text-[10px] font-semibold leading-none text-[#8a7aa3]">
+                                  {isComplete ? '분석 완료' : item.caption}
+                                </p>
+                              </div>
+                              {isComplete && (
+                                <span className="ml-1 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-[#8b5cf6]/12 text-[10px] font-black text-[#8b5cf6]">
+                                  ✓
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
 
-                      <span className="absolute left-[32px] bottom-[55px] flex h-8 w-8 items-center justify-center rounded-full border border-[#e4d9ff] bg-white/82 text-[#8b5cf6] shadow-[0_8px_18px_rgba(139,92,246,0.11)]">
-                        <MapPin className="h-4 w-4" strokeWidth={2.1} />
+                      <span className="sison-ai-loading-core absolute left-1/2 top-[132px] flex h-[88px] w-[88px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[32px] border border-white/70 bg-[radial-gradient(circle_at_32%_24%,#ffffff_0%,#f1ebff_28%,#c4b5fd_64%,#8b5cf6_100%)] text-white shadow-[0_22px_48px_rgba(139,92,246,0.28)]">
+                        <Sparkles className="h-8 w-8 drop-shadow-sm" strokeWidth={2.2} />
                       </span>
-                      <span className="absolute right-[38px] bottom-[62px] flex h-8 w-8 items-center justify-center rounded-full border border-[#e4d9ff] bg-white/82 text-[#a78bfa] shadow-[0_8px_18px_rgba(139,92,246,0.10)]">
-                        <Route className="h-4 w-4" strokeWidth={2.1} />
-                      </span>
 
-                      <span className="sison-ai-loading-core absolute left-1/2 top-1/2 flex h-[62px] w-[62px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[24px] border border-white/70 bg-[radial-gradient(circle_at_32%_24%,#ffffff_0%,#f1ebff_30%,#c4b5fd_68%,#8b5cf6_100%)] text-white shadow-[0_18px_34px_rgba(139,92,246,0.25)]">
-                        <Sparkles className="h-6 w-6 drop-shadow-sm" strokeWidth={2.2} />
-                      </span>
-
-                      <Sparkles className="sison-ai-loading-spark absolute left-[58px] top-[8px] h-3.5 w-3.5 text-[#a78bfa]" strokeWidth={2.1} />
-                      <Sparkles className="sison-ai-loading-spark absolute right-[64px] top-[5px] h-3 w-3 text-[#c084fc]" strokeWidth={2.1} style={{ animationDelay: '680ms' }} />
-                      <Sparkles className="sison-ai-loading-spark absolute right-[18px] top-[112px] h-3.5 w-3.5 text-[#8b5cf6]" strokeWidth={2.1} style={{ animationDelay: '1180ms' }} />
-                      <Sparkles className="sison-ai-loading-spark absolute left-[22px] top-[126px] h-3 w-3 text-[#c4b5fd]" strokeWidth={2.1} style={{ animationDelay: '1680ms' }} />
+                      <Sparkles className="sison-ai-loading-spark absolute left-[122px] top-[74px] h-3.5 w-3.5 text-[#a78bfa]" strokeWidth={2.1} />
+                      <Sparkles className="sison-ai-loading-spark absolute right-[96px] top-[128px] h-3 w-3 text-[#c084fc]" strokeWidth={2.1} style={{ animationDelay: '680ms' }} />
+                      <Sparkles className="sison-ai-loading-spark absolute left-[104px] bottom-[70px] h-3 w-3 text-[#8b5cf6]" strokeWidth={2.1} style={{ animationDelay: '1180ms' }} />
                     </div>
 
-                    <div className="min-h-[64px]">
+                    <div className="min-h-[52px]">
                       <p
-                        className={`flex min-h-[56px] items-center justify-center gap-1.5 whitespace-nowrap text-[clamp(17px,4.7vw,19px)] font-bold leading-7 text-[#6f4bd8] transition-all duration-[260ms] ${
+                        className={`flex min-h-[48px] max-w-full items-center justify-center gap-1.5 whitespace-nowrap text-[clamp(13.5px,3.65vw,16px)] font-bold leading-6 text-[#6f4bd8] transition-all duration-[260ms] ${
                           isAiLoadingTextVisible ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
                         }`}
                       >
                         <Sparkles className="h-4 w-4 flex-shrink-0 translate-y-[-1px]" strokeWidth={2.1} />
                         <span>{aiLoadingMessage}</span>
                       </p>
+                      <p className="mt-0.5 text-[12px] font-medium leading-5 text-[#756b89]">
+                        선택한 조건을 분석하고 있어요
+                      </p>
                     </div>
 
-                    <div className="mt-8 h-2 w-full overflow-hidden rounded-full bg-[#8b5cf6]/14">
+                    <div className="mt-4 h-2 w-[78%] overflow-hidden rounded-full bg-[#8b5cf6]/14">
                       <span
                         aria-hidden="true"
                         className="sison-ai-loading-progress block h-full w-[48%] rounded-full bg-[linear-gradient(90deg,#8b5cf6,#c084fc,#a78bfa)]"
                       />
                     </div>
-                    <p className="mt-7 text-[13px] font-medium text-[#756b89]">
+                    <p className="mt-4 text-[12px] font-medium text-[#756b89]">
                       잠시만 기다려주세요
                     </p>
                   </div>
@@ -2024,7 +2164,7 @@ export function HomeAIRecommendationFlow({
                 {recommendationDisplayItems.length > 0 ? (
                   <div>
                     <div
-                      className="relative z-10 mx-auto h-[364px] max-w-[332px] touch-pan-y select-none"
+                      className="relative z-10 mx-auto h-[364px] max-w-[332px] touch-pan-y select-none overflow-visible overscroll-x-none [touch-action:pan-y] [-webkit-user-select:none]"
                       onPointerDown={handleDeckPointerDown}
                       onPointerMove={handleDeckPointerMove}
                       onPointerUp={() => settleDeckDrag(true)}
@@ -2035,7 +2175,6 @@ export function HomeAIRecommendationFlow({
                           ? (index - activeRecommendationIndex + recommendationCount) % recommendationCount
                           : 0;
                         const isExitingCard = exitingRecommendationIndex === index;
-                        if (depth > 3 && !isExitingCard) return null;
                         const isActiveCard = depth === 0 && !isExitingCard;
                         const isEnteringCard = isActiveCard && isDeckEntering;
                         const reasonText = getEditorialRecommendationReason(activity, reason, index, mood);
@@ -2052,7 +2191,7 @@ export function HomeAIRecommendationFlow({
                                 deckSuppressClickRef.current = false;
                                 return;
                               }
-                              if (isActiveCard && Math.abs(deckDragOffset) < 8) onOpenActivity(displayActivity);
+                              if (isActiveCard && Math.abs(deckPendingDragOffsetRef.current) < 8) onOpenActivity(displayActivity);
                             }}
                             onKeyDown={(event) => {
                               if (!isActiveCard) return;
@@ -2065,9 +2204,16 @@ export function HomeAIRecommendationFlow({
                               isActiveCard ? 'cursor-grab active:cursor-grabbing' : 'pointer-events-none'
                             }`}
                             style={
-                              isExitingCard && deckTransitionDirection
+                              isExitingCard && deckTransitionDirection && deckInteractionType === 'swipe'
                                 ? getExitingDeckCardStyle(deckTransitionDirection)
-                                : getDeckCardStyle(depth, deckDragOffset, isDeckDragging, deckTransitionDirection, isEnteringCard)
+                                : getDeckCardStyle(
+                                  depth,
+                                  deckDragOffset,
+                                  isDeckDragging,
+                                  deckTransitionDirection,
+                                  isEnteringCard,
+                                  deckInteractionType,
+                                )
                             }
                             aria-hidden={!isActiveCard}
                           >
@@ -2076,7 +2222,8 @@ export function HomeAIRecommendationFlow({
                                 <img
                                   src={imageUrl}
                                   alt={activity.title}
-                                  className="h-full w-full object-cover"
+                                  draggable={false}
+                                  className="pointer-events-none h-full w-full select-none object-cover [-webkit-user-drag:none] [-webkit-user-select:none]"
                                   loading={index === activeRecommendationIndex ? 'eager' : 'lazy'}
                                   decoding="async"
                                 />
@@ -2152,7 +2299,7 @@ export function HomeAIRecommendationFlow({
                     <div className="relative z-[60] mt-7 flex items-center justify-center gap-4">
                       <button
                         type="button"
-                        onClick={() => moveRecommendation(-1, -1)}
+                        onClick={() => moveRecommendation(-1, -1, 'button')}
                         disabled={!canMoveRecommendation || deckTransitionDirection !== null}
                         className="relative z-[61] flex h-9 w-9 items-center justify-center rounded-full border border-[rgba(139,92,246,0.15)] bg-[rgba(139,92,246,0.08)] text-[#8b5cf6] transition-all hover:bg-[rgba(139,92,246,0.15)] active:scale-95 disabled:opacity-30"
                         aria-label="이전 추천 활동"
@@ -2173,7 +2320,7 @@ export function HomeAIRecommendationFlow({
                       </div>
                       <button
                         type="button"
-                        onClick={() => moveRecommendation(1, 1)}
+                        onClick={() => moveRecommendation(1, 1, 'button')}
                         disabled={!canMoveRecommendation || deckTransitionDirection !== null}
                         className="relative z-[61] flex h-9 w-9 items-center justify-center rounded-full border border-[rgba(139,92,246,0.15)] bg-[rgba(139,92,246,0.08)] text-[#8b5cf6] transition-all hover:bg-[rgba(139,92,246,0.15)] active:scale-95 disabled:opacity-30"
                         aria-label="다음 추천 활동"
@@ -2185,7 +2332,7 @@ export function HomeAIRecommendationFlow({
                 ) : (
                   <div className="rounded-2xl border border-[#e2e6fb] bg-white/78 px-4 py-6 text-center">
                     <p className="text-[14px] font-semibold text-[#303850]">조건에 맞는 활동이 아직 없어요</p>
-                    <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#7a8499]">
+                    <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#7A7F87]">
                       다른 지역이나 일정을 선택해 다시 찾아보세요.
                     </p>
                   </div>

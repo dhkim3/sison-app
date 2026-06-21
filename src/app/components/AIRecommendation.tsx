@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Download, MapPin, Clock } from 'lucide-react';
+import { ArrowLeft, Download, MapPin, Clock, Sparkles } from 'lucide-react';
 import { PageShell } from './PageShell';
 import { useBottomSheetScrollLock } from './useBottomSheetScrollLock';
 import type { ActivitySaveRecord } from '../activitySaveState';
@@ -226,6 +226,152 @@ function getStopDescription(stop: PlaceStop): string {
   return `${pre}지역을 대표하는 관광 명소`;
 }
 
+function formatDistance(distance: number): string {
+  if (!Number.isFinite(distance) || distance <= 0) return '';
+  if (distance < 1000) return `${Math.round(distance)}m`;
+  return `${(distance / 1000).toFixed(1)}km`;
+}
+
+function getShareStopDescription(stop: PlaceStop): string {
+  const rawDescription = getStopDescription(stop)
+    .replace(/\s+/g, ' ')
+    .replace(/서울특별시의\s*/g, '')
+    .trim();
+
+  if (!rawDescription) return '';
+  if (/지역을 대표하는 관광 명소/.test(rawDescription)) return '';
+  if (rawDescription === stop.title.trim()) return '';
+  return rawDescription;
+}
+
+function getShareStops(plan: TravelPlan): PlaceStop[] {
+  const seenTitles = new Set<string>();
+
+  return plan.stops
+    .filter((stop) => stop.title?.trim())
+    .filter((stop) => {
+      const key = stop.title.trim();
+      if (seenTitles.has(key)) return false;
+      seenTitles.add(key);
+      return true;
+    })
+    .slice(0, 4);
+}
+
+function AiItineraryShareCaptureView({
+  activity,
+  plans,
+}: {
+  activity: ActivitySaveRecord;
+  plans: TravelPlan[];
+}) {
+  return (
+    <div className="w-[430px] bg-[#fdfcfa] px-6 py-7 font-['Pretendard'] text-[#1f2937]">
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <p className="text-[12px] font-semibold tracking-[0.16em] text-[#8bb99d]">SISON AI ITINERARY</p>
+          <h2 className="mt-1 text-[24px] font-bold leading-tight text-[#1f2937]">추천 여행 일정</h2>
+        </div>
+        <div className="rounded-full bg-[#e8f5ed] px-3 py-1.5 text-[12px] font-semibold text-[#5f8d70]">
+          AI 추천
+        </div>
+      </div>
+
+      <section className="mb-7 rounded-[24px] border border-[#edf0ec] bg-white px-5 py-5 shadow-[0_10px_26px_rgba(31,41,55,0.05)]">
+        <p className="mb-2 text-[12px] font-semibold text-[#7ba98b]">선택한 봉사활동</p>
+        <h3 className="text-[18px] font-bold leading-snug text-[#1f2937]">
+          {activity.title}
+        </h3>
+        <div className="mt-3 space-y-1.5 text-[13px] font-medium leading-relaxed text-[#4b5563]">
+          <p className="truncate">{activity.volunteerPlace || activity.location}</p>
+          <p>{[activity.date, activity.time].filter(Boolean).join(' · ')}</p>
+        </div>
+      </section>
+
+      <section>
+        <h3 className="mb-4 text-[18px] font-bold text-[#1f2937]">추천 일정</h3>
+        <div className="space-y-4">
+          {plans.map((plan, planIndex) => {
+            const radiusKm = plan.maxDistanceM > 0 ? `${(plan.maxDistanceM / 1000).toFixed(1)}km` : '';
+            const accentColor = itineraryAccentColors[planIndex % itineraryAccentColors.length];
+            const stops = getShareStops(plan);
+
+            return (
+              <article
+                key={`${plan.title}-${planIndex}`}
+                className="rounded-[24px] border border-[#edf0ec] bg-white px-5 py-5 shadow-[0_10px_26px_rgba(31,41,55,0.05)]"
+              >
+                <p className="mb-1 text-[12px] font-bold" style={{ color: accentColor }}>
+                  일정 {planIndex + 1}
+                </p>
+                <h4 className="text-[19px] font-bold leading-snug text-[#1f2937]">
+                  {plan.title}
+                </h4>
+                <p className="mt-2 line-clamp-2 text-[13.5px] font-medium leading-[1.55] text-[#4b5563]">
+                  {plan.summary}
+                </p>
+
+                <div className="mt-3 flex items-center gap-3 text-[12.5px] font-semibold text-[#6b7280]">
+                  <span>{plan.duration}</span>
+                  {radiusKm && <span>반경 {radiusKm}</span>}
+                </div>
+
+                {stops.length > 0 && (
+                  <div className="mt-4 space-y-3">
+                    {stops.map((stop, stopIndex) => {
+                      const description = getShareStopDescription(stop);
+                      const distance = formatDistance(stop.distance);
+
+                      return (
+                        <div key={`${stop.id || stop.title}-${stopIndex}`} className="flex min-h-[56px] gap-3">
+                          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#eef4ef]">
+                            {stop.image ? (
+                              <img
+                                src={getSafeImageSource(stop.image)}
+                                crossOrigin="anonymous"
+                                referrerPolicy="no-referrer"
+                                alt=""
+                                className="h-12 w-12 object-cover"
+                              />
+                            ) : (
+                              <span className="text-[13px] font-bold" style={{ color: accentColor }}>
+                                {stopIndex + 1}
+                              </span>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1 pt-0.5">
+                            <p className="truncate text-[15px] font-bold leading-tight text-[#1f2937]">
+                              {stop.title}
+                            </p>
+                            {description && (
+                              <p className="mt-1 line-clamp-2 text-[12.5px] font-medium leading-[1.45] text-[#4b5563]">
+                                {description}
+                              </p>
+                            )}
+                            {distance && (
+                              <p className="mt-1 text-[12px] font-semibold text-[#6b7280]">
+                                {distance}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      <div className="mt-7 border-t border-[#edf0ec] pt-4 text-center text-[12px] font-semibold text-[#6b7280]">
+        시선이 고른 봉사 후 여행 일정
+      </div>
+    </div>
+  );
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const defaultActivity: ActivitySaveRecord = {
@@ -244,13 +390,52 @@ const defaultActivity: ActivitySaveRecord = {
 };
 
 const aiPreparationMessages = [
-  'AI가 활동 정보를 살펴보고 있어요',
-  '주변 관광지를 찾고 있어요',
-  '무리 없는 동선을 계산하고 있어요',
-  '여행 일정 준비 중이에요',
-  '봉사 후 가볼 만한 장소를 고르고 있어요',
-  '시선만의 추천 코스를 만들고 있어요',
+  'AI가 활동 주변을 살펴보고 있어요',
+  '봉사 후 동선을 정리하고 있어요',
+  '가까운 여행 포인트를 고르고 있어요',
+  '무리 없는 일정을 구성하고 있어요',
+  '추천 일정을 다듬고 있어요',
 ];
+
+const travelShuffleCards = [
+  {
+    title: '해변 산책',
+    image: '/activity-images/default-travel-1.png',
+    positionClass: 'left-4 top-4 -rotate-[7deg]',
+    cardClass: 'h-[104px] w-[92px]',
+    imageClass: 'h-[58px]',
+    delay: '0ms',
+  },
+  {
+    title: '숲길 산책',
+    image: '/activity-images/forest-trail-2.png',
+    positionClass: 'right-5 top-12 rotate-[7deg]',
+    cardClass: 'h-[100px] w-[90px]',
+    imageClass: 'h-[56px]',
+    delay: '360ms',
+  },
+  {
+    title: '감성 카페거리',
+    image: '/activity-images/city-travel-2.png',
+    positionClass: 'bottom-9 left-2 -rotate-[5deg]',
+    cardClass: 'h-[98px] w-[92px]',
+    imageClass: 'h-[54px]',
+    delay: '720ms',
+  },
+  {
+    title: '전망대',
+    image: '/activity-images/city-travel-3.png',
+    positionClass: 'bottom-4 right-4 rotate-[8deg]',
+    cardClass: 'h-[102px] w-[90px]',
+    imageClass: 'h-[58px]',
+    delay: '1080ms',
+  },
+];
+
+const featuredShuffleCard = {
+  title: '전통시장 탐방',
+  image: '/activity-images/festival-event-2.png',
+};
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -383,9 +568,20 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
         aria-hidden="true"
       />
       <div
-        className="bottom-sheet-panel bottom-sheet-panel-full relative w-full max-w-[430px] overflow-y-auto bg-[#fdfcfa] shadow-[0_-18px_46px_rgba(39,45,40,0.12)]"
+        className={`bottom-sheet-panel bottom-sheet-panel-full relative w-full max-w-[430px] bg-[#fdfcfa] shadow-[0_-18px_46px_rgba(39,45,40,0.12)] ${
+          isPreparing ? 'overflow-hidden' : 'overflow-y-auto'
+        }`}
         data-bottom-sheet-scrollable="true"
       >
+        {plans.length > 0 && !isPreparing && (
+          <div
+            ref={captureRef}
+            aria-hidden="true"
+            className="pointer-events-none fixed left-[-10000px] top-0 w-[430px]"
+          >
+            <AiItineraryShareCaptureView activity={selectedActivity} plans={plans} />
+          </div>
+        )}
         <PageShell reserveBottomTabSpace={false}>
           <header className="sticky top-0 z-20 bg-[#fdfcfa]/95 backdrop-blur-sm border-b border-black/5">
             <div className="px-6 py-5">
@@ -404,54 +600,100 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
           </header>
 
           {isPreparing ? (
-            <div className="px-6 py-6 space-y-7">
-              <section>
-                <div className="bg-white rounded-3xl p-5 shadow-sm border border-black/5">
-                  <p className="mb-2 text-[13px] font-medium text-[#6f8b78]">
-                    여행 일정 준비 중
-                  </p>
-                  <h3 className="mb-3 text-[#2a2a2a]">
-                    {aiPreparationMessages[preparationMessageIndex]}
-                  </h3>
-                  <p className="text-sm leading-relaxed text-[#777]">
-                    {selectedActivity.title} 이후의 이동과 머무는 시간을 차분히 맞춰보고 있어요.
-                  </p>
-                </div>
-              </section>
+            <div className="flex h-[calc(100dvh_-_82px_-_env(safe-area-inset-bottom))] min-h-0 overflow-hidden bg-[radial-gradient(circle_at_50%_20%,rgba(139,92,246,0.13),transparent_34%),radial-gradient(circle_at_50%_86%,rgba(192,132,252,0.16),transparent_38%),linear-gradient(180deg,#faf8ff_0%,#fffefe_46%,#f3f0ff_100%)] px-6 py-5">
+              <section className="relative mx-auto flex h-full w-full max-w-[360px] flex-col items-center justify-center text-center">
+                <div
+                  aria-hidden="true"
+                  className="absolute left-1/2 top-[14%] h-56 w-56 -translate-x-1/2 rounded-full bg-[#a78bfa]/16 blur-3xl"
+                />
+                <div
+                  aria-hidden="true"
+                  className="absolute bottom-[10%] right-2 h-32 w-32 rounded-full bg-[#c084fc]/12 blur-3xl"
+                />
 
-              <section>
-                <div className="rounded-2xl bg-[#e8f5ed] p-5">
-                  <div className="ai-loading-shimmer mb-3 h-3.5 w-4/5 rounded-full" />
-                  <div className="ai-loading-shimmer mb-3 h-3.5 w-full rounded-full" />
-                  <div className="ai-loading-shimmer h-3.5 w-2/3 rounded-full" />
-                </div>
-              </section>
+                <div className="relative mb-7 h-[244px] w-full max-w-[330px]" aria-hidden="true">
+                  <svg className="sison-ai-travel-shuffle-path absolute left-1/2 top-1/2 h-[200px] w-[292px] -translate-x-1/2 -translate-y-1/2 text-[#8b5cf6]/30" viewBox="0 0 292 200" fill="none">
+                    <path
+                      d="M56 56C92 22 135 20 154 58C174 99 224 70 236 106C249 145 195 169 151 151C105 132 62 157 48 122C40 102 48 80 70 68"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeDasharray="8 10"
+                    />
+                    <path d="M238 102L248 111L236 116" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M50 125L40 116L52 111" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
 
-              <section>
-                <h3 className="mb-4">추천 일정</h3>
-                <div className="space-y-3">
-                  {[0, 1, 2, 3].map((item) => (
+                  {travelShuffleCards.map((card) => (
                     <div
-                      key={item}
-                      className="ai-loading-step bg-white rounded-2xl p-4 shadow-sm border border-black/5"
+                      key={card.title}
+                      className={`absolute ${card.positionClass}`}
                     >
-                      <div className="flex gap-4">
-                        <div className="relative min-w-[45px] pt-1">
-                          <div className="h-2.5 w-2.5 rounded-full bg-[#cfe7d9]" />
-                          {item < 3 && <div className="ai-loading-line ml-[4px] mt-1 h-10 w-px bg-[#e3efe8]" />}
-                        </div>
-                        <div className="flex-1 pt-0.5">
-                          <div className="ai-loading-shimmer mb-3 h-4 w-3/4 rounded-full" />
-                          <div className="ai-loading-shimmer h-3.5 w-1/2 rounded-full" />
-                        </div>
+                      <div
+                        className={`sison-ai-travel-shuffle-card ${card.cardClass} overflow-hidden rounded-[18px] border border-white/80 bg-white/86 p-2 text-left shadow-[0_14px_30px_rgba(82,58,135,0.13)] backdrop-blur`}
+                        style={{ animationDelay: card.delay }}
+                      >
+                        <img
+                          src={card.image}
+                          alt=""
+                          draggable={false}
+                          className={`${card.imageClass} pointer-events-none mb-2 w-full select-none rounded-[13px] object-cover [-webkit-user-drag:none]`}
+                        />
+                        <p className="truncate text-[10.5px] font-bold text-[#65527d]">
+                          {card.title}
+                        </p>
                       </div>
                     </div>
                   ))}
+
+                  <div className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2">
+                    <div className="sison-ai-travel-shuffle-featured relative h-[128px] w-[118px] overflow-hidden rounded-[22px] border border-[#d8c7ff]/65 bg-[linear-gradient(145deg,#c4b5fd_0%,#a78bfa_48%,#8b5cf6_100%)] p-2.5 text-left text-white shadow-[0_22px_46px_rgba(139,92,246,0.28)]">
+                      <img
+                        src={featuredShuffleCard.image}
+                        alt=""
+                        draggable={false}
+                        className="pointer-events-none h-[72px] w-full select-none rounded-[16px] object-cover shadow-[0_8px_18px_rgba(68,40,114,0.16)] [-webkit-user-drag:none]"
+                      />
+                      <div className="mt-2 flex items-center gap-1.5">
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/22">
+                          <Sparkles className="h-3 w-3" strokeWidth={2.2} />
+                        </span>
+                        <p className="truncate text-[11px] font-bold">
+                          {featuredShuffleCard.title}
+                        </p>
+                      </div>
+                      <span className="absolute right-2 top-2 rounded-full bg-white/24 px-2 py-0.5 text-[9px] font-bold text-white/95 backdrop-blur">
+                        선택 중
+                      </span>
+                    </div>
+                  </div>
+
+                  <Sparkles className="sison-ai-loading-spark absolute left-[76px] top-[82px] h-3.5 w-3.5 text-[#a78bfa]" strokeWidth={2.1} />
+                  <Sparkles className="sison-ai-loading-spark absolute right-[78px] top-[78px] h-4 w-4 text-[#c084fc]" strokeWidth={2.1} style={{ animationDelay: '720ms' }} />
+                  <Sparkles className="sison-ai-loading-spark absolute right-[46px] bottom-[74px] h-3 w-3 text-[#8b5cf6]" strokeWidth={2.1} style={{ animationDelay: '1280ms' }} />
+                  <Sparkles className="sison-ai-loading-spark absolute left-[52px] bottom-[70px] h-3 w-3 text-[#c4b5fd]" strokeWidth={2.1} style={{ animationDelay: '1680ms' }} />
                 </div>
+
+                <p className="max-w-full whitespace-nowrap text-[clamp(18px,4.9vw,20px)] font-bold leading-[1.25] text-[#6f4bd8]">
+                  AI가 여행 일정을 고르고 있어요
+                </p>
+                <p className="mt-3 max-w-full whitespace-nowrap text-[clamp(12px,3.25vw,13px)] font-medium leading-5 text-[#5F6368]">
+                  여러 후보를 비교해 일정을 만들고 있어요
+                </p>
+
+                <div className="mt-7 h-2 w-[78%] overflow-hidden rounded-full bg-[#8b5cf6]/14">
+                  <span
+                    aria-hidden="true"
+                    className="sison-ai-loading-progress block h-full w-[48%] rounded-full bg-[linear-gradient(90deg,#8b5cf6,#c084fc,#a78bfa)]"
+                  />
+                </div>
+                <p className="mt-4 text-[13px] font-medium text-[#756b89]">
+                  잠시만 기다려주세요
+                </p>
               </section>
             </div>
           ) : (
-            <div ref={captureRef} className="relative space-y-8 bg-[#fdfcfa] px-6 py-6">
+            <div className="relative space-y-8 bg-[#fdfcfa] px-6 py-6">
               {/* 봉사활동 정보 */}
               <section>
                 <div className="bg-white rounded-3xl p-5 shadow-sm border border-black/5">
@@ -459,13 +701,13 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
                   <div className="space-y-2">
                     <div className="flex items-center gap-2.5">
                       <MapPin className="w-4 h-4 text-[#c9897e]" strokeWidth={2} />
-                      <span className="text-sm font-normal text-[#8f8f8f]">
+                      <span className="text-sm font-normal text-[#5F6368]">
                         {selectedActivity.volunteerPlace || selectedActivity.location}
                       </span>
                     </div>
                     <div className="flex items-center gap-2.5">
                       <Clock className="w-4 h-4 text-[#b8b2aa]" strokeWidth={2} />
-                      <span className="text-sm font-normal text-[#8f8f8f]">
+                      <span className="text-sm font-normal text-[#5F6368]">
                         {[selectedActivity.date, selectedActivity.time].filter(Boolean).join(' · ')}
                       </span>
                     </div>
@@ -478,7 +720,7 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
                 <section>
                   <div className="rounded-2xl bg-[#fff5f5] border border-[#f5d5d5] p-5">
                     <p className="text-sm text-[#c9897e] leading-relaxed">{planError}</p>
-                    <p className="mt-1 text-[12px] text-[#aaa]">잠시 후 다시 시도해주세요.</p>
+                    <p className="mt-1 text-[12px] text-[#7A7F87]">잠시 후 다시 시도해주세요.</p>
                   </div>
                 </section>
               )}
@@ -510,7 +752,7 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
                           <p className="mb-3 text-sm leading-relaxed text-[#777]">{plan.summary}</p>
 
                           {/* 소요 시간 + 총 이동 거리 */}
-                          <div className="mb-4 flex items-center gap-4 text-[12px] text-[#a8b5ac]">
+                          <div className="mb-4 flex items-center gap-4 text-[12px] text-[#6B7280]">
                             <span className="flex items-center gap-1.5">
                               <Clock className="w-3.5 h-3.5" strokeWidth={2} style={{ color: accentColor }} />
                               {plan.duration}
@@ -562,12 +804,12 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
                                         <p className="text-sm font-medium text-[#2a2a2a] leading-snug">
                                           {stop.title}
                                           {distKm && (
-                                            <span className="ml-1.5 text-[12px] font-normal text-[#a8b5ac]">
+                                            <span className="ml-1.5 text-[12px] font-normal text-[#6B7280]">
                                               · {distKm}
                                             </span>
                                           )}
                                         </p>
-                                        <p className="mt-0.5 text-[12px] text-[#b0bcb3] leading-snug line-clamp-2">
+                                        <p className="mt-0.5 text-[12px] text-[#7A7F87] leading-snug line-clamp-2">
                                           {description}
                                         </p>
                                       </div>

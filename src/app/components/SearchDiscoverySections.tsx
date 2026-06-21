@@ -37,7 +37,7 @@ export function SearchDiscoverySections({
       {topRecentSearches.length > 0 && (
         <section>
           <div className="mb-2 flex items-center gap-1.5">
-            <Search className="w-3.5 h-3.5 text-[#bbb]" strokeWidth={2} />
+            <Search className="w-3.5 h-3.5 text-[#9AA0A6]" strokeWidth={2} />
             <h4 className="text-[12px] font-semibold text-[#5a5a5a] leading-none">최근 검색</h4>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -58,7 +58,7 @@ export function SearchDiscoverySections({
 
       <section>
         <div className="mb-2 flex items-center gap-1.5">
-          <MapPin className="w-3.5 h-3.5 text-[#bbb]" strokeWidth={2} />
+          <MapPin className="w-3.5 h-3.5 text-[#9AA0A6]" strokeWidth={2} />
           <h4 className="text-[12px] font-semibold text-[#5a5a5a] leading-none">실시간 인기 지역</h4>
         </div>
         <div className="flex flex-wrap gap-2">

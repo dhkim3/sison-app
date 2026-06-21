@@ -79,19 +79,19 @@ export function MyActivitiesView({
               </button>
               <h2>어떤 활동의 기록을 남길까요?</h2>
             </div>
-            <p className="text-[13px] text-[#bbb] pl-11">지난 여행의 활동을 선택해보세요</p>
+            <p className="text-[13px] text-[#9AA0A6] pl-11">지난 여행의 활동을 선택해보세요</p>
           </div>
 
           {/* Search Bar */}
           <div className="px-6 pb-3">
             <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#999]" strokeWidth={2} />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5F6368]" strokeWidth={2} />
               <input
                 type="text"
                 placeholder="활동이나 장소를 검색해보세요"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-[#f8f8f5] rounded-xl text-[13px] placeholder:text-[#bbb] outline-none focus:bg-white focus:ring-1 focus:ring-[#a8d5ba]/40 transition-all"
+                className="w-full pl-10 pr-4 py-2.5 bg-[#f8f8f5] rounded-xl text-[13px] placeholder:text-[#9AA0A6] outline-none focus:bg-white focus:ring-1 focus:ring-[#a8d5ba]/40 transition-all"
               />
             </div>
           </div>
@@ -106,7 +106,7 @@ export function MyActivitiesView({
                   className={`flex-1 py-2 text-[14px] font-medium rounded-xl transition-all ${
                     activeTab === tab
                       ? 'bg-[#2a2a2a] text-white shadow-[0_1px_3px_rgba(0,0,0,0.1)]'
-                      : 'bg-[#f8f8f5] text-[#999] hover:bg-[#e8f5ed] hover:text-[#5a5a5a]'
+                      : 'bg-[#f8f8f5] text-[#5F6368] hover:bg-[#e8f5ed] hover:text-[#5a5a5a]'
                   }`}
                 >
                   {tab}
@@ -138,12 +138,12 @@ export function MyActivitiesView({
           ) : (
             // Empty State
             <div className="text-center py-16">
-              <p className="text-[13px] text-[#999] mb-1">
+              <p className="text-[13px] text-[#5F6368] mb-1">
                 {searchQuery || activeTab !== '전체'
                   ? '검색 결과가 없어요'
                   : '아직 기록할 활동이 없어요'}
               </p>
-              <p className="text-[11px] text-[#bbb]">
+              <p className="text-[11px] text-[#9AA0A6]">
                 {searchQuery || activeTab !== '전체'
                   ? '다른 조건으로 검색해보세요'
                   : '참여를 마친 활동이 생기면 이곳에 모아둘게요'}

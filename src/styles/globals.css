@@ -287,6 +287,84 @@ body.bottom-sheet-scroll-locked {
   }
 }
 
+@keyframes sisonAiConditionOrbitFlow {
+  0% {
+    stroke-dashoffset: 0;
+    opacity: 0.34;
+  }
+  50% {
+    opacity: 0.66;
+  }
+  100% {
+    stroke-dashoffset: -34;
+    opacity: 0.34;
+  }
+}
+
+@keyframes sisonAiConditionBubbleFocus {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.045);
+  }
+}
+
+@keyframes sisonAiConditionPacketMove {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -50%, 0) scale(0.8);
+  }
+  18% {
+    opacity: 0.9;
+  }
+  72% {
+    opacity: 0.72;
+    transform: translate3d(34px, calc(-50% + 18px), 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(46px, calc(-50% + 28px), 0) scale(0.6);
+  }
+}
+
+@keyframes sisonAiTravelShuffleFloat {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(0, -4px, 0) rotate(1.4deg);
+  }
+}
+
+@keyframes sisonAiTravelShuffleFeatured {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    box-shadow: 0 22px 46px rgba(139, 92, 246, 0.28);
+  }
+  50% {
+    transform: translate3d(0, -5px, 0) scale(1.025);
+    box-shadow: 0 26px 54px rgba(139, 92, 246, 0.34);
+  }
+}
+
+@keyframes sisonAiTravelShufflePath {
+  0% {
+    stroke-dashoffset: 0;
+    opacity: 0.42;
+  }
+  50% {
+    opacity: 0.72;
+  }
+  100% {
+    stroke-dashoffset: -36;
+    opacity: 0.42;
+  }
+}
+
 @keyframes sisonAiLoadingProgress {
   0% {
     transform: translateX(-110%);
@@ -319,6 +397,45 @@ body.bottom-sheet-scroll-locked {
 .sison-ai-loading-spark {
   animation: sisonAiLoadingSparkTwinkle 3.2s ease-in-out infinite;
   will-change: transform, opacity;
+}
+
+.sison-ai-condition-orbit path {
+  animation: sisonAiConditionOrbitFlow 2.4s ease-in-out infinite;
+}
+
+.sison-ai-condition-bubble {
+  will-change: transform, opacity;
+}
+
+.sison-ai-condition-bubble-active {
+  animation: sisonAiConditionBubbleFocus 1.8s ease-in-out infinite;
+}
+
+.sison-ai-condition-packet {
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #8b5cf6;
+  box-shadow: 0 0 0 5px rgba(139, 92, 246, 0.12), 0 0 18px rgba(139, 92, 246, 0.34);
+  animation: sisonAiConditionPacketMove 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.sison-ai-travel-shuffle-card {
+  animation: sisonAiTravelShuffleFloat 2.4s ease-in-out infinite;
+  will-change: transform;
+}
+
+.sison-ai-travel-shuffle-featured {
+  animation: sisonAiTravelShuffleFeatured 2.2s ease-in-out infinite;
+  will-change: transform, box-shadow;
+}
+
+.sison-ai-travel-shuffle-path path {
+  animation: sisonAiTravelShufflePath 2.8s ease-in-out infinite;
 }
 
 .sison-ai-loading-progress {
@@ -444,6 +561,12 @@ body.bottom-sheet-scroll-locked {
   .sison-ai-loading-mini-card,
   .sison-ai-loading-spark,
   .sison-ai-loading-progress,
+  .sison-ai-condition-orbit path,
+  .sison-ai-condition-bubble-active,
+  .sison-ai-condition-packet,
+  .sison-ai-travel-shuffle-card,
+  .sison-ai-travel-shuffle-featured,
+  .sison-ai-travel-shuffle-path path,
   .ai-loading-shimmer,
   .ai-loading-step,
   .ai-loading-line {

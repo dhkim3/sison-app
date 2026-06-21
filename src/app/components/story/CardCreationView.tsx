@@ -110,7 +110,7 @@ export function CardCreationView({
               </button>
               <div>
                 <h2>여행 카드 만들기</h2>
-                <p className="text-[13px] text-[#bbb] mt-0.5">한 장의 사진으로 오늘의 시선을 남겨보세요</p>
+                <p className="text-[13px] text-[#9AA0A6] mt-0.5">한 장의 사진으로 오늘의 시선을 남겨보세요</p>
               </div>
             </div>
           </div>
@@ -121,7 +121,7 @@ export function CardCreationView({
           <section>
             <div className="mb-3.5">
               <h4 className="text-[#2a2a2a] mb-0.5 font-semibold">프레임 선택</h4>
-              <p className="text-[11px] text-[#bbb]">원하는 분위기를 골라보세요</p>
+              <p className="text-[11px] text-[#9AA0A6]">원하는 분위기를 골라보세요</p>
             </div>
 
             <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2">
@@ -201,7 +201,7 @@ export function CardCreationView({
                     <p className="text-[11px] font-normal leading-[1.35] text-[#b6b6b6]">{activity.date}</p>
                   </div>
                   <div className="mt-3 border-t border-black/5 pt-2">
-                    <p className="text-center text-[11px] text-[#999] opacity-70">시선</p>
+                    <p className="text-center text-[11px] text-[#5F6368] opacity-70">시선</p>
                   </div>
                 </div>
               </div>

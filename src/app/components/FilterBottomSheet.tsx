@@ -56,7 +56,7 @@ export function FilterBottomSheet({
         <div className="flex flex-shrink-0 items-start justify-between border-b border-black/5 bg-white/95 px-6 py-4 backdrop-blur-sm">
           <div>
             <h3 className="text-[17px] font-semibold text-[#2a2a2a]">활동 분류</h3>
-            <p className="mt-1 text-[12.5px] text-[#999]">관심 있는 활동 유형을 골라보세요.</p>
+            <p className="mt-1 text-[12.5px] text-[#5F6368]">관심 있는 활동 유형을 골라보세요.</p>
           </div>
           <button
             type="button"

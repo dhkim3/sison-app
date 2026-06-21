@@ -102,7 +102,7 @@ export function SearchConditionsBottomSheet({
 
         <div className="bottom-sheet-scrollable min-h-0 flex-1 overflow-y-auto px-6 pt-5 pb-safe space-y-4" data-bottom-sheet-scrollable="true">
           <div>
-            <p className="mb-2 text-[12px] font-medium text-[#999]">여행지</p>
+            <p className="mb-2 text-[12px] font-medium text-[#5F6368]">여행지</p>
             <div className="flex h-[52px] items-center gap-3 rounded-2xl bg-[#f8f8f5] px-4 border border-black/5">
               <MapPin className="w-4 h-4 text-[#c9897e]" strokeWidth={2} />
               <input
@@ -110,7 +110,7 @@ export function SearchConditionsBottomSheet({
                 value={draftDestination}
                 onChange={(event) => setDraftDestination(event.target.value)}
                 placeholder="어디로 떠나시나요?"
-                className="w-full bg-transparent outline-none text-[15px] text-[#2a2a2a] placeholder:text-[#aaa]"
+                className="w-full bg-transparent outline-none text-[15px] text-[#2a2a2a] placeholder:text-[#7A7F87]"
               />
             </div>
           </div>
@@ -127,7 +127,7 @@ export function SearchConditionsBottomSheet({
             }}
             className="flex h-[72px] w-full cursor-pointer flex-col justify-center rounded-2xl bg-[#f8f8f5] border border-black/5 px-4 text-left hover:bg-[#f0f0eb] transition-colors"
           >
-            <span className="mb-1.5 block text-[12px] font-medium text-[#999]">일정</span>
+            <span className="mb-1.5 block text-[12px] font-medium text-[#5F6368]">일정</span>
             <span className="flex items-center gap-2.5 text-[15px] text-[#2a2a2a]">
               <Calendar className="w-4 h-4 text-[#a8d5ba]" strokeWidth={2} />
               <span className="min-w-0 flex-1 break-words">
@@ -141,7 +141,7 @@ export function SearchConditionsBottomSheet({
                     handleDateClear();
                   }}
                   aria-label="일정 초기화"
-                  className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-[#aaa] transition-colors hover:text-[#777] active:scale-95"
+                  className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-[#7A7F87] transition-colors hover:text-[#777] active:scale-95"
                 >
                   <X className="h-3 w-3" strokeWidth={2} />
                 </button>
@@ -161,7 +161,7 @@ export function SearchConditionsBottomSheet({
             }}
             className="flex h-[72px] w-full flex-col justify-center rounded-2xl bg-[#f8f8f5] border border-black/5 px-4 text-left hover:bg-[#f0f0eb] transition-colors"
           >
-            <span className="mb-1.5 block text-[12px] font-medium text-[#999]">인원</span>
+            <span className="mb-1.5 block text-[12px] font-medium text-[#5F6368]">인원</span>
             <span className="flex items-center gap-2.5 text-[15px] text-[#2a2a2a]">
               <Users className="w-4 h-4 text-[#a8d5ba]" strokeWidth={2} />
               <span className="min-w-0 flex-1 truncate">
@@ -175,7 +175,7 @@ export function SearchConditionsBottomSheet({
                     handlePeopleClear();
                   }}
                   aria-label="인원 초기화"
-                  className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-[#aaa] transition-colors hover:text-[#777] active:scale-95"
+                  className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-[#7A7F87] transition-colors hover:text-[#777] active:scale-95"
                 >
                   <X className="h-3 w-3" strokeWidth={2} />
                 </button>
