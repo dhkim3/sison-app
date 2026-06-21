@@ -376,59 +376,59 @@ const buildFramePrompt = (activity: string, region: string) => {
   const theme = getCardTheme(activity, region);
   const decos = theme.decorations.split(',').map((s) => s.trim());
   return (
-    `You are generating a pixel-art collectible TRAVEL CARD FRAME as a transparent PNG (1024×1536 px, portrait 2:3).\n` +
-    `This frame is composited over a real photo — the photo shows through the transparent window in the center.\n` +
+    `You are generating a 16-bit pixel-art collectible TRAVEL CARD FRAME (1024×1536 px, portrait 2:3).\n` +
+    `This frame is a transparent PNG composited over a real photo and then underlay text.\n` +
+    `CRITICAL: Multiple areas are designated as PURE EMPTY and must contain ZERO pixels to not block underlay text.\n` +
     `\n` +
     `=== ZONE LAYOUT (top to bottom, left to right) ===\n` +
     `\n` +
     `ZONE 1 — TOP BORDER STRIP (y: 0–90px, full width)\n` +
     `  • Background: ${theme.bg}, solid fill.\n` +
     `  • Pixel-art decorations: ${decos.slice(0, 4).join(', ')}, 2–3 sparkle stars (✦).\n` +
-    `  • Bottom edge of this strip: a 2px pixel-art decorative border line.\n` +
+    `  • Bottom edge: a 2px pixel-art decorative border line.\n` +
     `\n` +
     `ZONE 2 — PHOTO WINDOW (y: 90–1000px, x: 55–969px)\n` +
-    `  • PURE TRANSPARENT — alpha = 0, zero fill, zero color, no pixels at all.\n` +
-    `  • This is the cutout where the user's photograph will appear underneath.\n` +
-    `  • Do NOT place any pixel inside this rectangle.\n` +
+    `  • PURE TRANSPARENT — alpha = 0, zero fill, no pixels. The user's photo shows here.\n` +
     `\n` +
-    `ZONE 3 — LEFT BORDER STRIP (x: 0–55px, y: 90–1000px)\n` +
-    `  • Same solid background color as Zone 1.\n` +
-    `  • 3–4 small pixel-art icons spaced vertically (shells, leaves, sparkles).\n` +
-    `  • Inner right edge: 2px pixel border line.\n` +
-    `\n` +
-    `ZONE 4 — RIGHT BORDER STRIP (x: 969–1024px, y: 90–1000px)\n` +
-    `  • Mirror of Zone 3.\n` +
+    `ZONE 3 & 4 — SIDE BORDER STRIPS (x: 0–55px & x: 969–1024px, y: 90–1000px)\n` +
+    `  • Solid background color from Zone 1. Vertical pixel icons.\n` +
     `\n` +
     `ZONE 5 — CHARACTER STRIP (y: 1000–1190px, full width)\n` +
-    `  • Solid warm-cream background (#f0e8d8).\n` +
-    `  • A flat pixel-art ground/grass line at y ≈ 1170px.\n` +
-    `  • LEFT side (x ≈ 120): ${decos[0] ?? 'palm tree'} — compact, max 160px tall.\n` +
-    `  • CENTER (x ≈ 512): ${theme.character}. IMPORTANT: character max height 110px, keep it small and cute.\n` +
-    `  • RIGHT side (x ≈ 900): ${decos[1] ?? 'starfish'} — small accent, max 80px tall.\n` +
-    `  • Tiny sparkle dots scattered in background. No element crosses upward into Zone 2 (y < 1000).\n` +
+    `  • Background: Solid warm-cream (#f0e8d8).\n` +
+    `  • Character: ${theme.character}. IMPORTANT: MAX HEIGHT 110px, keep it cute and small.\n` +
+    `  • No cross-over: No part of any character or object crosses upward into Zone 2 (y < 1000).\n` +
     `\n` +
-    `ZONE 6 — TEXT BACKGROUND (y: 1190–1536px, full width)\n` +
-    `  • Solid cream-white background (#faf5ee) — the app overlays title/location/date text here.\n` +
-    `  • Left strip (x: 0–55px) and right strip (x: 969–1024px): thin 2px pixel-art border lines only.\n` +
-    `  • Center area (x: 55–969px, y: 1190–1460px): COMPLETELY EMPTY — no decorations, no pixels.\n` +
-    `  • BOTTOM ACCENT (y: 1460–1536px): decorative bottom bar.\n` +
-    `      - Far corners (x=0–80, x=944–1024): small themed corner pieces (shells, flowers, etc.).\n` +
-    `      - Center: a row of 3 small sparkle stars or a dotted pixel border line.\n` +
-    `      - Outermost bottom edge: 2px pixel border line.\n` +
+    `ZONE 6 — TEXT & LINE AREA (y: 1190–1536px, full width)\n` +
+    `  • Background: Solid cream-white (#faf5ee) for text overlay.\n` +
+    `  • This entire zone must be COMPLETELY EMPTY (zero pixels) except for the designated opaque line and bottom accent.\n` +
+    `\n` +
+    `    SUBZONE 6A — OPAQUE THICK LINE (y: 1190–1210px, full width)\n` +
+    `      • Create a distinct, 불투명한 (OPAQUE) thick pixel-art horizontal separating line.\n` +
+    `      • Style: A 10px tall solid dark-brown (#5d4037) bar with pixelated end details.\n` +
+    `\n` +
+    `    SUBZONE 6B — MAIN TEXT SPACE (y: 1210–1400px, x: 75–949px)\n` +
+    `      • Left padding: 20px (x=75). For 'Coffee Aroma', 'Gangwon', etc.\n` +
+    `      • **ABSOLUTE PURE EMPTY ZONE.** Zero pixels, zero dots, zero patterns.\n` +
+    `\n` +
+    `    SUBZONE 6C — "SIGHT" (시선) TEXT SPACE (y: 1400–1460px, full width)\n` +
+    `      • This is the **exact area** for the bottom-center "Sight" text.\n` +
+    `      • **ABSOLUTE PURE EMPTY ZONE.** Zero pixels.\n` +
+    `\n` +
+    `    SUBZONE 6D — BOTTOM ACCENT & BORDER (y: 1460–1536px)\n` +
+    `      • Border: 2px pixel border. Corner pieces.\n` +
+    `      • Center (y=1490, x=512): A small pixel-art compass rose, max 30px.\n` +
     `\n` +
     `OUTER CARD BORDER:\n` +
-    `  • 3px pixel-art border enclosing the entire 1024×1536 card.\n` +
-    `  • Pixel-stepped rounded corners (2–3 px bevel at each corner).\n` +
+    `  • 3px pixel-art border around entire card. Pixel-stepped rounded corners.\n` +
     `\n` +
     `CRITICAL RULES (violating any = failure):\n` +
-    `  1. Zone 2 (photo window) must be PURE TRANSPARENT — not white, not semi-transparent, not light-colored.\n` +
-    `  2. No decoration from any border strip may overlap into Zone 2.\n` +
-    `  3. Characters in Zone 5 must be SMALL (≤110px tall). Do not make them oversized.\n` +
-    `  4. Zone 6 center must remain EMPTY — absolutely no icons, patterns, or fills that would block text.\n` +
+    `  1. Zone 2 (photo window) must be PURE TRANSPARENT.\n` +
+    `  2. **SUBZONES 6B AND 6C (TEXT AREAS) MUST BE ABSOLUTE PURE EMPTY (ZERO PIXELS).** No decorations, no sparkles, no fills, no grid patterns that would obscure the text.\n` +
+    `  3. Subzone 6A must be an opaque, thick separating line.\n` +
+    `  4. The character in Zone 5 must remain cute and SMALL (≤110px). Do not make it oversized to fill space.\n` +
     `  5. No text, numbers, or logos anywhere in the output.\n` +
     `\n` +
-    `STYLE: High-quality 16-bit pixel art. Animal Crossing / Stardew Valley collectible card aesthetic. ` +
-    `Soft pastel palette. Crisp pixel edges. Warm and cheerful mood.`
+    `STYLE: High-quality 16-bit pixel art. Animal Crossing / Stardew Valley aesthetic. Soft pastel palette. Crisp pixel edges. Warm mood.`
   );
 };
 
