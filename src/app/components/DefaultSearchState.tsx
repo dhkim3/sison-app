@@ -15,6 +15,7 @@ interface DefaultSearchStateProps {
   recentSearches: RecentSearchItem[];
   onDestinationChange: (value: string) => void;
   onRecentSearchSelect: (item: RecentSearchItem) => void;
+  onPopularRegionSelect: (region: string) => void;
   onDateConfirm?: (start: Date, end: Date) => void;
   onDateClear?: () => void;
   onPeopleClear?: () => void;
@@ -32,6 +33,7 @@ export function DefaultSearchState({
   recentSearches,
   onDestinationChange,
   onRecentSearchSelect,
+  onPopularRegionSelect,
   onDateClear,
   onPeopleClear,
   destinationActivityLabels = {},
@@ -72,6 +74,12 @@ export function DefaultSearchState({
     destinationInputRef.current?.blur();
     setIsDiscoveryOpen(false);
     onRecentSearchSelect(item);
+  };
+
+  const handlePopularRegionSelect = (region: string) => {
+    destinationInputRef.current?.blur();
+    setIsDiscoveryOpen(false);
+    onPopularRegionSelect(region);
   };
 
   const transitionToSelection = (openSelection: () => void) => {
@@ -122,7 +130,7 @@ export function DefaultSearchState({
               <SearchDiscoverySections
                 recentSearches={recentSearches}
                 onRecentSearchSelect={handleRecentSelect}
-                onRegionSelect={handleDiscoverySelect}
+                onRegionSelect={handlePopularRegionSelect}
               />
               <div className="pt-4 pb-4">
                 <div className="h-px bg-black/5" />
@@ -234,7 +242,7 @@ export function DefaultSearchState({
             <button
               key={region.name}
               type="button"
-              onClick={() => onSearch(region.searchKeyword, '', 0)}
+              onClick={() => onPopularRegionSelect(region.searchKeyword)}
               className="w-full rounded-2xl bg-white border border-black/5 px-4 py-3.5 text-left shadow-sm hover:bg-[#fbfbf8] transition-colors"
             >
               <div className="flex items-center gap-3">

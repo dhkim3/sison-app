@@ -22,6 +22,8 @@ export type GeocodeResult = {
   parcelAddress: string | null;
 };
 
+export type TravelRegionKey = '서울' | '부산' | '제주' | '강릉';
+
 export type ActivityNearbyResult = {
   lat: number;
   lng: number;
@@ -69,6 +71,63 @@ function parseNum(value: string | undefined): number | null {
   if (!value) return null;
   const n = parseFloat(value);
   return isNaN(n) ? null : n;
+}
+
+const TRAVEL_REGION_RULES: Record<TravelRegionKey, {
+  aliases: RegExp[];
+  bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number };
+}> = {
+  서울: {
+    aliases: [/서울|서울특별시|마포구|종로구|중구|성동구|강남구|서초구|송파구|용산구/],
+    bounds: { minLat: 37.40, maxLat: 37.72, minLng: 126.75, maxLng: 127.20 },
+  },
+  부산: {
+    aliases: [/부산|부산광역시|수영구|해운대구|광안리|광안|동래구|남구|중구/],
+    bounds: { minLat: 35.00, maxLat: 35.40, minLng: 128.75, maxLng: 129.35 },
+  },
+  제주: {
+    aliases: [/제주|제주시|서귀포|서귀포시|제주특별자치도|제주동문|동문시장|이호테우/],
+    bounds: { minLat: 33.05, maxLat: 33.65, minLng: 126.10, maxLng: 127.05 },
+  },
+  강릉: {
+    aliases: [/강릉|강릉시|강원\s*강릉|강원특별자치도\s*강릉|경포|주문진/],
+    bounds: { minLat: 37.55, maxLat: 37.95, minLng: 128.65, maxLng: 129.15 },
+  },
+};
+
+export function inferTravelRegion(...values: Array<string | null | undefined>): TravelRegionKey | null {
+  const source = values.filter(Boolean).join(' ');
+  if (!source.trim()) return null;
+
+  for (const [region, rule] of Object.entries(TRAVEL_REGION_RULES) as Array<[TravelRegionKey, typeof TRAVEL_REGION_RULES[TravelRegionKey]]>) {
+    if (rule.aliases.some((alias) => alias.test(source))) return region;
+  }
+
+  return null;
+}
+
+export function isCoordinateInTravelRegion(lat: number, lng: number, region: TravelRegionKey): boolean {
+  const { bounds } = TRAVEL_REGION_RULES[region];
+  return lat >= bounds.minLat && lat <= bounds.maxLat && lng >= bounds.minLng && lng <= bounds.maxLng;
+}
+
+export function isPlaceInTravelRegion(place: Pick<TravelPlace, 'title' | 'address' | 'lat' | 'lng'>, region: TravelRegionKey): boolean {
+  const text = `${place.title} ${place.address}`;
+  const textRegion = inferTravelRegion(text);
+  if (textRegion) return textRegion === region;
+  return isCoordinateInTravelRegion(place.lat, place.lng, region);
+}
+
+function prioritizeRegionCandidates(candidates: string[], region: TravelRegionKey | null): string[] {
+  if (!region) return candidates;
+
+  const rule = TRAVEL_REGION_RULES[region];
+  return [...candidates].sort((a, b) => {
+    const aMatches = rule.aliases.some((alias) => alias.test(a));
+    const bMatches = rule.aliases.some((alias) => alias.test(b));
+    if (aMatches === bMatches) return 0;
+    return aMatches ? -1 : 1;
+  });
 }
 
 // ─── VWorld ──────────────────────────────────────────────────────────────────
@@ -328,25 +387,32 @@ export async function geocodeAddress(address: string, region = ''): Promise<Geoc
   const apiKey = process.env.VWORLD_API_KEY?.trim();
   if (!apiKey) throw new Error('VWORLD_API_KEY가 설정되지 않았습니다.');
 
-  const candidates = normalizeVolunteerAddress(address, region);
+  const expectedRegion = inferTravelRegion(region, address);
+  const candidates = prioritizeRegionCandidates(normalizeVolunteerAddress(address, region), expectedRegion);
   const regionStr = region.trim();
+  const isAllowedResult = (result: GeocodeResult) => {
+    if (!expectedRegion) return true;
+    const addressRegion = inferTravelRegion(result.roadAddress, result.parcelAddress);
+    if (addressRegion) return addressRegion === expectedRegion;
+    return isCoordinateInTravelRegion(result.lat, result.lng, expectedRegion);
+  };
 
   // 각 후보마다: ADDRESS(ROAD) → ADDRESS(PARCEL) → PLACE → REGION+PLACE
   for (const query of candidates) {
     const road = await searchVWorld(apiKey, query, 'ROAD');
-    if (road) { const r = toGeocodeResult(road); if (r) return r; }
+    if (road) { const r = toGeocodeResult(road); if (r && isAllowedResult(r)) return r; }
 
     const parcel = await searchVWorld(apiKey, query, 'PARCEL');
-    if (parcel) { const r = toGeocodeResult(parcel); if (r) return r; }
+    if (parcel) { const r = toGeocodeResult(parcel); if (r && isAllowedResult(r)) return r; }
 
     const place = await searchVWorldPlace(apiKey, query);
-    if (place) { const r = toGeocodeResult(place); if (r) return r; }
+    if (place) { const r = toGeocodeResult(place); if (r && isAllowedResult(r)) return r; }
 
     if (regionStr) {
       const rq = `${regionStr} ${query}`.replace(/\s{2,}/g, ' ').trim();
       if (rq !== query) {
         const regionPlace = await searchVWorldPlace(apiKey, rq);
-        if (regionPlace) { const r = toGeocodeResult(regionPlace); if (r) return r; }
+        if (regionPlace) { const r = toGeocodeResult(regionPlace); if (r && isAllowedResult(r)) return r; }
       }
     }
   }
@@ -359,7 +425,7 @@ export async function geocodeAddress(address: string, region = ''): Promise<Geoc
   for (const query of districtCandidates) {
     for (const cat of ['L4', 'L2'] as const) {
       const district = await searchVWorldDistrict(apiKey, query, cat);
-      if (district) { const r = toGeocodeResult(district); if (r) return r; }
+      if (district) { const r = toGeocodeResult(district); if (r && isAllowedResult(r)) return r; }
     }
   }
 

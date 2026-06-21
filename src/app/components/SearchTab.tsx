@@ -358,6 +358,51 @@ export function SearchTab({
     void fetchVolunteerActivities(nextDestination, values.startDate, values.endDate, nextPeopleCount, resolved);
   };
 
+  const runFreshRegionSearch = (regionKeyword: string) => {
+    const nextDestination = regionKeyword.trim();
+    if (!nextDestination) return;
+
+    const resolved = resolveSearchLocation(nextDestination);
+    const resetApiState = { ...initialSearchApiState };
+
+    scrollToTop();
+    setDestination(nextDestination);
+    setStartDate(null);
+    setEndDate(null);
+    setSummaryDateRange('');
+    setPeopleCount(0);
+    setSummaryPeople('');
+    setHasSearched(true);
+    setVisibleCount(15);
+    setAppliedCategoryFilters([]);
+    setIsFilterOpen(false);
+    setIsSearchEditOpen(false);
+    resolvedLocationRef.current = resolved;
+    searchApiStateRef.current = resetApiState;
+
+    onSearchStateChange((currentState) => ({
+      ...currentState,
+      destination: nextDestination,
+      startDate: null,
+      endDate: null,
+      dateRangeLabel: '',
+      peopleCount: 0,
+      hasSearched: true,
+      recentSearches: addRecentSearch(currentState.recentSearches ?? [], {
+        destination: nextDestination,
+        startDate: null,
+        endDate: null,
+        peopleCount: 0,
+        resolvedSidoCd: resolved?.sidoCd ?? null,
+        resolvedGugunCd: resolved?.gugunCd ?? null,
+        resolvedKeywords: resolved?.keywords ?? null,
+      }),
+      api: resetApiState,
+    }));
+
+    void fetchVolunteerActivities(nextDestination, null, null, 0, resolved);
+  };
+
   const SEARCH_PAGE_SIZE = 15;
   const INITIAL_SEARCH_MAX_PAGE = 5;
 
@@ -760,13 +805,24 @@ export function SearchTab({
   ]);
 
   const handleSearch = (dest: string, dates: string, people: number) => {
+    const shouldKeepSelectedDates = Boolean(dates.trim());
+    const shouldResetFilters = !shouldKeepSelectedDates && people === 0;
+
+    if (shouldResetFilters) {
+      setAppliedCategoryFilters([]);
+    }
+
     runSearch({
       destination: dest,
-      startDate,
-      endDate,
-      dateRangeLabel: dates || formatDateRangeFull(),
+      startDate: shouldKeepSelectedDates ? startDate : null,
+      endDate: shouldKeepSelectedDates ? endDate : null,
+      dateRangeLabel: shouldKeepSelectedDates ? dates : '',
       peopleCount: people,
     });
+  };
+
+  const handlePopularRegionSearch = (region: string) => {
+    runFreshRegionSearch(region);
   };
 
   const handleRecentSearchSelect = (item: RecentSearchItem) => {
@@ -976,6 +1032,7 @@ export function SearchTab({
               recentSearches={searchState.recentSearches}
               onDestinationChange={setDestination}
               onRecentSearchSelect={handleRecentSearchSelect}
+              onPopularRegionSelect={handlePopularRegionSearch}
               onDateConfirm={handleDateConfirm}
               onDateClear={handleDateClear}
               onPeopleClear={handlePeopleClear}

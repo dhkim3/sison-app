@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Calendar, ChevronLeft, ChevronRight, Sparkles, X } from 'lucide-react';
-import { CompactActivityCard } from './CompactActivityCard';
+import { type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, Bookmark, Calendar, ChevronLeft, ChevronRight, Clock, Lightbulb, MapPin, Route, Sparkles, X } from 'lucide-react';
 import { useBottomSheetScrollLock } from './useBottomSheetScrollLock';
 import { filterLocationSuggestions, locationSuggestions } from '../locationSuggestions';
 import type { ActivitySaveLookup, ActivitySaveRecord } from '../activitySaveState';
+import { resolveActivityImage } from '../utils/activityImage';
 
 interface HomeAIRecommendationFlowProps {
   isOpen: boolean;
@@ -18,6 +18,10 @@ type ParsedActivityPreference = {
   intentSummary: string;
   keywords: string[];
   categories: string[];
+  preferredCategories?: string[];
+  avoidCategories?: string[];
+  intensity?: 'light' | 'medium' | 'high' | 'unknown';
+  indoorOutdoor?: 'indoor' | 'outdoor' | 'both' | 'unknown';
   preferredConditions: {
     intensity: 'low' | 'medium' | 'high' | 'unknown';
     indoorOutdoor: 'indoor' | 'outdoor' | 'both' | 'unknown';
@@ -97,14 +101,14 @@ const activityMoodSuggestions = [
   '지역 행사나 축제를 도울 수 있는',
 ];
 const loadingMessages = [
-  '조건에 맞는 활동을 살펴보고 있어요',
+  '주변 활동을 살펴보고 있어요',
   '가까운 활동을 찾고 있어요',
-  '추천 결과를 정리하고 있어요',
+  '가벼운 활동을 고르고 있어요',
+  '일정에 맞는 추천을 정리하고 있어요',
 ];
 const defaultActivityPreferenceText = '여행 중 부담 없이 참여할 수 있는 조용하고 가벼운 활동';
 const maxPreferenceTextLength = 200;
 const maxRecommendationCacheEntries = 20;
-
 const recommendationResultCache = new Map<string, {
   recommendations: AIRecommendedActivity[];
   notice: string;
@@ -161,6 +165,10 @@ const createDefaultParsedPreference = (preferenceText = defaultActivityPreferenc
   intentSummary: `${preferenceText}을 선호합니다.`,
   keywords: ['가벼운 활동', '환경정화', '산책', '공원'],
   categories: ['여행친화 활동', '산책형 활동'],
+  preferredCategories: ['환경', '산책형'],
+  avoidCategories: ['교육', '멘토링', '상담', '요양', '정기', '장기'],
+  intensity: 'light',
+  indoorOutdoor: 'both',
   preferredConditions: {
     intensity: 'low',
     indoorOutdoor: 'both',
@@ -276,6 +284,268 @@ const buildActivityConditionText = (activity: ActivitySaveRecord) =>
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
+
+const getPreferenceTokens = (preference: ParsedActivityPreference, moodValue: string) => {
+  const rawWords = [
+    ...preference.keywords,
+    ...preference.categories,
+    ...(preference.preferredCategories ?? []),
+    preference.intentSummary,
+    moodValue,
+  ];
+
+  return rawWords
+    .flatMap((word) => normalizeText(word).split(/[\s,./·|]+/))
+    .map((word) => word.replace(/이면$|에서$|근처$|으로$|으로도$|하며$|하게$|있는$|활동$/g, ''))
+    .filter((word) => word.length >= 2)
+    .filter((word, index, words) => words.indexOf(word) === index)
+    .slice(0, 18);
+};
+
+const getCompactRegionLabel = (value: string) => {
+  const firstToken = value.trim().split(/\s+/)[0] ?? '';
+  return firstToken
+    .replace(/특별자치도|특별자치시|특별시|광역시|도$/g, '')
+    .trim() || value.trim();
+};
+
+const getAiRecommendationIntro = (regionValue: string, timeValue: string, moodValue: string) => {
+  const regionLabel = getCompactRegionLabel(regionValue);
+  const sourceText = moodValue.toLowerCase();
+  const timeText = timeValue || '활동 시간';
+  const preferenceLabel = moodValue.trim() && moodValue.trim() !== defaultActivityPreferenceText
+    ? `‘${moodValue.trim()}’ 조건`
+    : `${timeText} 조건`;
+
+  if (/환경|정화|플로깅|바다|해변|해안/.test(sourceText)) {
+    return [
+      `${regionLabel} 일정과 ${preferenceLabel}을 바탕으로`,
+      '부담 없이 참여할 수 있는 활동을 골랐어요.',
+    ];
+  }
+
+  if (/축제|행사|문화/.test(sourceText)) {
+    return [
+      `${regionLabel} 여행 동선과 ${preferenceLabel}을 함께 고려해`,
+      '지역 분위기를 자연스럽게 느낄 수 있는 활동을 골랐어요.',
+    ];
+  }
+
+  return [
+    `여행 동선과 ${preferenceLabel}을 함께 고려해`,
+    `지금 ${regionLabel} 일정에 어울리는 활동을 추천했어요.`,
+  ];
+};
+
+const getEditorialRecommendationReason = (
+  activity: ActivitySaveRecord,
+  aiReason: string | undefined,
+  index: number,
+  moodValue: string,
+) => {
+  const sourceText = [moodValue, buildActivityConditionText(activity)].join(' ').toLowerCase();
+  const placeLabel = getCompactRegionLabel(activity.volunteerPlace || activity.location || '여행지');
+  const fallbackReason = aiReason?.trim().replace(/\s+/g, ' ');
+  const shortAiReason = fallbackReason
+    && fallbackReason.length <= 34
+    && !/(조건|일정|동선|시간|귀하|부합|실적|신청 대상)/.test(fallbackReason)
+    ? fallbackReason.replace(/[.。]\s*$/, '')
+    : '';
+
+  if (/환경|정화|플로깅|쓰레기/.test(sourceText)) {
+    return [
+      `${placeLabel} 인근에서 참여할 수 있는 환경정화 활동이에요.`,
+      '가볍게 움직이며 환경보호에 참여할 수 있어요.',
+      '여행 중 산책하듯 참여하기 좋은 정화 활동이에요.',
+    ][index % 3];
+  }
+
+  if (/바다|해변|해안|포구/.test(sourceText)) {
+    return [
+      '바다 풍경을 즐기며 환경보호에 참여할 수 있어요.',
+      `${placeLabel} 주변에서 여행 분위기와 함께하기 좋아요.`,
+      '해안가 일정 사이에 자연스럽게 더하기 좋은 활동이에요.',
+    ][index % 3];
+  }
+
+  if (/축제|행사|문화제|부스|안내/.test(sourceText)) {
+    return [
+      '지역 분위기를 가까이에서 느낄 수 있는 활동이에요.',
+      `${placeLabel}의 활기를 함께 경험하기 좋은 활동이에요.`,
+      '여행지의 현장감을 가볍게 만날 수 있어요.',
+    ][index % 3];
+  }
+
+  return shortAiReason || [
+    `${placeLabel} 근처에서 부담 없이 참여할 수 있는 활동이에요.`,
+    '여행 중 잠깐 들러 작은 선행을 더하기 좋아요.',
+    '일정 사이에 차분히 참여하기 좋은 활동이에요.',
+  ][index % 3];
+};
+
+const getRecommendationMoodTip = (
+  activity: ActivitySaveRecord,
+  index: number,
+  moodValue: string,
+) => {
+  const sourceText = [moodValue, buildActivityConditionText(activity)].join(' ').toLowerCase();
+
+  if (/바다|해변|해안|포구|해수욕장|해양/.test(sourceText)) {
+    return '해안 산책과 함께 즐길 수 있어요.';
+  }
+
+  if (/문화|전시|도서관|체험|공연|박물관|미술관/.test(sourceText)) {
+    return '여행지의 문화 분위기와 자연스럽게 이어져요.';
+  }
+
+  if (/축제|행사|지역행사|문화제|부스|운영/.test(sourceText)) {
+    return '지역 분위기를 가까이에서 느끼기 좋아요.';
+  }
+
+  if (/교육|멘토링|수업|학습|강의/.test(sourceText)) {
+    return '짧은 배움의 시간을 더하기 좋은 활동이에요.';
+  }
+
+  if (/공원|숲|산책|둘레길|플로깅|환경|정화|하천/.test(sourceText)) {
+    return '여행 일정 중 가볍게 참여하기 좋아요.';
+  }
+
+  return [
+    '현재 일정에 가장 부담 없이 참여할 수 있어요.',
+    '여행 중 잠깐 들러 작은 의미를 더하기 좋아요.',
+    '활동 후보를 비교해보기에 좋은 균형감이 있어요.',
+  ][index % 3];
+};
+
+const getActivityDateLabel = (activity: ActivitySaveRecord) => {
+  const dateRange = activity.activityStartDate && activity.activityEndDate && activity.activityStartDate !== activity.activityEndDate
+    ? `${getMonthDay(activity.activityStartDate)} - ${getMonthDay(activity.activityEndDate)}`
+    : getMonthDay(activity.activityStartDate || activity.activityDate || activity.date);
+
+  return dateRange || activity.volunteerPeriod || activity.date || '일정 확인 필요';
+};
+
+const getActivityPlaceLabel = (activity: ActivitySaveRecord) =>
+  activity.volunteerPlace || activity.location || '장소 확인 필요';
+
+const getActivityStatusLabel = (activity: ActivitySaveRecord) => {
+  if (activity.status === '지난 활동' || activity.status === 'completed') return '지난 활동';
+  if (activity.isRecruiting === false) return '모집 마감';
+  return '모집중';
+};
+
+const getActivityTimeLabel = (activity: ActivitySaveRecord) =>
+  activity.volunteerTime || activity.duration || activity.time || '시간 확인 필요';
+
+const getShortRecommendationReason = (reason: string) => {
+  const normalized = reason
+    .replace(/[.。]\s*$/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!normalized) return '가볍게 참여하기 좋아요';
+  if (normalized.length <= 25) return normalized;
+
+  if (/해변|해안|바다/.test(normalized)) return '해변 산책과 함께 좋아요';
+  if (/공원|숲|산책/.test(normalized)) return '산책 전후로 추천해요';
+  if (/환경|정화|플로깅/.test(normalized)) return '가볍게 환경에 보탬이 돼요';
+  if (/문화|행사|관광/.test(normalized)) return '여행 분위기와 잘 맞아요';
+  return '여행 중 가볍게 참여해요';
+};
+
+const getDeckCardStyle = (
+  depth: number,
+  dragOffset: number,
+  isDragging: boolean,
+  _enterDirection: 1 | -1 | null,
+  _isEntering: boolean,
+) => {
+  const isActive = depth === 0;
+  const clampedDepth = Math.min(depth, 3);
+  const prefersReducedMotion = typeof window !== 'undefined'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const scaleByDepth = [1, 0.97, 0.94, 0.9];
+  const translateYByDepth = [0, -12, -22, -30];
+  const opacityByDepth = [1, 0.9, 0.76, 0];
+  const scale = scaleByDepth[clampedDepth] ?? 0.9;
+  const translateY = translateYByDepth[clampedDepth] ?? -30;
+  const translateX = isActive ? dragOffset : 0;
+  const rotate = isActive ? dragOffset / 48 : 0;
+
+  return {
+    zIndex: 30 - clampedDepth,
+    opacity: opacityByDepth[clampedDepth] ?? 0,
+    transform: `translate3d(${translateX}px, ${translateY}px, 0) scale(${scale}) rotate(${rotate}deg)`,
+    boxShadow: isActive
+      ? '0 18px 36px rgba(38,28,66,0.15)'
+      : clampedDepth === 1
+        ? '0 10px 24px rgba(56,42,92,0.08)'
+        : '0 6px 16px rgba(56,42,92,0.045)',
+    transition: prefersReducedMotion || (isDragging && isActive)
+      ? 'none'
+      : 'transform 320ms cubic-bezier(0.22, 1, 0.36, 1), opacity 280ms ease-out, box-shadow 320ms cubic-bezier(0.22, 1, 0.36, 1)',
+  };
+};
+
+const getExitingDeckCardStyle = (direction: 1 | -1) => {
+  const prefersReducedMotion = typeof window !== 'undefined'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const exitOffset = direction === 1 ? -72 : 72;
+
+  return {
+    zIndex: 40,
+    opacity: 0,
+    transform: `translate3d(${exitOffset}px, 0, 0) scale(0.96) rotate(${exitOffset / 42}deg)`,
+    boxShadow: '0 12px 28px rgba(38,28,66,0.10)',
+    transition: prefersReducedMotion
+      ? 'none'
+      : 'transform 220ms cubic-bezier(0.22, 1, 0.36, 1), opacity 200ms ease-out, box-shadow 220ms ease-out',
+  };
+};
+
+const resolveRecommendationFallbackImage = (
+  activity: ActivitySaveRecord,
+  index: number,
+  usedImageUrls: Set<string>,
+) => {
+  const baseKey = activity.id || activity.progrmRegistNo || activity.title || `recommendation-${index}`;
+
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const resolved = resolveActivityImage({
+      ...activity,
+      id: `${baseKey}-${index}-${attempt}`,
+      imageUrl: null,
+    });
+
+    if (!usedImageUrls.has(resolved.imageUrl)) {
+      return resolved.imageUrl;
+    }
+  }
+
+  return resolveActivityImage({
+    ...activity,
+    id: `${baseKey}-${index}-default`,
+    imageUrl: null,
+  }).imageUrl;
+};
+
+const buildRecommendationDisplayItems = (items: AIRecommendedActivity[], moodValue: string) => {
+  const usedImageUrls = new Set<string>();
+
+  return items.map((item, index) => {
+    const originalImageUrl = item.activity.imageUrl?.trim() || '';
+    const imageUrl = originalImageUrl && !usedImageUrls.has(originalImageUrl)
+      ? originalImageUrl
+      : resolveRecommendationFallbackImage(item.activity, index, usedImageUrls);
+
+    usedImageUrls.add(imageUrl);
+
+    return {
+      ...item,
+      imageUrl,
+      moodTip: getRecommendationMoodTip(item.activity, index, moodValue),
+    };
+  });
+};
 
 const mapVolunteerApiActivityToSaveRecord = (activity: VolunteerApiActivity): ActivitySaveRecord => ({
   id: activity.id || activity.progrmRegistNo,
@@ -403,17 +673,57 @@ const scoreVolunteerCandidate = (
   }
 
   const preferenceWords = [
-    ...preference.keywords,
-    ...preference.categories,
-    preference.intentSummary,
-    options.mood,
-  ]
-    .map(normalizeText)
-    .filter(Boolean);
+    ...getPreferenceTokens(preference, options.mood),
+  ];
   const preferenceMatchCount = preferenceWords.filter((word) => sourceText.includes(word)).length;
   if (preferenceMatchCount > 0) {
     baseScore += Math.min(preferenceMatchCount * 8, 24);
     matchReasons.push('선호 문구와 관련 있음');
+  }
+
+  const preferenceText = [
+    options.mood,
+    preference.intentSummary,
+    ...preference.keywords,
+    ...preference.categories,
+    ...(preference.preferredCategories ?? []),
+  ].map(normalizeText).join(' ');
+  const avoidText = [
+    ...preference.excludeKeywords,
+    ...(preference.avoidCategories ?? []),
+  ].map(normalizeText).join(' ');
+  const wantsSea = /바다|해변|해안|해수욕장|항구|포구|해양/.test(preferenceText);
+  const wantsQuietSolo = /혼자|조용|차분|소규모|가볍|부담|산책|걷/.test(preferenceText);
+  const wantsEnvironment = /환경|정화|플로깅|쓰레기|공원|숲|하천/.test(preferenceText);
+  const avoidsEvent = /행사|축제|단체|운영보조|행사보조|진행보조|부스/.test(avoidText)
+    || (wantsQuietSolo && !/행사|축제/.test(preferenceText));
+  const candidateIsSea = /바다|해변|해안|해수욕장|항구|포구|해양|연안|방파제/.test(sourceText);
+  const candidateIsEnvironment = /환경\s*정화|환경정화|플로깅|쓰레기|공원|하천|숲길|둘레길|산책로|해변/.test(sourceText);
+  const candidateIsEvent = /축제|행사|문화제|공연|부스|운영\s*보조|운영보조|행사\s*보조|행사보조|진행\s*보조|진행보조/.test(sourceText);
+  const candidateIsLargeGroup = /단체|대규모|운영|행사|축제|부스|질서|안전관리/.test(sourceText);
+
+  if (wantsSea && candidateIsSea) {
+    baseScore += 22;
+    matchReasons.push('바다 근처 선호와 맞음');
+  }
+
+  if (wantsEnvironment && candidateIsEnvironment) {
+    baseScore += 18;
+    matchReasons.push('환경 활동 선호와 맞음');
+  }
+
+  if (wantsQuietSolo) {
+    if (candidateIsEnvironment || /산책|걷|공원|숲길|둘레길|플로깅|정화/.test(sourceText)) {
+      baseScore += 14;
+      matchReasons.push('혼자 가볍게 참여하기 좋음');
+    }
+    if (candidateIsEvent || candidateIsLargeGroup) {
+      baseScore -= 22;
+    }
+  }
+
+  if (avoidsEvent && candidateIsEvent) {
+    baseScore -= 26;
   }
 
   if (/환경\s*정화|환경정화|플로깅|공원|산책|해변|해안|숲길|둘레길/.test(sourceText)) {
@@ -439,7 +749,21 @@ const scoreVolunteerCandidate = (
     baseScore -= 30;
   }
 
-  if (preference.preferredConditions.intensity === 'low' && /걷|산책|플로깅|정화|안내/.test(sourceText)) {
+  if ((preference.avoidCategories ?? []).some((keyword) => sourceText.includes(normalizeText(keyword)))) {
+    baseScore -= 26;
+  }
+
+  if (
+    (preference.preferredConditions.intensity === 'low' || preference.intensity === 'light')
+    && /걷|산책|플로깅|정화|안내|공원|해변/.test(sourceText)
+  ) {
+    baseScore += 8;
+  }
+
+  if (
+    (preference.preferredConditions.indoorOutdoor === 'outdoor' || preference.indoorOutdoor === 'outdoor')
+    && /해변|해안|공원|하천|숲|야외|거리|광장|플로깅|정화/.test(sourceText)
+  ) {
     baseScore += 8;
   }
 
@@ -600,10 +924,21 @@ export function HomeAIRecommendationFlow({
   const [aiRecommendationNotice, setAiRecommendationNotice] = useState('');
   const [aiLoadingMessage, setAiLoadingMessage] = useState(loadingMessages[0]);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
+  const [isAiLoadingTextVisible, setIsAiLoadingTextVisible] = useState(true);
+  const [activeRecommendationIndex, setActiveRecommendationIndex] = useState(0);
+  const [deckDragOffset, setDeckDragOffset] = useState(0);
+  const [isDeckDragging, setIsDeckDragging] = useState(false);
+  const [deckTransitionDirection, setDeckTransitionDirection] = useState<1 | -1 | null>(null);
+  const [isDeckEntering, setIsDeckEntering] = useState(false);
+  const [exitingRecommendationIndex, setExitingRecommendationIndex] = useState<number | null>(null);
   const calendarAdvanceTimerRef = useRef<number | null>(null);
   const loadingMessageTimerRef = useRef<number | null>(null);
   const loadingCompleteTimerRef = useRef<number | null>(null);
+  const loadingTextFadeTimerRef = useRef<number | null>(null);
+  const loadingStartedAtRef = useRef(0);
   const sheetScrollRef = useRef<HTMLDivElement | null>(null);
+  const deckDragStartXRef = useRef(0);
+  const deckSuppressClickRef = useRef(false);
   const recommendationRequestInFlightRef = useRef(false);
   const recommendationRequestIdRef = useRef(0);
 
@@ -615,6 +950,10 @@ export function HomeAIRecommendationFlow({
     if (loadingCompleteTimerRef.current) {
       window.clearTimeout(loadingCompleteTimerRef.current);
       loadingCompleteTimerRef.current = null;
+    }
+    if (loadingTextFadeTimerRef.current) {
+      window.clearTimeout(loadingTextFadeTimerRef.current);
+      loadingTextFadeTimerRef.current = null;
     }
   };
 
@@ -654,6 +993,12 @@ export function HomeAIRecommendationFlow({
     setAiRecommendationNotice('');
     setAiLoadingMessage(loadingMessages[0]);
     setLoadingMessageIndex(0);
+    setActiveRecommendationIndex(0);
+    setDeckDragOffset(0);
+    setIsDeckDragging(false);
+    setDeckTransitionDirection(null);
+    setIsDeckEntering(false);
+    setExitingRecommendationIndex(null);
   };
 
   const resetAndClose = () => {
@@ -872,12 +1217,49 @@ export function HomeAIRecommendationFlow({
 
   const startRecommendationLoadingState = () => {
     clearLoadingTimers();
+    loadingStartedAtRef.current = Date.now();
     setLoadingMessageIndex(0);
     setAiLoadingMessage(loadingMessages[0]);
+    setIsAiLoadingTextVisible(true);
     setStep(4);
     loadingMessageTimerRef.current = window.setInterval(() => {
-      setLoadingMessageIndex((currentIndex) => Math.min(currentIndex + 1, loadingMessages.length - 1));
-    }, 700);
+      setIsAiLoadingTextVisible(false);
+      if (loadingTextFadeTimerRef.current) {
+        window.clearTimeout(loadingTextFadeTimerRef.current);
+      }
+      loadingTextFadeTimerRef.current = window.setTimeout(() => {
+        loadingTextFadeTimerRef.current = null;
+        setLoadingMessageIndex((currentIndex) => {
+          const nextIndex = (currentIndex + 1) % loadingMessages.length;
+          setAiLoadingMessage(loadingMessages[nextIndex]);
+          return nextIndex;
+        });
+        setIsAiLoadingTextVisible(true);
+      }, 240);
+    }, 2600);
+  };
+
+  const finishRecommendationLoadingState = () => {
+    if (loadingMessageTimerRef.current) {
+      window.clearInterval(loadingMessageTimerRef.current);
+      loadingMessageTimerRef.current = null;
+    }
+    if (loadingCompleteTimerRef.current) {
+      window.clearTimeout(loadingCompleteTimerRef.current);
+      loadingCompleteTimerRef.current = null;
+    }
+    if (loadingTextFadeTimerRef.current) {
+      window.clearTimeout(loadingTextFadeTimerRef.current);
+      loadingTextFadeTimerRef.current = null;
+    }
+    const elapsed = Date.now() - loadingStartedAtRef.current;
+    const delay = Math.max(0, 850 - elapsed);
+
+    loadingCompleteTimerRef.current = window.setTimeout(() => {
+      loadingCompleteTimerRef.current = null;
+      setIsAiLoadingTextVisible(true);
+      setStep(5);
+    }, delay);
   };
 
   const fetchVolunteerCandidates = async () => {
@@ -903,6 +1285,7 @@ export function HomeAIRecommendationFlow({
   const requestAIRecommendations = async (
     preference: ParsedActivityPreference,
     candidates: ScoredVolunteerCandidate[],
+    preferenceText: string,
   ) => {
     const response = await fetch('/api/ai/recommend-activities', {
       method: 'POST',
@@ -911,6 +1294,7 @@ export function HomeAIRecommendationFlow({
       },
       body: JSON.stringify({
         preference,
+        preferenceText,
         candidates: candidates.map((activity) => ({
           id: activity.activity.id || activity.activity.progrmRegistNo,
           title: activity.activity.title,
@@ -1007,8 +1391,6 @@ export function HomeAIRecommendationFlow({
       if (!isLatestRequest()) return;
 
       console.log('AI preference parse result', parsedPreference);
-      setAiLoadingMessage('가까운 활동을 찾고 있어요');
-      setLoadingMessageIndex(1);
       const candidates = await fetchVolunteerCandidates();
       if (!isLatestRequest()) return;
 
@@ -1030,7 +1412,7 @@ export function HomeAIRecommendationFlow({
         rememberRecommendationResult(cacheKey, { recommendations: [], notice: '' });
         setAiRecommendedActivities([]);
         setAiRecommendationNotice('');
-        setStep(5);
+        finishRecommendationLoadingState();
         return;
       }
 
@@ -1041,7 +1423,7 @@ export function HomeAIRecommendationFlow({
         rememberRecommendationResult(cacheKey, { recommendations, notice });
         setAiRecommendedActivities(recommendations);
         setAiRecommendationNotice(notice);
-        setStep(5);
+        finishRecommendationLoadingState();
         return;
       }
 
@@ -1049,9 +1431,7 @@ export function HomeAIRecommendationFlow({
       let nextRecommendationNotice = 'AI 추천 연결이 불안정해 검색 결과 상위 활동을 보여드려요.';
 
       try {
-        setAiLoadingMessage('조건에 맞는 활동을 살펴보고 있어요');
-        setLoadingMessageIndex(0);
-        const recommendations = await requestAIRecommendations(parsedPreference, rankedCandidates);
+        const recommendations = await requestAIRecommendations(parsedPreference, rankedCandidates, effectivePreferenceText);
         if (!isLatestRequest()) return;
 
         const candidateMap = new Map(rankedCandidates.map(({ activity }) => [activity.id || activity.progrmRegistNo || activity.title, activity]));
@@ -1095,16 +1475,15 @@ export function HomeAIRecommendationFlow({
       });
       setAiRecommendedActivities(nextRecommendedActivities);
       setAiRecommendationNotice(nextRecommendationNotice);
-      setStep(5);
+      finishRecommendationLoadingState();
     } catch (error) {
       if (!isLatestRequest()) return;
       console.error('AI preference parse failed', error);
       setAiRecommendedActivities([]);
       setAiRecommendationNotice('');
-      setStep(5);
+      finishRecommendationLoadingState();
     } finally {
       if (isLatestRequest()) {
-        clearLoadingTimers();
         recommendationRequestInFlightRef.current = false;
         setIsParsingPreference(false);
       }
@@ -1115,6 +1494,101 @@ export function HomeAIRecommendationFlow({
     sheetScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
     setStep(0);
     resetRecommendationSession();
+  };
+
+  const recommendationDisplayItems = useMemo(
+    () => buildRecommendationDisplayItems(aiRecommendedActivities, mood),
+    [aiRecommendedActivities, mood],
+  );
+  const recommendationCount = recommendationDisplayItems.length;
+  const canMoveRecommendation = recommendationCount > 1;
+
+  useEffect(() => {
+    setActiveRecommendationIndex(0);
+    setDeckDragOffset(0);
+    setIsDeckDragging(false);
+    setDeckTransitionDirection(null);
+    setIsDeckEntering(false);
+    setExitingRecommendationIndex(null);
+  }, [recommendationCount]);
+
+  const moveRecommendation = (direction: 1 | -1 = 1, indexDelta: 1 | -1 = direction) => {
+    if (!canMoveRecommendation || deckTransitionDirection !== null) return;
+
+    setIsDeckDragging(false);
+    setDeckDragOffset(0);
+    setExitingRecommendationIndex(activeRecommendationIndex);
+    setDeckTransitionDirection(direction);
+    setIsDeckEntering(false);
+    setActiveRecommendationIndex((current) =>
+      (current + indexDelta + recommendationCount) % recommendationCount,
+    );
+
+    window.setTimeout(() => {
+      setDeckDragOffset(0);
+      setDeckTransitionDirection(null);
+      setIsDeckEntering(false);
+      setExitingRecommendationIndex(null);
+      deckSuppressClickRef.current = false;
+    }, 360);
+  };
+
+  const handleDeckPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (recommendationCount <= 1) return;
+    const target = event.target as HTMLElement;
+    if (target.closest('button')) return;
+
+    deckDragStartXRef.current = event.clientX;
+    deckSuppressClickRef.current = false;
+    setIsDeckDragging(true);
+    setDeckDragOffset(0);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handleDeckPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isDeckDragging) return;
+    const nextOffset = event.clientX - deckDragStartXRef.current;
+    setDeckDragOffset(Math.max(Math.min(nextOffset, 150), -150));
+  };
+
+  const settleDeckDrag = (shouldOpenOnTap = false) => {
+    if (!isDeckDragging) return;
+    const threshold = 56;
+    const dragDistance = Math.abs(deckDragOffset);
+
+    if (dragDistance > 8) {
+      deckSuppressClickRef.current = true;
+    }
+
+    if (dragDistance >= threshold && canMoveRecommendation) {
+      moveRecommendation(deckDragOffset < 0 ? 1 : -1, 1);
+      return;
+    }
+
+    if (shouldOpenOnTap && dragDistance <= 8) {
+      const activeRecommendation = recommendationDisplayItems[activeRecommendationIndex];
+      const activeActivity = activeRecommendation
+        ? { ...activeRecommendation.activity, imageUrl: activeRecommendation.imageUrl }
+        : null;
+      if (activeActivity) {
+        deckSuppressClickRef.current = true;
+        setDeckDragOffset(0);
+        setIsDeckDragging(false);
+        onOpenActivity(activeActivity);
+        window.setTimeout(() => {
+          deckSuppressClickRef.current = false;
+        }, 120);
+        return;
+      }
+    }
+
+    setDeckDragOffset(0);
+    setIsDeckDragging(false);
+    if (dragDistance > 8) {
+      window.setTimeout(() => {
+        deckSuppressClickRef.current = false;
+      }, 120);
+    }
   };
 
   if (!shouldRender) return null;
@@ -1165,7 +1639,11 @@ export function HomeAIRecommendationFlow({
 
         <div
           ref={sheetScrollRef}
-          className="bottom-sheet-scrollable relative min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(24px+env(safe-area-inset-bottom))]"
+          className={`bottom-sheet-scrollable relative min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(24px+env(safe-area-inset-bottom))] pt-[calc(24px+env(safe-area-inset-top))] ${
+            step === 4
+              ? 'bg-[radial-gradient(circle_at_50%_20%,rgba(139,92,246,0.14),transparent_34%),radial-gradient(circle_at_50%_88%,rgba(192,132,252,0.18),transparent_38%),linear-gradient(180deg,#faf8ff_0%,#fffefe_46%,#f3f0ff_100%)]'
+              : ''
+          }`}
           data-bottom-sheet-scrollable="true"
         >
           <div className="mb-5 flex gap-1.5">
@@ -1205,8 +1683,8 @@ export function HomeAIRecommendationFlow({
             {step === 0 && (
               <section>
                 <p className="mb-2 text-[13px] font-medium text-[#5e83ff]">1/4</p>
-                <h2 className="mb-6 text-[24px] font-semibold leading-tight text-[#303850]">
-                  어디에서 활동을<br />찾아볼까요?
+                <h2 className="mb-6 whitespace-nowrap text-[24px] font-semibold leading-tight text-[#303850]">
+                  어디에서 활동을 찾아볼까요?
                 </h2>
                 <input
                   value={draftRegion}
@@ -1258,8 +1736,8 @@ export function HomeAIRecommendationFlow({
             {step === 1 && (
               <section>
                 <p className="mb-2 text-[13px] font-medium text-[#5e83ff]">2/4</p>
-                <h2 className="mb-6 text-[24px] font-semibold leading-tight text-[#303850]">
-                  언제 시간이<br />괜찮으세요?
+                <h2 className="mb-6 whitespace-nowrap text-[24px] font-semibold leading-tight text-[#303850]">
+                  언제 시간이 괜찮으세요?
                 </h2>
                 <div className="rounded-[1.5rem] border border-[#dfe5fb] bg-white/84 p-3.5 shadow-[0_12px_28px_rgba(91,105,170,0.09),inset_0_1px_0_rgba(255,255,255,0.82)] sm:p-4" style={{ animation: 'sisonAiFlowIn 240ms ease-out both' }}>
                   <div className="mb-3 flex items-center justify-between sm:mb-4">
@@ -1373,8 +1851,8 @@ export function HomeAIRecommendationFlow({
             {step === 2 && (
               <section>
                 <p className="mb-2 text-[13px] font-medium text-[#5e83ff]">3/4</p>
-                <h2 className="mb-6 text-[24px] font-semibold leading-tight text-[#303850]">
-                  얼마나 참여할 수<br />있나요?
+                <h2 className="mb-6 whitespace-nowrap text-[24px] font-semibold leading-tight text-[#303850]">
+                  얼마나 참여할 수 있나요?
                 </h2>
                 <div className="space-y-2.5">
                   {timeSuggestions.map((item) => (
@@ -1402,8 +1880,8 @@ export function HomeAIRecommendationFlow({
             {step === 3 && (
               <section>
                 <p className="mb-2 text-[13px] font-medium text-[#5e83ff]">4/4</p>
-                <h2 className="mb-6 text-[24px] font-semibold leading-tight text-[#303850]">
-                  어떤 활동이면<br />좋을까요?
+                <h2 className="mb-6 whitespace-nowrap text-[24px] font-semibold leading-tight text-[#303850]">
+                  어떤 활동이면 좋을까요?
                 </h2>
                 <input
                   value={mood}
@@ -1453,115 +1931,256 @@ export function HomeAIRecommendationFlow({
             )}
 
             {step === 4 && (
-              <section className="py-2">
-                <div className="relative overflow-hidden rounded-[1.75rem] border border-[#e7eee7] bg-[#fdfbf6]/92 px-5 py-6 shadow-[0_14px_34px_rgba(84,102,84,0.08),inset_0_1px_0_rgba(255,255,255,0.88)]">
+              <section className="-mx-5 -mb-[calc(24px+env(safe-area-inset-bottom))] min-h-[calc(100dvh-210px)] overflow-hidden px-5 pb-[calc(42px+env(safe-area-inset-bottom))] pt-12 text-center">
+                <div className="relative mx-auto flex max-w-[330px] flex-col items-center">
                   <div
                     aria-hidden="true"
-                    className="absolute right-5 top-5 h-1.5 w-1.5 rounded-full bg-[#a8d5ba]/70"
+                    className="absolute left-1/2 top-6 h-56 w-56 -translate-x-1/2 rounded-full bg-[#a78bfa]/14 blur-3xl"
                   />
                   <div
                     aria-hidden="true"
-                    className="absolute right-8 top-8 h-1 w-1 rounded-full bg-[#d7c7a8]/60"
+                    className="absolute bottom-8 right-2 h-36 w-36 rounded-full bg-[#c084fc]/12 blur-3xl"
                   />
 
-                  <div className="relative">
-                    <p className="mb-3 text-[12px] font-medium text-[#7ca58c]">일정을 차분히 정리하는 중</p>
-                    <h2
-                      key={aiLoadingMessage}
-                      className="min-h-[58px] text-[22px] font-semibold leading-snug text-[#2f3a33]"
-                      style={{ animation: 'sisonAiLoadingTextIn 320ms ease-out both' }}
-                    >
-                      {aiLoadingMessage}
-                    </h2>
-                    <p className="mt-3 max-w-[280px] text-[13px] leading-6 text-[#8b9189]">
-                      {region}의 일정과 {timeLabel || '가능한 시간'}에 맞춰 부담 없이 이어지는 활동을 살펴보고 있어요.
-                    </p>
+                  <div className="relative mx-auto flex max-w-[330px] flex-col items-center">
+                    <div className="relative mb-14 h-[214px] w-[268px]" aria-hidden="true">
+                      <span className="sison-ai-loading-orbit absolute left-1/2 top-1/2 h-[154px] w-[154px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#a78bfa]/22" />
+                      <span className="sison-ai-loading-scan-ring absolute left-1/2 top-1/2 h-[112px] w-[112px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-[#8b5cf6]/22" />
+                      <svg className="absolute left-[39px] top-[58px] h-[88px] w-[188px] text-[#8b5cf6]/20" viewBox="0 0 188 88" fill="none">
+                        <path
+                          d="M8 69C39 18 75 18 94 44C116 75 147 71 180 17"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeDasharray="5 9"
+                        />
+                      </svg>
 
-                    <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-[#edf1ea]">
+                      <div className="sison-ai-loading-mini-card absolute left-2 top-8 h-[54px] w-[82px] rounded-2xl border border-white/75 bg-white/78 px-3 py-2.5 text-left shadow-[0_12px_28px_rgba(92,71,139,0.10)] backdrop-blur">
+                        <span className="mb-2 block h-2 w-8 rounded-full bg-[#d9ccff]" />
+                        <span className="mb-1.5 block h-1.5 w-12 rounded-full bg-[#ece7ff]" />
+                        <span className="block h-1.5 w-9 rounded-full bg-[#f0ecff]" />
+                      </div>
+                      <div className="sison-ai-loading-mini-card absolute right-3 top-[26px] h-[58px] w-[86px] rounded-2xl border border-white/75 bg-white/82 px-3 py-2.5 text-left shadow-[0_12px_28px_rgba(92,71,139,0.10)] backdrop-blur" style={{ animationDelay: '520ms' }}>
+                        <span className="mb-2 block h-2 w-7 rounded-full bg-[#cdbbff]" />
+                        <span className="mb-1.5 block h-1.5 w-12 rounded-full bg-[#ebe5ff]" />
+                        <span className="block h-1.5 w-10 rounded-full bg-[#f1edff]" />
+                      </div>
+                      <div className="sison-ai-loading-mini-card absolute bottom-5 left-[72px] h-[56px] w-[92px] rounded-2xl border border-white/75 bg-white/80 px-3 py-2.5 text-left shadow-[0_12px_28px_rgba(92,71,139,0.10)] backdrop-blur" style={{ animationDelay: '1040ms' }}>
+                        <span className="mb-2 block h-2 w-9 rounded-full bg-[#d8c9ff]" />
+                        <span className="mb-1.5 block h-1.5 w-14 rounded-full bg-[#ebe6ff]" />
+                        <span className="block h-1.5 w-11 rounded-full bg-[#f1edff]" />
+                      </div>
+
+                      <span className="absolute left-[32px] bottom-[55px] flex h-8 w-8 items-center justify-center rounded-full border border-[#e4d9ff] bg-white/82 text-[#8b5cf6] shadow-[0_8px_18px_rgba(139,92,246,0.11)]">
+                        <MapPin className="h-4 w-4" strokeWidth={2.1} />
+                      </span>
+                      <span className="absolute right-[38px] bottom-[62px] flex h-8 w-8 items-center justify-center rounded-full border border-[#e4d9ff] bg-white/82 text-[#a78bfa] shadow-[0_8px_18px_rgba(139,92,246,0.10)]">
+                        <Route className="h-4 w-4" strokeWidth={2.1} />
+                      </span>
+
+                      <span className="sison-ai-loading-core absolute left-1/2 top-1/2 flex h-[62px] w-[62px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[24px] border border-white/70 bg-[radial-gradient(circle_at_32%_24%,#ffffff_0%,#f1ebff_30%,#c4b5fd_68%,#8b5cf6_100%)] text-white shadow-[0_18px_34px_rgba(139,92,246,0.25)]">
+                        <Sparkles className="h-6 w-6 drop-shadow-sm" strokeWidth={2.2} />
+                      </span>
+
+                      <Sparkles className="sison-ai-loading-spark absolute left-[58px] top-[8px] h-3.5 w-3.5 text-[#a78bfa]" strokeWidth={2.1} />
+                      <Sparkles className="sison-ai-loading-spark absolute right-[64px] top-[5px] h-3 w-3 text-[#c084fc]" strokeWidth={2.1} style={{ animationDelay: '680ms' }} />
+                      <Sparkles className="sison-ai-loading-spark absolute right-[18px] top-[112px] h-3.5 w-3.5 text-[#8b5cf6]" strokeWidth={2.1} style={{ animationDelay: '1180ms' }} />
+                      <Sparkles className="sison-ai-loading-spark absolute left-[22px] top-[126px] h-3 w-3 text-[#c4b5fd]" strokeWidth={2.1} style={{ animationDelay: '1680ms' }} />
+                    </div>
+
+                    <div className="min-h-[64px]">
+                      <p
+                        className={`flex min-h-[56px] items-center justify-center gap-1.5 whitespace-nowrap text-[clamp(17px,4.7vw,19px)] font-bold leading-7 text-[#6f4bd8] transition-all duration-[260ms] ${
+                          isAiLoadingTextVisible ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+                        }`}
+                      >
+                        <Sparkles className="h-4 w-4 flex-shrink-0 translate-y-[-1px]" strokeWidth={2.1} />
+                        <span>{aiLoadingMessage}</span>
+                      </p>
+                    </div>
+
+                    <div className="mt-8 h-2 w-full overflow-hidden rounded-full bg-[#8b5cf6]/14">
                       <span
-                        className="block h-full rounded-full bg-[#a8d5ba] transition-all duration-500 ease-out"
-                        style={{
-                          width: `${((loadingMessageIndex + 1) / loadingMessages.length) * 100}%`,
-                        }}
+                        aria-hidden="true"
+                        className="sison-ai-loading-progress block h-full w-[48%] rounded-full bg-[linear-gradient(90deg,#8b5cf6,#c084fc,#a78bfa)]"
                       />
                     </div>
-                  </div>
-
-                  <div className="relative mt-6 space-y-2.5" aria-hidden="true">
-                    {[0, 1, 2].map((item) => (
-                      <div
-                        key={item}
-                        className="sison-ai-calm-skeleton rounded-2xl border border-[#edf0e9] bg-white/72 p-3.5 shadow-[0_6px_16px_rgba(92,108,91,0.04)]"
-                        style={{ animationDelay: `${item * 120}ms` }}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="h-12 w-12 flex-shrink-0 rounded-xl bg-[#eef3ee]" />
-                          <div className="min-w-0 flex-1 space-y-2.5">
-                            <div className="h-3 w-4/5 rounded-full bg-[#eef3ee]" />
-                            <div className="h-2.5 w-3/5 rounded-full bg-[#f1eee7]" />
-                          </div>
-                          <div className="h-7 w-7 flex-shrink-0 rounded-full bg-[#eef3ee]" />
-                        </div>
-                      </div>
-                    ))}
+                    <p className="mt-7 text-[13px] font-medium text-[#756b89]">
+                      잠시만 기다려주세요
+                    </p>
                   </div>
                 </div>
               </section>
             )}
 
             {step === 5 && (
-              <section>
-                <p className="mb-2 text-[13px] font-medium text-[#5e83ff]">AI 큐레이션</p>
-                <h2 className="mb-6 text-[22px] font-semibold leading-tight text-[#303850]">
-                  지금 일정에 어울리는<br />활동이에요
-                </h2>
+              <section className="pt-0">
                 {aiRecommendationNotice && (
                   <p className="mb-4 rounded-2xl border border-[#e2e6fb] bg-white/72 px-4 py-3 text-[12.5px] leading-relaxed text-[#69718d]">
                     {aiRecommendationNotice}
                   </p>
                 )}
-                {aiRecommendedActivities.length > 0 ? (
-                  <div className="space-y-3">
-                    {aiRecommendedActivities.map(({ activity, reason, fitTags }) => (
-                      <div key={`${activity.id || activity.progrmRegistNo || activity.title}-${activity.date}`} className="space-y-2">
-                        {reason && (
-                          <p className="rounded-2xl bg-[#f4f5ff]/80 px-4 py-3 text-[12.5px] leading-relaxed text-[#5d6684]">
-                            {reason}
-                          </p>
-                        )}
-                        <CompactActivityCard
-                          variant="aiRecommendation"
-                          imageUrl={activity.imageUrl}
-                          title={activity.title}
-                          location={activity.location}
-                          recruitmentStartDate={activity.recruitmentStartDate}
-                          recruitmentEndDate={activity.recruitmentEndDate}
-                          date={activity.date}
-                          activityStartDate={activity.activityStartDate}
-                          activityEndDate={activity.activityEndDate}
-                          time={activity.time}
-                          showBookmark
-                          isSaved={isActivitySaved(activity)}
-                          onBookmarkClick={() => onToggleSavedActivity(activity)}
-                          onClick={() => onOpenActivity(activity)}
-                        />
-                        <p className="px-1 text-[11.5px] leading-relaxed text-[#8b94aa]">
-                          모집 {activity.capacity || '확인 필요'} · 신청 {activity.currentParticipants || '확인 필요'}
-                        </p>
-                        {fitTags && fitTags.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 px-1">
-                            {fitTags.map((tag) => (
-                              <span
-                                key={`${activity.id || activity.title}-${tag}`}
-                                className="rounded-full bg-white/78 px-2.5 py-1 text-[11px] font-medium text-[#7c82a2] shadow-[inset_0_0_0_1px_rgba(124,130,232,0.12)]"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
+                {recommendationDisplayItems.length > 0 ? (
+                  <div>
+                    <div
+                      className="relative z-10 mx-auto h-[364px] max-w-[332px] touch-pan-y select-none"
+                      onPointerDown={handleDeckPointerDown}
+                      onPointerMove={handleDeckPointerMove}
+                      onPointerUp={() => settleDeckDrag(true)}
+                      onPointerCancel={() => settleDeckDrag(false)}
+                    >
+                      {recommendationDisplayItems.map(({ activity, reason, imageUrl, moodTip }, index) => {
+                        const depth = recommendationCount > 0
+                          ? (index - activeRecommendationIndex + recommendationCount) % recommendationCount
+                          : 0;
+                        const isExitingCard = exitingRecommendationIndex === index;
+                        if (depth > 3 && !isExitingCard) return null;
+                        const isActiveCard = depth === 0 && !isExitingCard;
+                        const isEnteringCard = isActiveCard && isDeckEntering;
+                        const reasonText = getEditorialRecommendationReason(activity, reason, index, mood);
+                        const displayActivity = { ...activity, imageUrl };
+
+                        return (
+                          <article
+                            key={`${activity.id || activity.progrmRegistNo || activity.title}-${activity.date}`}
+                            role="button"
+                            tabIndex={isActiveCard ? 0 : -1}
+                            aria-label={`${activity.title} 상세 보기`}
+                            onClick={() => {
+                              if (deckSuppressClickRef.current) {
+                                deckSuppressClickRef.current = false;
+                                return;
+                              }
+                              if (isActiveCard && Math.abs(deckDragOffset) < 8) onOpenActivity(displayActivity);
+                            }}
+                            onKeyDown={(event) => {
+                              if (!isActiveCard) return;
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                onOpenActivity(displayActivity);
+                              }
+                            }}
+                            className={`absolute inset-x-0 top-4 h-[342px] overflow-hidden rounded-[24px] border border-white/80 bg-white outline-none transition-transform focus-visible:ring-2 focus-visible:ring-[#8b5cf6]/45 ${
+                              isActiveCard ? 'cursor-grab active:cursor-grabbing' : 'pointer-events-none'
+                            }`}
+                            style={
+                              isExitingCard && deckTransitionDirection
+                                ? getExitingDeckCardStyle(deckTransitionDirection)
+                                : getDeckCardStyle(depth, deckDragOffset, isDeckDragging, deckTransitionDirection, isEnteringCard)
+                            }
+                            aria-hidden={!isActiveCard}
+                          >
+                            <div className="block h-full w-full text-left transition-transform duration-150 active:scale-[0.99]">
+                              <div className="relative h-[148px] overflow-hidden bg-[#f3f0ff]">
+                                <img
+                                  src={imageUrl}
+                                  alt={activity.title}
+                                  className="h-full w-full object-cover"
+                                  loading={index === activeRecommendationIndex ? 'eager' : 'lazy'}
+                                  decoding="async"
+                                />
+                                <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/28 to-transparent" aria-hidden="true" />
+                                <button
+                                  type="button"
+                                  onPointerDown={(event) => event.stopPropagation()}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    onToggleSavedActivity(displayActivity);
+                                  }}
+                                  aria-label={isActivitySaved(displayActivity) ? '저장 취소' : '활동 저장'}
+                                  className={`absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur-md transition-all active:scale-95 ${
+                                    isActivitySaved(displayActivity)
+                                      ? 'border-[#d8c8ff] bg-white/92 text-[#8b5cf6] shadow-[0_6px_14px_rgba(139,92,246,0.16)]'
+                                      : 'border-white/55 bg-white/82 text-[#6f6680] shadow-[0_5px_12px_rgba(38,28,66,0.10)]'
+                                  }`}
+                                >
+                                  <Bookmark
+                                    className={`h-[19px] w-[19px] ${isActivitySaved(displayActivity) ? 'fill-[#a78bfa] text-[#8b5cf6]' : 'text-[#6f6680]'}`}
+                                    strokeWidth={1.9}
+                                  />
+                                </button>
+                              </div>
+
+                              <div className="px-4 pb-3.5 pt-3.5">
+                                <div className="min-h-[44px]">
+                                  <h3 className="line-clamp-2 text-[17px] font-semibold leading-[1.28] text-[#242424]">
+                                    {activity.title}
+                                  </h3>
+                                </div>
+
+                                <div className="mt-3 flex min-h-[30px] items-center rounded-full border border-[#e5dbff] bg-[#f3f0ff]/74 px-3.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.88)]">
+                                  <p className="flex min-w-0 items-center gap-1.5 text-[12.5px] font-semibold leading-none text-[#7150c8]">
+                                    <Lightbulb className="h-3.5 w-3.5 flex-shrink-0 translate-y-[-0.5px]" strokeWidth={2} />
+                                    <span className="line-clamp-1">{getShortRecommendationReason(reasonText || moodTip)}</span>
+                                  </p>
+                                </div>
+
+                                <div className="mt-3 space-y-1.5">
+                                  <p className="flex items-center text-[12.5px] font-medium leading-[18px] text-[#62616c]">
+                                    <span className="flex w-6 flex-shrink-0 items-center justify-center">
+                                      <MapPin className="h-3.5 w-3.5 text-[#8b5cf6]" strokeWidth={2} />
+                                    </span>
+                                    <span className="min-w-0 flex-1 truncate">{getActivityPlaceLabel(activity)}</span>
+                                  </p>
+                                  <p className="flex items-center text-[12.5px] font-medium leading-[18px] text-[#62616c]">
+                                    <span className="flex w-6 flex-shrink-0 items-center justify-center">
+                                      <Clock className="h-3.5 w-3.5 text-[#a78bfa]" strokeWidth={2} />
+                                    </span>
+                                    <span className="min-w-0 flex-1 truncate">{getActivityTimeLabel(activity)}</span>
+                                  </p>
+                                  <p className="flex items-center text-[12.5px] font-medium leading-[18px] text-[#62616c]">
+                                    <span className="flex w-6 flex-shrink-0 items-center justify-center">
+                                      <Calendar className="h-3.5 w-3.5 text-[#c084fc]" strokeWidth={2} />
+                                    </span>
+                                    <span className="min-w-0 flex-1 truncate">{getActivityDateLabel(activity)}</span>
+                                  </p>
+                                </div>
+
+                                <div className="mt-2.5 flex justify-end">
+                                  <span className="rounded-full bg-[#f3f0ff] px-2.5 py-0.5 text-[10.5px] font-semibold text-[#7c3aed]">
+                                    {getActivityStatusLabel(activity)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+
+                    <div className="relative z-[60] mt-7 flex items-center justify-center gap-4">
+                      <button
+                        type="button"
+                        onClick={() => moveRecommendation(-1, -1)}
+                        disabled={!canMoveRecommendation || deckTransitionDirection !== null}
+                        className="relative z-[61] flex h-9 w-9 items-center justify-center rounded-full border border-[rgba(139,92,246,0.15)] bg-[rgba(139,92,246,0.08)] text-[#8b5cf6] transition-all hover:bg-[rgba(139,92,246,0.15)] active:scale-95 disabled:opacity-30"
+                        aria-label="이전 추천 활동"
+                      >
+                        <ChevronLeft className="h-4 w-4" strokeWidth={2.2} />
+                      </button>
+                      <div className="flex min-w-[92px] items-center justify-center gap-2" aria-label={`${activeRecommendationIndex + 1}번째 추천 활동`}>
+                        <div className="flex items-center gap-2">
+                          {recommendationDisplayItems.map((item, index) => (
+                            <span
+                              key={`${item.activity.id || item.activity.title}-indicator`}
+                              className={`h-2.5 rounded-full transition-all duration-300 ${
+                                index === activeRecommendationIndex ? 'w-7 bg-[linear-gradient(90deg,#8b5cf6,#c084fc)]' : 'w-2.5 bg-[#ddd2ff]'
+                              }`}
+                            />
+                          ))}
+                        </div>
                       </div>
-                    ))}
+                      <button
+                        type="button"
+                        onClick={() => moveRecommendation(1, 1)}
+                        disabled={!canMoveRecommendation || deckTransitionDirection !== null}
+                        className="relative z-[61] flex h-9 w-9 items-center justify-center rounded-full border border-[rgba(139,92,246,0.15)] bg-[rgba(139,92,246,0.08)] text-[#8b5cf6] transition-all hover:bg-[rgba(139,92,246,0.15)] active:scale-95 disabled:opacity-30"
+                        aria-label="다음 추천 활동"
+                      >
+                        <ChevronRight className="h-4 w-4" strokeWidth={2.2} />
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="rounded-2xl border border-[#e2e6fb] bg-white/78 px-4 py-6 text-center">

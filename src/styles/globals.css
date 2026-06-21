@@ -223,20 +223,107 @@ body.bottom-sheet-scroll-locked {
   }
 }
 
-@keyframes sisonAiCalmSkeletonIn {
+@keyframes sisonAiIndeterminateBar {
   from {
-    opacity: 0;
-    transform: translateY(6px);
+    transform: translateX(-120%);
   }
   to {
-    opacity: 1;
-    transform: translateY(0);
+    transform: translateX(260%);
   }
 }
 
-.sison-ai-calm-skeleton {
-  opacity: 0;
-  animation: sisonAiCalmSkeletonIn 420ms ease-out forwards;
+@keyframes sisonAiLoadingCorePulse {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow: 0 18px 34px rgba(139, 92, 246, 0.22);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.045);
+    box-shadow: 0 22px 42px rgba(139, 92, 246, 0.28);
+  }
+}
+
+@keyframes sisonAiLoadingOrbitRotate {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@keyframes sisonAiLoadingScanBreathe {
+  0%,
+  100% {
+    opacity: 0.36;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  50% {
+    opacity: 0.64;
+    transform: translate(-50%, -50%) scale(1.05);
+  }
+}
+
+@keyframes sisonAiLoadingCardFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes sisonAiLoadingSparkTwinkle {
+  0%,
+  100% {
+    opacity: 0.38;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.12);
+  }
+}
+
+@keyframes sisonAiLoadingProgress {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(230%);
+  }
+}
+
+.sison-ai-loading-core {
+  animation: sisonAiLoadingCorePulse 2.8s ease-in-out infinite;
+  will-change: transform, box-shadow;
+}
+
+.sison-ai-loading-orbit {
+  animation: sisonAiLoadingOrbitRotate 5.8s linear infinite;
+  will-change: transform;
+}
+
+.sison-ai-loading-scan-ring {
+  animation: sisonAiLoadingScanBreathe 4.4s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.sison-ai-loading-mini-card {
+  animation: sisonAiLoadingCardFloat 4.2s ease-in-out infinite;
+  will-change: transform;
+}
+
+.sison-ai-loading-spark {
+  animation: sisonAiLoadingSparkTwinkle 3.2s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.sison-ai-loading-progress {
+  animation: sisonAiLoadingProgress 2.05s ease-in-out infinite;
+  will-change: transform;
 }
 
 @keyframes recruiting-dot-breathe {
@@ -351,12 +438,23 @@ body.bottom-sheet-scroll-locked {
 
 @media (prefers-reduced-motion: reduce) {
   .recruiting-status-dot::after,
-  .sison-ai-calm-skeleton,
+  .sison-ai-loading-core,
+  .sison-ai-loading-orbit,
+  .sison-ai-loading-scan-ring,
+  .sison-ai-loading-mini-card,
+  .sison-ai-loading-spark,
+  .sison-ai-loading-progress,
   .ai-loading-shimmer,
   .ai-loading-step,
-    .ai-loading-line {
+  .ai-loading-line {
     animation: none;
     opacity: 1;
+  }
+
+  .recruiting-status-dot::after,
+  .ai-loading-shimmer,
+  .ai-loading-step,
+  .ai-loading-line {
     transform: none;
   }
 

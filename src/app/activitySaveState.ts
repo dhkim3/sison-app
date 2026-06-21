@@ -5,6 +5,7 @@ export interface ActivitySaveRecord {
   imageReason?: string;
   title: string;
   location: string;
+  region?: string;
   recruitmentStartDate?: string;
   recruitmentEndDate?: string;
   date?: string;

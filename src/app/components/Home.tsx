@@ -871,7 +871,6 @@ export function Home({ onNavigate, onSearchSubmit, isActivitySaved, onToggleSave
         onClose={() => setIsAIRecommendationFlowOpen(false)}
         onToggleSavedActivity={onToggleSavedActivity}
         onOpenActivity={(activity) => {
-          setIsAIRecommendationFlowOpen(false);
           setSelectedActivity(activity);
           setIsDetailOpen(true);
         }}

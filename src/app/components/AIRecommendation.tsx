@@ -39,9 +39,10 @@ type TravelPlan = {
 
 const travelPlanCache = new Map<string, { plans: TravelPlan[]; expiresAt: number }>();
 const CACHE_TTL_MS = 30 * 60 * 1000;
+const itineraryAccentColors = ['#9FCFAE', '#6EA9D8', '#8574D6'];
 
-function getCacheKey(destination: string, date: string, timePreference: string) {
-  return `${destination.trim()}|${date.trim()}|${timePreference.trim()}`;
+function getCacheKey(destination: string, date: string, timePreference: string, activityKey: string) {
+  return `${destination.trim()}|${date.trim()}|${timePreference.trim()}|${activityKey.trim()}`;
 }
 
 function readCache(key: string): TravelPlan[] | null {
@@ -56,6 +57,77 @@ function readCache(key: string): TravelPlan[] | null {
 
 function writeCache(key: string, plans: TravelPlan[]) {
   travelPlanCache.set(key, { plans, expiresAt: Date.now() + CACHE_TTL_MS });
+}
+
+function getSafeImageSource(src: string | null) {
+  if (!src) return '';
+
+  try {
+    const url = new URL(src, window.location.href);
+    if (window.location.protocol === 'https:' && url.protocol === 'http:') {
+      url.protocol = 'https:';
+    }
+
+    if (
+      (url.protocol === 'http:' || url.protocol === 'https:')
+      && url.origin !== window.location.origin
+    ) {
+      return `/api/image-proxy?url=${encodeURIComponent(url.toString())}`;
+    }
+
+    return url.toString();
+  } catch {
+    return src;
+  }
+}
+
+function openBlobInNewTab(blob: Blob) {
+  const objectUrl = window.URL.createObjectURL(blob);
+  const popup = window.open(objectUrl, '_blank', 'noopener,noreferrer');
+  window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 60000);
+
+  if (!popup) {
+    throw new Error('Image new tab fallback was blocked');
+  }
+}
+
+async function saveScreenshotBlob(blob: Blob, filename: string) {
+  const file = new File([blob], filename, { type: 'image/png' });
+  const canUseNativeShare = typeof navigator.share === 'function';
+  const canUseFileShare = typeof navigator.canShare === 'function'
+    ? navigator.canShare({ files: [file] })
+    : canUseNativeShare;
+  const canShareFile = Boolean(
+    canUseNativeShare && canUseFileShare,
+  );
+
+  if (canShareFile) {
+    try {
+      console.info('[capture] share start', { filename, size: blob.size, type: blob.type });
+      await navigator.share({
+        files: [file],
+        title: '시선 추천 일정',
+        text: '시선에서 추천한 여행 일정을 저장해 보세요.',
+      });
+      console.info('[capture] share success');
+      return;
+    } catch (error) {
+      const errorName = error instanceof Error ? error.name : '';
+      console.error('[capture] share fail', { error });
+      if (errorName === 'AbortError') return;
+    }
+  }
+
+  try {
+    console.info('[capture] download/share start', { mode: 'download', filename });
+    downloadBlob(blob, filename);
+    return;
+  } catch (error) {
+    console.error('[capture] download fail', { error });
+  }
+
+  console.info('[capture] download/share start', { mode: 'new-tab', filename });
+  openBlobInNewTab(blob);
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -86,7 +158,7 @@ async function fetchTravelPlans(
   const destination = deriveDestination(activity.location || '');
   const date = activity.date || activity.activityDate || '';
   const timePreference = deriveTimePreference(activity.time || '');
-  const cacheKey = getCacheKey(destination, date, timePreference);
+  const cacheKey = getCacheKey(destination, date, timePreference, `${activity.title}|${address}`);
 
   const cached = readCache(cacheKey);
   if (cached) return cached;
@@ -100,7 +172,11 @@ async function fetchTravelPlans(
       destination,
       date,
       timePreference,
-      activity: { title: activity.title },
+      activity: {
+        title: activity.title,
+        location: activity.volunteerPlace || activity.location || '',
+        region: activity.region || activity.location || '',
+      },
     }),
     signal,
   });
@@ -113,7 +189,7 @@ async function fetchTravelPlans(
 
   const data = await res.json() as { ok: boolean; plans?: TravelPlan[]; error?: string };
   if (!data.ok || !data.plans?.length) {
-    throw new Error('일정을 만들지 못했어요.');
+    throw new Error(data.error || '일정을 만들지 못했어요.');
   }
 
   writeCache(cacheKey, data.plans);
@@ -284,13 +360,16 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
 
     try {
       setScreenshotMessage('');
+      console.info('[capture] upload start', { enabled: false, reason: 'Vercel Blob upload is not used for screenshot save' });
       const blob = await captureElementAsPng(sourceElement, 2, { backgroundColor: '#fdfcfa' });
-      downloadBlob(
+      await saveScreenshotBlob(
         blob,
         `${selectedActivity.title.replace(/[\\/:*?"<>|]/g, '').slice(0, 20) || 'sison'}-itinerary.png`,
       );
+      console.info('[capture] upload success', { skipped: true });
     } catch (error) {
       console.error('AI recommendation screenshot download failed', error);
+      console.error('[capture] upload fail', { skipped: true, error });
       setScreenshotMessage('이미지 저장에 실패했어요. 다시 시도해 주세요.');
     }
   };
@@ -414,13 +493,17 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
                         plan.maxDistanceM > 0
                           ? `${(plan.maxDistanceM / 1000).toFixed(1)}km`
                           : null;
+                      const accentColor = itineraryAccentColors[planIndex % itineraryAccentColors.length];
                       return (
                         <div
                           key={planIndex}
                           className="bg-white rounded-3xl p-5 shadow-sm border border-black/5"
                         >
                           {/* 헤더 */}
-                          <p className="mb-1 text-[11px] font-medium text-[#a8d5ba] uppercase tracking-wide">
+                          <p
+                            className="mb-1 text-[11px] font-medium uppercase tracking-wide"
+                            style={{ color: accentColor }}
+                          >
                             일정 {planIndex + 1}
                           </p>
                           <h4 className="mb-1.5 text-[#2a2a2a]">{plan.title}</h4>
@@ -429,11 +512,14 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
                           {/* 소요 시간 + 총 이동 거리 */}
                           <div className="mb-4 flex items-center gap-4 text-[12px] text-[#a8b5ac]">
                             <span className="flex items-center gap-1.5">
-                              <Clock className="w-3.5 h-3.5" strokeWidth={2} />
+                              <Clock className="w-3.5 h-3.5" strokeWidth={2} style={{ color: accentColor }} />
                               {plan.duration}
                             </span>
                             {radiusKm && (
-                              <span>🚗 반경 {radiusKm}</span>
+                              <span className="flex items-center gap-1.5">
+                                <MapPin className="w-3.5 h-3.5" strokeWidth={2} style={{ color: accentColor }} />
+                                반경 {radiusKm}
+                              </span>
                             )}
                           </div>
 
@@ -450,7 +536,10 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
                                   <div key={stopIndex} className="flex gap-3">
                                     {/* 타임라인 점·선 */}
                                     <div className="flex flex-col items-center flex-shrink-0 pt-[5px]">
-                                      <div className="h-2 w-2 rounded-full bg-[#a8d5ba] flex-shrink-0" />
+                                      <div
+                                        className="h-2 w-2 rounded-full flex-shrink-0"
+                                        style={{ backgroundColor: accentColor }}
+                                      />
                                       {stopIndex < plan.stops.length - 1 && (
                                         <div className="mt-1 w-px flex-1 min-h-[36px] bg-[#e3efe8]" />
                                       )}
@@ -459,9 +548,14 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
                                     <div className="flex-1 pb-3.5 flex gap-2.5">
                                       {stop.image && (
                                         <img
-                                          src={stop.image}
+                                          src={getSafeImageSource(stop.image)}
+                                          crossOrigin="anonymous"
+                                          referrerPolicy="no-referrer"
                                           alt=""
                                           className="w-11 h-11 rounded-xl object-cover flex-shrink-0 self-start"
+                                          onError={() => {
+                                            console.error('[capture] itinerary image render failed', { src: stop.image });
+                                          }}
                                         />
                                       )}
                                       <div className="flex-1 min-w-0">

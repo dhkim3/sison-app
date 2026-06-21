@@ -24,6 +24,10 @@ type ParsedPreference = {
   intentSummary: string;
   keywords: string[];
   categories: string[];
+  preferredCategories: string[];
+  avoidCategories: string[];
+  intensity: 'light' | 'medium' | 'high' | 'unknown';
+  indoorOutdoor: 'indoor' | 'outdoor' | 'both' | 'unknown';
   preferredConditions: {
     intensity: 'low' | 'medium' | 'high' | 'unknown';
     indoorOutdoor: 'indoor' | 'outdoor' | 'both' | 'unknown';
@@ -39,7 +43,17 @@ const maxPreferenceTextLength = 200;
 const preferenceSchema = {
   type: 'object',
   additionalProperties: false,
-  required: ['intentSummary', 'keywords', 'categories', 'preferredConditions', 'excludeKeywords'],
+  required: [
+    'intentSummary',
+    'keywords',
+    'categories',
+    'preferredCategories',
+    'avoidCategories',
+    'intensity',
+    'indoorOutdoor',
+    'preferredConditions',
+    'excludeKeywords',
+  ],
   properties: {
     intentSummary: {
       type: 'string',
@@ -57,6 +71,20 @@ const preferenceSchema = {
       maxItems: 6,
       items: { type: 'string' },
     },
+    preferredCategories: {
+      type: 'array',
+      minItems: 0,
+      maxItems: 6,
+      items: { type: 'string' },
+    },
+    avoidCategories: {
+      type: 'array',
+      minItems: 0,
+      maxItems: 6,
+      items: { type: 'string' },
+    },
+    intensity: { type: 'string', enum: ['light', 'medium', 'high', 'unknown'] },
+    indoorOutdoor: { type: 'string', enum: ['indoor', 'outdoor', 'both', 'unknown'] },
     preferredConditions: {
       type: 'object',
       additionalProperties: false,
@@ -81,6 +109,10 @@ const fallbackParsedPreference: ParsedPreference = {
   intentSummary: '사용자가 입력한 자연어 조건을 검색 가능한 선호 조건으로 정리하지 못했습니다.',
   keywords: [],
   categories: [],
+  preferredCategories: [],
+  avoidCategories: [],
+  intensity: 'unknown',
+  indoorOutdoor: 'unknown',
   preferredConditions: {
     intensity: 'unknown',
     indoorOutdoor: 'unknown',
@@ -112,6 +144,14 @@ const normalizeParsedPreference = (value: unknown): ParsedPreference => {
     intentSummary: getStringValue(candidate.intentSummary) || fallbackParsedPreference.intentSummary,
     keywords: normalizeStringList(candidate.keywords),
     categories: normalizeStringList(candidate.categories),
+    preferredCategories: normalizeStringList(candidate.preferredCategories),
+    avoidCategories: normalizeStringList(candidate.avoidCategories),
+    intensity: ['light', 'medium', 'high', 'unknown'].includes(String(candidate.intensity))
+      ? candidate.intensity
+      : 'unknown',
+    indoorOutdoor: ['indoor', 'outdoor', 'both', 'unknown'].includes(String(candidate.indoorOutdoor))
+      ? candidate.indoorOutdoor
+      : 'unknown',
     preferredConditions: {
       intensity: ['low', 'medium', 'high', 'unknown'].includes(String(preferredConditions.intensity))
         ? preferredConditions.intensity
@@ -202,6 +242,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               '존재하지 않는 활동명, 기관명, 일정, 장소를 만들지 마세요.',
               '사용자의 자연어 선호를 검색/랭킹에 활용할 수 있는 구조화 데이터로만 변환하세요.',
               '키워드는 1365 검색에 쓸 수 있는 짧은 한국어 명사 중심으로 작성하세요.',
+              '바다, 해변, 해안, 항구, 공원, 산책, 혼자, 조용히 같은 의도는 keywords와 preferredCategories에 반드시 보존하세요.',
+              '원하지 않는 활동 성격이 보이면 avoidCategories와 excludeKeywords에 넣으세요. 예: 행사, 단체, 운영보조, 행사보조, 교육, 멘토링.',
+              'intensity는 가벼운 활동이면 light, 실내외 선호는 indoorOutdoor에 기록하세요.',
             ].join('\n'),
           },
           {

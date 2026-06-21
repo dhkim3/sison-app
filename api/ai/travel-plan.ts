@@ -1,7 +1,11 @@
 import {
   geocodeAddress,
   findNearbyPlaces,
+  inferTravelRegion,
+  isCoordinateInTravelRegion,
+  isPlaceInTravelRegion,
   type GeocodeResult,
+  type TravelRegionKey,
   type TravelPlace,
 } from '../../lib/server/travelService.js';
 
@@ -36,6 +40,8 @@ type InputPlace = {
 type ActivityInfo = {
   title: string;
   address?: string;
+  location?: string;
+  region?: string;
 };
 
 type RawStop = { id: string };
@@ -264,18 +270,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ? (body.activity as Record<string, unknown>) : null;
   if (!actRaw) { res.status(400).json({ ok: false, error: '봉사활동 정보가 없어요.' }); return; }
 
-  const activity: ActivityInfo = { title: str(actRaw.title), address };
+  const activity: ActivityInfo = {
+    title: str(actRaw.title),
+    address,
+    location: str(actRaw.location),
+    region: str(actRaw.region),
+  };
   if (!activity.title) { res.status(400).json({ ok: false, error: '봉사활동 제목이 없어요.' }); return; }
+  const expectedRegion: TravelRegionKey | null = inferTravelRegion(
+    region,
+    destination,
+    activity.region,
+    activity.location,
+    address,
+    activity.title,
+  );
+  console.log('activity title', activity.title);
+  console.log('activity location', activity.location ?? '');
+  console.log('activity region', activity.region || region || destination || '');
 
   try {
     // Step 1: 주소 → 좌표
     let geo: GeocodeResult;
     try {
       geo = await geocodeAddress(address, region);
+      console.log('resolved lat', geo.lat);
+      console.log('resolved lng', geo.lng);
+      if (expectedRegion && !isCoordinateInTravelRegion(geo.lat, geo.lng, expectedRegion)) {
+        console.error('[travel-plan:error] geocode region mismatch', {
+          expectedRegion,
+          lat: geo.lat,
+          lng: geo.lng,
+          roadAddress: geo.roadAddress,
+          parcelAddress: geo.parcelAddress,
+        });
+        res.status(200).json({ ok: false, error: '주변 추천 장소를 찾을 수 없어요.' });
+        return;
+      }
       console.log('[travel-plan] geocode success', { lat: geo.lat, lng: geo.lng });
     } catch (err) {
       console.error('[travel-plan:error] geocode fail', { message: err instanceof Error ? err.message : String(err), address, region });
-      res.status(200).json({ ok: false, error: '일정을 만들지 못했어요.' });
+      res.status(200).json({ ok: false, error: '주변 추천 장소를 찾을 수 없어요.' });
       return;
     }
 
@@ -287,9 +322,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch (err) {
       console.error('[travel-plan:error] nearby fail', { message: err instanceof Error ? err.message : String(err) });
     }
+    if (expectedRegion) {
+      const beforeCount = nearby.length;
+      nearby = nearby.filter((place) => isPlaceInTravelRegion(place, expectedRegion));
+      console.log('[travel-plan] nearby region filter', {
+        expectedRegion,
+        beforeCount,
+        afterCount: nearby.length,
+      });
+    }
     if (nearby.length === 0) {
-      console.error('[travel-plan:error] nearby empty', { lat: geo.lat, lng: geo.lng });
-      res.status(200).json({ ok: false, error: '일정을 만들지 못했어요.' });
+      console.error('[travel-plan:error] nearby empty', { lat: geo.lat, lng: geo.lng, expectedRegion });
+      res.status(200).json({ ok: false, error: '주변 추천 장소를 찾을 수 없어요.' });
       return;
     }
 
@@ -307,7 +351,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     if (plans.length === 0) {
       console.error('[travel-plan:error] openai returned 0 valid plans');
-      res.status(200).json({ ok: false, error: '일정을 만들지 못했어요.' });
+      res.status(200).json({ ok: false, error: '주변 추천 장소를 찾을 수 없어요.' });
       return;
     }
 
