@@ -60,8 +60,10 @@ export function CardCreationView({
   const [downloadMessage, setDownloadMessage] = useState('');
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [showCompletionToast, setShowCompletionToast] = useState(false);
   const cardPreviewRef = useRef<HTMLDivElement | null>(null);
   const genTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
   const deviceKey = getDeviceKey();
 
   const compactLocation = getCompactLocationLabel(activity.location) || activity.region;
@@ -73,6 +75,7 @@ export function CardCreationView({
   useEffect(() => {
     return () => {
       if (genTimerRef.current) clearTimeout(genTimerRef.current);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     };
   }, []);
 
@@ -100,6 +103,9 @@ export function CardCreationView({
       setGeneratedImageUrl(result.url);
       setHasGeneratedAIFrame(true);
       setSelectedFrame(AI_FRAME);
+      setShowCompletionToast(true);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = window.setTimeout(() => setShowCompletionToast(false), 2000);
     } catch (error) {
       console.error('AI frame generate failed', error);
       const message = error instanceof Error ? error.message : '';
@@ -274,28 +280,30 @@ export function CardCreationView({
             </div>
           </section>
 
-          {/* AI Frame button — changes label based on state */}
+          {/* AI Frame button — loading state turns the button itself into an indeterminate progress bar */}
           <section>
             <button
               type="button"
               onClick={handleGenerateAIFrame}
               disabled={isGenerating}
-              className={`w-full py-3 rounded-xl transition-all flex items-center justify-center gap-2 text-[13px] font-medium ${
+              aria-busy={isGenerating}
+              aria-label={isGenerating ? 'AI 프레임 생성 중' : hasGeneratedAIFrame ? '다시 만들기' : 'AI 프레임 만들기'}
+              className={`relative w-full py-3 rounded-xl overflow-hidden transition-all flex items-center justify-center gap-2 text-[13px] font-medium ${
                 isGenerating
-                  ? 'bg-[#f8f8f5] text-[#ccc] cursor-not-allowed'
-                  : hasGeneratedAIFrame
-                  ? 'bg-[#efecfc] text-[#5a56d0] hover:bg-[#e5e1fa]'
+                  ? 'cursor-wait bg-[#efecfc] text-transparent'
                   : 'bg-[#efecfc] text-[#5a56d0] hover:bg-[#e5e1fa]'
               }`}
             >
-              {!isGenerating && <Sparkles className="w-4 h-4" strokeWidth={2} />}
-              <span>
-                {isGenerating
-                  ? 'AI 프레임 생성 중...'
-                  : hasGeneratedAIFrame
-                  ? '다시 만들기'
-                  : 'AI 프레임 만들기'}
-              </span>
+              {isGenerating ? (
+                <span aria-hidden="true" className="ai-frame-button-shimmer-track">
+                  <span className="ai-frame-button-shimmer-bar" />
+                </span>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" strokeWidth={2} />
+                  <span>{hasGeneratedAIFrame ? '다시 만들기' : 'AI 프레임 만들기'}</span>
+                </>
+              )}
             </button>
             {errorMessage && (
               <p className="mt-2 text-center text-[12px] leading-5 text-[#b76e65]" role="status" aria-live="polite">
@@ -324,13 +332,13 @@ export function CardCreationView({
         </div>
       </PageShell>
 
-      {isGenerating && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 px-8 backdrop-blur-sm">
-          <div className="w-full max-w-[280px] rounded-3xl bg-white px-6 py-7 text-center shadow-2xl">
-            <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-[#e8e6f5] border-t-[#7c74d6]" />
-            <p className="text-[15px] font-semibold text-[#2a2a2a]">AI 카드를 만들고 있어요</p>
-            <p className="mt-1.5 text-[12.5px] leading-5 text-[#999]">잠시 걸릴 수 있어요. 화면을 닫지 말고 기다려주세요.</p>
-          </div>
+      {showCompletionToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="pointer-events-none fixed left-1/2 bottom-[120px] z-[90] -translate-x-1/2 rounded-full bg-[#2a2a2a]/90 px-5 py-3 text-[13px] font-medium text-white shadow-[0_8px_24px_rgba(0,0,0,0.18)] animate-fade-in"
+        >
+          AI frame이 완성됐습니다!
         </div>
       )}
 

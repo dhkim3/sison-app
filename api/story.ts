@@ -365,8 +365,9 @@ const buildFramePrompt = (
   const safeDate = date || '';
   const safeActivity = volunteerActivity || '봉사 활동';
   return (
-    `You are editing the supplied source.png into a 16-bit pixel-art collectible TRAVEL CARD (output: 1024×1536 PNG, portrait 2:3).\n` +
-    `Return ONE finished image — frame, character, and all readable text must already be baked in.\n` +
+    `You are editing the supplied source.png into a collectible TRAVEL CARD (output: 1024×1536 PNG, portrait 2:3).\n` +
+    `Treat the source photo as a real photograph and KEEP IT PHOTOGRAPHIC. Only the frame, decorations, character, and text are pixel art.\n` +
+    `Return ONE finished image — photo, frame, character, and all readable text baked in.\n` +
     `\n` +
     `=== INPUT PARAMETERS (use the literal strings inside the tags) ===\n` +
     `<TITLE>${safeTitle}</TITLE>\n` +
@@ -377,20 +378,21 @@ const buildFramePrompt = (
     `=== ZONE LAYOUT (top to bottom; coordinates assume the 1024×1536 canvas) ===\n` +
     `\n` +
     `ZONE A — PHOTO WINDOW (y: 60–1040px, x: 70–954px)\n` +
-    `  • Take the central subject(s) of source.png — the people and the main background — and KEEP THEM RECOGNIZABLE. Faces, poses, clothing colors, and the scene must stay true to the photo.\n` +
-    `  • Re-render this region in soft 16-bit pixel art (Stardew Valley / Animal Crossing palette). Do not replace, remove, or duplicate the people.\n` +
-    `  • Fill the photo window edge-to-edge with the pixel-art photo; no transparent gaps inside Zone A.\n` +
+    `  • Place the source.png photograph here. KEEP IT AS A PHOTOGRAPH — do NOT pixelate, posterize, or re-stylize the people, faces, clothing, or background. Original resolution and colors must be preserved as much as possible.\n` +
+    `  • Cover/letterbox the photo to fill the window; the people and the main subject stay clearly visible and uncovered.\n` +
+    `  • Allowed: a thin pixel-art double border (outer 3px, inner 1px) hugging the photo window edge.\n` +
     `\n` +
     `ZONE B — DECORATIVE FRAME (the strip surrounding Zone A on all four sides)\n` +
-    `  • Background: ${theme.bg}, solid fill, with a pixel-art double border (outer 3px, inner 1px) around the photo window.\n` +
-    `  • Decorate corners and sides with small motifs appropriate to <ACTIVITY>: ${theme.decorations}.\n` +
-    `  • Decorations stay inside Zone B — they must NOT cover the photo window or the people inside it.\n` +
+    `  • Background: ${theme.bg}, solid fill.\n` +
+    `  • Pixel-art motifs appropriate to <ACTIVITY>: ${theme.decorations}. Scatter them along the four sides and into the corners.\n` +
+    `  • OVERLAP IS ENCOURAGED: a few motifs (leaves, waves, sparkles, small props, etc.) may extend a short distance INTO the photo edges — roughly the outer 60px on each side. Use them sparingly to blend frame and photo organically.\n` +
+    `  • DO NOT cover the central subject(s) — keep faces, hands, and the main action of the photo completely unobstructed.\n` +
     `\n` +
     `ZONE C — CHARACTER STRIP (y: 1040–1220px, full width)\n` +
     `  • Background: solid warm-cream (#f5ecd9).\n` +
-    `  • Add one cute pixel-art character that matches <ACTIVITY>: ${theme.character}. Max height 150px; placed on the left half so it does not overlap the right-side decorations.\n` +
-    `  • Sprinkle 2–3 tiny motifs from ${theme.decorations} on the right side of the strip, small and quiet.\n` +
-    `  • The character must NOT cross above y=1040 into the photo window.\n` +
+    `  • Add one cute pixel-art character that matches <ACTIVITY>: ${theme.character}. Max height 150px; placed on the left half.\n` +
+    `  • The character or a small prop it holds MAY peek slightly above y=1040 into the lower edge of the photo (up to ~40px), as long as it does not cover faces or the central action.\n` +
+    `  • Sprinkle 2–3 tiny motifs from ${theme.decorations} on the right side of the strip.\n` +
     `\n` +
     `ZONE D — TEXT PANEL (y: 1220–1460px, full width)\n` +
     `  • Background: solid cream-white (#faf5ee).\n` +
@@ -405,12 +407,13 @@ const buildFramePrompt = (
     `  • Below that line, centered horizontally at roughly y≈1500, render the Korean word "시선" in a small pixel font (~26px tall, color #6f6f6f).\n` +
     `\n` +
     `CRITICAL RULES (violating any = failure):\n` +
-    `  1. Preserve the identity, count, and arrangement of the people from source.png inside Zone A.\n` +
-    `  2. Render <TITLE>, <REGION>, <DATE>, and the word "시선" as actual readable text in the final PNG. Do NOT leave the text panel blank.\n` +
-    `  3. The only text in the entire image is: <TITLE>, <REGION>, <DATE>, and "시선". No other words, numbers, watermarks, or logos.\n` +
-    `  4. Output is a single fully-opaque PNG at 1024×1536 — no transparent regions, no separate layers.\n` +
+    `  1. The photo inside Zone A remains a real photograph — NEVER pixelated, posterized, painted, or re-rendered. People's faces and the scene must look exactly like the source.\n` +
+    `  2. Pixel-art elements (frame motifs, character props) may intrude into the outer edges of the photo, but must NEVER cover faces, hands, or the central subject of the photo.\n` +
+    `  3. Render <TITLE>, <REGION>, <DATE>, and the word "시선" as actual readable text in the final PNG. Do NOT leave the text panel blank.\n` +
+    `  4. The only text in the entire image is: <TITLE>, <REGION>, <DATE>, and "시선". No other words, numbers, watermarks, or logos.\n` +
+    `  5. Output is a single fully-opaque PNG at 1024×1536 — no transparent regions, no separate layers.\n` +
     `\n` +
-    `STYLE: High-quality 16-bit pixel art. Animal Crossing / Stardew Valley aesthetic. Soft pastel palette. Crisp pixel edges. Calm Korean travel-app mood.`
+    `STYLE: Photographic central subject + 16-bit pixel-art frame/character/text (Animal Crossing / Stardew Valley aesthetic). Soft pastel palette around the photo. Calm Korean travel-app mood.`
   );
 };
 

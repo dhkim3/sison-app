@@ -482,6 +482,40 @@ body.bottom-sheet-scroll-locked {
   }
 }
 
+@keyframes ai-frame-button-shimmer-slide {
+  from {
+    transform: translateX(-110%);
+  }
+  to {
+    transform: translateX(110%);
+  }
+}
+
+.ai-frame-button-shimmer-track {
+  position: absolute;
+  inset: 0;
+  background: #efecfc;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.ai-frame-button-shimmer-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 55%;
+  background: linear-gradient(
+    90deg,
+    rgba(239, 236, 252, 0) 0%,
+    rgba(150, 124, 235, 0.45) 45%,
+    rgba(108, 84, 224, 0.7) 55%,
+    rgba(239, 236, 252, 0) 100%
+  );
+  animation: ai-frame-button-shimmer-slide 1.4s linear infinite;
+  will-change: transform;
+}
+
 @keyframes ai-soft-reveal {
   from {
     opacity: 0;
@@ -569,7 +603,8 @@ body.bottom-sheet-scroll-locked {
   .sison-ai-travel-shuffle-path path,
   .ai-loading-shimmer,
   .ai-loading-step,
-  .ai-loading-line {
+  .ai-loading-line,
+  .ai-frame-button-shimmer-bar {
     animation: none;
     opacity: 1;
   }
@@ -577,7 +612,8 @@ body.bottom-sheet-scroll-locked {
   .recruiting-status-dot::after,
   .ai-loading-shimmer,
   .ai-loading-step,
-  .ai-loading-line {
+  .ai-loading-line,
+  .ai-frame-button-shimmer-bar {
     transform: none;
   }
 
