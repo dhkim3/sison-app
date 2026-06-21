@@ -541,10 +541,10 @@ export async function captureElementAsPng(element: HTMLElement, scale = 2, optio
     clone.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
     clone.style.margin = '0';
     clone.style.transform = 'none';
+    // 투명 캡처 모드에서는 클론 자체의 배경(예: 카드 bg-white)을 덮어쓰지 않는다.
+    // 그래야 둥근 모서리 안쪽은 원본 색이 유지되고, 바깥쪽 사각형 영역만 투명해진다.
     if (backgroundColor !== 'transparent') {
       clone.style.backgroundColor = backgroundColor;
-    } else {
-      clone.style.backgroundColor = 'transparent';
     }
 
     const serializedNode = new XMLSerializer().serializeToString(clone);
