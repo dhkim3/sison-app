@@ -360,7 +360,7 @@ const handleCardGenerate = async (res: VercelResponse, deviceKey: string, body: 
        values ($1,$2,$3,$4,$5,$6,$7)`,
       [
         String(Date.now()),
-        str(body.storyId) || null,
+        str(body.storyId) || String(Date.now()),
         deviceKey || null,
         str(body.templateType) || 'ai',
         str(body.title) || null,
