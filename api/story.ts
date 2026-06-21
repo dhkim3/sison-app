@@ -77,7 +77,7 @@ const sendError = (res: VercelResponse, code: number, message: string) => {
 
 const handleList = async (res: VercelResponse, deviceKey: string) => {
   const db = getPool();
-  const [storiesResult, commentsResult, likesResult] = await Promise.all([
+  const [storiesResult, commentsResult, likesResult, cardsResult] = await Promise.all([
     db.query(
       `select id, author_name, author_key, region, city, location, title, body, image_url,
               activity_title, activity_date, created_at
@@ -88,6 +88,13 @@ const handleList = async (res: VercelResponse, deviceKey: string) => {
        from story_comments order by created_at asc`,
     ),
     db.query(`select story_id, liker_key from story_likes`),
+    deviceKey
+      ? db.query(
+          `select id, story_id, title, subtitle, generated_image_url, created_at
+           from story_cards where author_key = $1 order by created_at desc`,
+          [deviceKey],
+        )
+      : Promise.resolve({ rows: [] }),
   ]);
 
   const stories = storiesResult.rows.map((row) => ({
@@ -131,7 +138,16 @@ const handleList = async (res: VercelResponse, deviceKey: string) => {
     if (deviceKey && row.liker_key === deviceKey) likedStoryIds.push(storyId);
   }
 
-  res.status(200).json({ ok: true, stories, comments, likeCounts, likedStoryIds });
+  const cards = cardsResult.rows.map((row: Record<string, unknown>) => ({
+    id: Number(row.id),
+    storyId: row.story_id != null ? Number(row.story_id) : null,
+    title: str(row.title),
+    subtitle: str(row.subtitle),
+    imageUrl: str(row.generated_image_url),
+    createdAt: row.created_at,
+  }));
+
+  res.status(200).json({ ok: true, stories, comments, likeCounts, likedStoryIds, cards });
 };
 
 const handleCreate = async (res: VercelResponse, deviceKey: string, body: Record<string, unknown>) => {

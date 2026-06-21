@@ -17,6 +17,7 @@ import {
   getDeviceKey,
   initialStoryComments,
   storyApi,
+  type StoryCardItem,
   type StoryComment,
   type StoryInteractionProps,
 } from './storyInteractionState';
@@ -53,6 +54,7 @@ export default function App() {
   const [userStories, setUserStories] = useState<StoryItem[]>([]);
   const [profileNickname, setProfileNickname] = useState('여행자');
   const [pendingCardStory, setPendingCardStory] = useState<StoryItem | null>(null);
+  const [myCards, setMyCards] = useState<StoryCardItem[]>([]);
   const saveFeedbackTimers = useRef<number[]>([]);
 
   useLayoutEffect(() => {
@@ -88,16 +90,15 @@ export default function App() {
     saveFeedbackTimers.current.forEach((timer) => window.clearTimeout(timer));
   }, []);
 
-  // 앱 시작 시 DB에서 스토리/좋아요/댓글 복원 (시드 댓글 위에 DB 댓글을 덧붙임)
-  useEffect(() => {
+  // DB에서 스토리/좋아요/댓글/카드 복원 (시드 댓글 위에 DB 댓글을 덧붙임)
+  const loadStories = useCallback(() => {
     if (!deviceKey) return;
-    let cancelled = false;
     storyApi
       .list(deviceKey)
       .then((data) => {
-        if (cancelled) return;
         setUserStories(data.stories);
         setLikedStoryIds(data.likedStoryIds);
+        setMyCards(data.cards);
         setStoryComments((currentComments) => {
           const merged: Record<number, StoryComment[]> = { ...currentComments };
           for (const [storyId, list] of Object.entries(data.comments)) {
@@ -108,10 +109,16 @@ export default function App() {
         });
       })
       .catch((error) => console.error('story list load failed', error));
-    return () => {
-      cancelled = true;
-    };
   }, [deviceKey]);
+
+  useEffect(() => {
+    loadStories();
+  }, [loadStories]);
+
+  // 저장 화면에 들어올 때마다 최신 내 스토리/카드를 다시 불러와 반영
+  useEffect(() => {
+    if (currentScreen === 'saved') loadStories();
+  }, [currentScreen, loadStories]);
 
   const showSaveFeedback = (message: string) => {
     saveFeedbackTimers.current.forEach((timer) => window.clearTimeout(timer));
@@ -253,7 +260,7 @@ export default function App() {
   }, []);
 
   const handleCreateStory = (story: StoryItem) => {
-    const ownedStory: StoryItem = { ...story, author: profileNickname, authorName: profileNickname };
+    const ownedStory: StoryItem = { ...story, author: profileNickname, authorName: profileNickname, isMine: true };
     setUserStories((current) => [ownedStory, ...current]);
     if (deviceKey) {
       storyApi.createStory(deviceKey, ownedStory).catch((error) => console.error('create story failed', error));
@@ -415,6 +422,8 @@ export default function App() {
           storyInteractions={storyInteractions}
           activeArchiveTab={savedArchiveTab}
           onArchiveTabChange={setSavedArchiveTab}
+          myStories={userStories.filter((story) => story.isMine)}
+          myCards={myCards}
         />
       )}
       {currentScreen === 'profile' && (

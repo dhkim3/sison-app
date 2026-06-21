@@ -12,7 +12,7 @@ import { StoryDetailSheet } from './story/StoryDetailSheet';
 import { StoryCommentSheet } from './story/StoryCommentSheet';
 import type { StoryItem } from './story/storyTypes';
 import { getActivitySaveKey, type ActivitySaveLookup, type ActivitySaveRecord } from '../activitySaveState';
-import type { StoryInteractionProps } from '../storyInteractionState';
+import type { StoryCardItem, StoryInteractionProps } from '../storyInteractionState';
 import { captureElementAsPng, downloadBlob } from '../utils/captureElementAsImage';
 import { avoidConsecutiveActivityImages } from '../utils/activityImage';
 import { scrollToTop } from '../utils/scrollToTop';
@@ -182,6 +182,21 @@ const initialTravelCards: ArchiveTravelCard[] = [
   },
 ];
 
+const formatCardDate = (createdAt: string | number | Date) => {
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) return '';
+  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
+};
+
+const storyCardToArchiveCard = (card: StoryCardItem): ArchiveTravelCard => ({
+  id: String(card.id),
+  photoUrl: card.imageUrl,
+  title: card.title || '여행 카드',
+  date: formatCardDate(card.createdAt),
+  locationLabel: card.subtitle || undefined,
+  style: 'polaroid',
+});
+
 interface SavedArchiveProps {
   onNavigate: (screen: string, options?: { activity?: ActivitySaveRecord; returnScreen?: 'home' | 'search' | 'saved'; cardStory?: StoryItem }) => void;
   savedActivities: ActivitySaveRecord[];
@@ -190,6 +205,8 @@ interface SavedArchiveProps {
   storyInteractions: StoryInteractionProps;
   activeArchiveTab?: SavedArchiveTab;
   onArchiveTabChange?: (tab: SavedArchiveTab) => void;
+  myStories?: StoryItem[];
+  myCards?: StoryCardItem[];
 }
 
 export function SavedArchive({
@@ -200,6 +217,8 @@ export function SavedArchive({
   storyInteractions,
   activeArchiveTab = 0,
   onArchiveTabChange,
+  myStories,
+  myCards,
 }: SavedArchiveProps) {
   const [activeTab, setActiveTab] = useState<SavedArchiveTab>(activeArchiveTab);
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
@@ -222,6 +241,15 @@ export function SavedArchive({
   useEffect(() => {
     setActiveTab(activeArchiveTab);
   }, [activeArchiveTab]);
+
+  // 내가 올린 스토리/생성한 카드를 저장 탭에 반영 (목 데이터 앞에 배치)
+  useEffect(() => {
+    setStories([...(myStories ?? []), ...initialArchiveStories]);
+  }, [myStories]);
+
+  useEffect(() => {
+    setTravelCards([...(myCards ?? []).map(storyCardToArchiveCard), ...initialTravelCards]);
+  }, [myCards]);
 
   useEffect(() => {
     return () => {

@@ -282,11 +282,21 @@ export const getDeviceKey = (): string => {
 };
 
 // ---- story API client ----
+export interface StoryCardItem {
+  id: number;
+  storyId: number | null;
+  title: string;
+  subtitle: string;
+  imageUrl: string;
+  createdAt: string;
+}
+
 export interface StoryListResponse {
   stories: StoryItem[];
   comments: Record<number, StoryComment[]>;
   likeCounts: Record<number, number>;
   likedStoryIds: number[];
+  cards: StoryCardItem[];
 }
 
 const postStoryAction = async (action: string, payload: Record<string, unknown>) => {
@@ -312,6 +322,7 @@ export const storyApi = {
       comments: data.comments ?? {},
       likeCounts: data.likeCounts ?? {},
       likedStoryIds: Array.isArray(data.likedStoryIds) ? data.likedStoryIds : [],
+      cards: Array.isArray(data.cards) ? data.cards : [],
     };
   },
   createStory: (key: string, story: Partial<StoryItem>) => postStoryAction('create', { key, story }),
