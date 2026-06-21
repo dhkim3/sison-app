@@ -1,4 +1,4 @@
-import { put } from '@vercel/blob';
+import { get, put } from '@vercel/blob';
 import pg from 'pg';
 
 type VercelRequest = {
@@ -11,6 +11,7 @@ type VercelRequest = {
 type VercelResponse = {
   status: (statusCode: number) => VercelResponse;
   json: (body: unknown) => void;
+  send: (body: unknown) => void;
   setHeader: (name: string, value: string) => void;
 };
 
@@ -30,6 +31,10 @@ const getPool = () => {
 };
 
 const getBlobToken = () => process.env.BLOB_READ_WRITE_TOKEN?.trim();
+
+// 비공개(private) Blob 스토어이므로 공개 URL을 만들 수 없다.
+// 이미지는 이 프록시 경로로 서버에서 토큰으로 읽어 스트리밍한다.
+const blobProxyUrl = (pathname: string) => `/api/story?action=image&path=${encodeURIComponent(pathname)}`;
 
 const getSingle = (value: string | string[] | undefined, fallback = '') => {
   if (Array.isArray(value)) return value[0] ?? fallback;
@@ -224,6 +229,31 @@ const dataUrlToBuffer = (dataUrl: string): { buffer: Buffer; contentType: string
   return { buffer: Buffer.from(match[2], 'base64'), contentType: match[1] };
 };
 
+const inferContentType = (pathname: string) => {
+  if (/\.png$/i.test(pathname)) return 'image/png';
+  if (/\.jpe?g$/i.test(pathname)) return 'image/jpeg';
+  if (/\.webp$/i.test(pathname)) return 'image/webp';
+  if (/\.gif$/i.test(pathname)) return 'image/gif';
+  return 'application/octet-stream';
+};
+
+const handleImage = async (res: VercelResponse, pathname: string) => {
+  const token = getBlobToken();
+  if (!token || !pathname) {
+    res.status(404).json({ ok: false, error: '이미지를 찾을 수 없어요.' });
+    return;
+  }
+  const blob = await get(pathname, { access: 'private', token, useCache: false });
+  if (!blob || blob.statusCode !== 200 || !blob.stream) {
+    res.status(404).json({ ok: false, error: '이미지를 찾을 수 없어요.' });
+    return;
+  }
+  const buffer = Buffer.from(await new Response(blob.stream).arrayBuffer());
+  res.setHeader('Content-Type', blob.contentType || inferContentType(pathname));
+  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  res.status(200).send(buffer);
+};
+
 const handleUpload = async (res: VercelResponse, body: Record<string, unknown>) => {
   const token = getBlobToken();
   if (!token) return sendError(res, 500, '이미지 저장소가 설정되지 않았어요.');
@@ -232,11 +262,11 @@ const handleUpload = async (res: VercelResponse, body: Record<string, unknown>) 
   if (!decoded) return sendError(res, 400, '이미지 형식이 올바르지 않아요.');
   const ext = decoded.contentType.split('/')[1] || 'png';
   const blob = await put(`stories/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`, decoded.buffer, {
-    access: 'public',
+    access: 'private',
     contentType: decoded.contentType,
     token,
   });
-  res.status(200).json({ ok: true, url: blob.url });
+  res.status(200).json({ ok: true, url: blobProxyUrl(blob.pathname), pathname: blob.pathname });
 };
 
 // ---- AI card generation (OpenAI Responses API, image_generation tool) ----
@@ -252,8 +282,8 @@ const handleCardGenerate = async (res: VercelResponse, deviceKey: string, body: 
   const blobToken = getBlobToken();
   if (!blobToken) return sendError(res, 500, '이미지 저장소가 설정되지 않았어요.');
 
-  const photoUrl = str(body.photoUrl);
-  if (!photoUrl) return sendError(res, 400, '카드로 만들 사진이 필요해요.');
+  const photoDataUrl = str(body.photoDataUrl) || str(body.photoUrl);
+  if (!photoDataUrl || !photoDataUrl.startsWith('data:')) return sendError(res, 400, '카드로 만들 사진이 필요해요.');
   const model = process.env.OPENAI_IMAGE_MODEL || 'gpt-5-mini';
   const prompt = buildCardPrompt(str(body.activity), str(body.region));
 
@@ -270,7 +300,7 @@ const handleCardGenerate = async (res: VercelResponse, deviceKey: string, body: 
             role: 'user',
             content: [
               { type: 'input_text', text: prompt },
-              { type: 'input_image', image_url: photoUrl },
+              { type: 'input_image', image_url: photoDataUrl },
             ],
           },
         ],
@@ -302,7 +332,7 @@ const handleCardGenerate = async (res: VercelResponse, deviceKey: string, body: 
   }
 
   const blob = await put(`story-cards/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`, Buffer.from(imageBase64, 'base64'), {
-    access: 'public',
+    access: 'private',
     contentType: 'image/png',
     token: blobToken,
   });
@@ -319,7 +349,7 @@ const handleCardGenerate = async (res: VercelResponse, deviceKey: string, body: 
         str(body.templateType) || 'ai',
         str(body.title) || null,
         str(body.subtitle) || null,
-        blob.url,
+        blobProxyUrl(blob.pathname),
       ],
     );
   } catch (error) {
@@ -327,7 +357,7 @@ const handleCardGenerate = async (res: VercelResponse, deviceKey: string, body: 
   }
 
   console.log(`[card-generate] done in ${elapsedMs}ms`);
-  res.status(200).json({ ok: true, url: blob.url, elapsedMs });
+  res.status(200).json({ ok: true, url: blobProxyUrl(blob.pathname), elapsedMs });
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -340,6 +370,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (method === 'GET') {
       if (action === 'list') return await handleList(res, getSingle(req.query.key));
+      if (action === 'image') return await handleImage(res, getSingle(req.query.path));
       return sendError(res, 400, '알 수 없는 요청이에요.');
     }
 

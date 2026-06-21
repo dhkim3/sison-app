@@ -58,11 +58,16 @@ export function CardCreationView({
     };
   }, []);
 
-  // 사진을 OpenAI가 접근 가능한 절대 URL로 변환 (data: → Blob 업로드, 상대경로 → origin 부착)
-  const resolvePhotoUrl = async () => {
-    if (photo.startsWith('data:')) return await storyApi.uploadPhoto(photo);
-    if (/^https?:\/\//.test(photo)) return photo;
-    return `${window.location.origin}${photo.startsWith('/') ? '' : '/'}${photo}`;
+  // private Blob 스토어라 공개 URL을 만들 수 없어, 사진을 base64 data URL로 변환해 서버(→OpenAI)에 직접 전달
+  const toDataUrl = async (src: string): Promise<string> => {
+    if (src.startsWith('data:')) return src;
+    const blob = await (await fetch(src)).blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('이미지 변환에 실패했어요.'));
+      reader.readAsDataURL(blob);
+    });
   };
 
   const handleGenerateAIFrame = async () => {
@@ -74,10 +79,10 @@ export function CardCreationView({
 
     const start = Date.now();
     try {
-      const photoUrl = await resolvePhotoUrl();
+      const photoDataUrl = await toDataUrl(photo);
       const result = await storyApi.generateCard(deviceKey, {
         storyId,
-        photoUrl,
+        photoDataUrl,
         activity: activity.title ?? activity.activityTitle ?? '',
         region: activity.region ?? '',
         title: cardTitle,
