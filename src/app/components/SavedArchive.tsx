@@ -183,7 +183,7 @@ const initialTravelCards: ArchiveTravelCard[] = [
 ];
 
 interface SavedArchiveProps {
-  onNavigate: (screen: string, options?: { activity?: ActivitySaveRecord; returnScreen?: 'home' | 'search' | 'saved' }) => void;
+  onNavigate: (screen: string, options?: { activity?: ActivitySaveRecord; returnScreen?: 'home' | 'search' | 'saved'; cardStory?: StoryItem }) => void;
   savedActivities: ActivitySaveRecord[];
   isActivitySaved: (activity: ActivitySaveLookup) => boolean;
   onToggleSavedActivity: (activity: ActivitySaveRecord) => void;
@@ -515,6 +515,10 @@ export function SavedArchive({
         onOpenComments={setCommentStory}
         onAddComment={(story, body) => storyInteractions.onAddStoryComment(story.id, body)}
         onDeleteComment={(story, commentId) => storyInteractions.onDeleteStoryComment(story.id, commentId)}
+        onCreateCard={(story) => {
+          setSelectedStory(null);
+          onNavigate('story', { cardStory: story });
+        }}
         onDelete={handleDeleteStory}
       />
 

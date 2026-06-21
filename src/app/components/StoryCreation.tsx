@@ -14,11 +14,13 @@ interface StoryCreationProps {
   profileNickname: string;
   onCreateStory: (story: StoryItem) => void;
   onDeleteStory: (story: StoryItem) => void;
+  pendingCardStory?: StoryItem | null;
+  onPendingCardConsumed?: () => void;
 }
 
 type StoryView = 'map' | 'my-activities' | 'upload' | 'card';
 
-export function StoryCreation({ onNavigate, storyInteractions, userStories, profileNickname, onCreateStory, onDeleteStory }: StoryCreationProps) {
+export function StoryCreation({ onNavigate, storyInteractions, userStories, profileNickname, onCreateStory, onDeleteStory, pendingCardStory, onPendingCardConsumed }: StoryCreationProps) {
   const [currentView, setCurrentView] = useState<StoryView>('map');
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
@@ -226,6 +228,15 @@ export function StoryCreation({ onNavigate, storyInteractions, userStories, prof
     setCardStoryId(story.id);
     setCurrentView('card');
   };
+
+  // 저장 탭 등 다른 화면에서 'AI 카드 제작'으로 진입한 경우 카드 생성 화면을 연다
+  useEffect(() => {
+    if (pendingCardStory) {
+      handleCreateCardFromStory(pendingCardStory);
+      onPendingCardConsumed?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingCardStory]);
 
   const handleSaveStory = async () => {
     if (storyTitle.trim().length === 0) {

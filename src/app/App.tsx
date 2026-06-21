@@ -52,6 +52,7 @@ export default function App() {
   const [deviceKey] = useState(() => getDeviceKey());
   const [userStories, setUserStories] = useState<StoryItem[]>([]);
   const [profileNickname, setProfileNickname] = useState('여행자');
+  const [pendingCardStory, setPendingCardStory] = useState<StoryItem | null>(null);
   const saveFeedbackTimers = useRef<number[]>([]);
 
   useLayoutEffect(() => {
@@ -131,7 +132,7 @@ export default function App() {
 
   const handleNavigate = (
     screen: string,
-    options?: { activity?: ActivitySaveRecord; returnScreen?: Screen; savedTab?: SavedArchiveTab }
+    options?: { activity?: ActivitySaveRecord; returnScreen?: Screen; savedTab?: SavedArchiveTab; cardStory?: StoryItem }
   ) => {
     if (screen === 'ai-recommendation') {
       setAiRecommendationActivity(options?.activity ?? null);
@@ -147,6 +148,10 @@ export default function App() {
 
     if (screen === 'saved' && options?.savedTab !== undefined) {
       setSavedArchiveTab(options.savedTab);
+    }
+
+    if (screen === 'story' && options?.cardStory) {
+      setPendingCardStory(options.cardStory);
     }
 
     setCurrentScreen(screen as Screen);
@@ -397,6 +402,8 @@ export default function App() {
           profileNickname={profileNickname}
           onCreateStory={handleCreateStory}
           onDeleteStory={handleDeleteStory}
+          pendingCardStory={pendingCardStory}
+          onPendingCardConsumed={() => setPendingCardStory(null)}
         />
       )}
       {currentScreen === 'saved' && (
