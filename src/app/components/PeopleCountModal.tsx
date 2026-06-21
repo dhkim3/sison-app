@@ -61,7 +61,7 @@ export function PeopleCountModal({
           <div className="flex items-center justify-between mb-8">
             <div>
               <p className="text-[#2a2a2a] mb-1">참여 인원</p>
-              <p className="text-sm text-[#999]">최대 10명까지 선택 가능</p>
+              <p className="text-sm text-[#5F6368]">최대 10명까지 선택 가능</p>
             </div>
 
             <div className="flex items-center gap-4">

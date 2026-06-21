@@ -340,7 +340,7 @@ export function SavedArchive({
         <header className="sison-top-bar sticky top-0 z-20 bg-[#fdfcfa]/95 backdrop-blur-sm">
           <div className="px-5 py-3.5">
             <h2 className="text-xl font-bold text-[#2a2a2a] leading-tight">저장</h2>
-            <p className="text-[12px] text-[#aaa] mt-0.5">여행 속 작은 순간들</p>
+            <p className="text-[12px] text-[#7A7F87] mt-0.5">여행 속 작은 순간들</p>
           </div>
         </header>
 
@@ -361,7 +361,7 @@ export function SavedArchive({
               {resolvedSavedActivities.length > 0 ? (
                 <>
                   <div className="mb-3.5">
-                    <p className="text-[12px] text-[#aaa]">
+                    <p className="text-[12px] text-[#7A7F87]">
                       {resolvedSavedActivities.length}개의 활동
                     </p>
                   </div>
@@ -401,8 +401,8 @@ export function SavedArchive({
               {stories.length > 0 ? (
                 <>
                   <div className="mb-4">
-                    <p className="text-[12px] text-[#aaa]">
-                      {stories.length}개의 스토리
+                    <p className="text-[12px] text-[#7A7F87]">
+                      여행 중 만난 순간들
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -500,7 +500,7 @@ export function SavedArchive({
                                 <p className="text-[12px] font-normal leading-[1.35] text-[#b6b6b6]">{card.date}</p>
                               </div>
                               <div className="mt-3 border-t border-black/5 pt-2.5">
-                                <p className="text-center text-[11px] leading-none text-[#aaa] opacity-70">시선</p>
+                                <p className="text-center text-[11px] leading-none text-[#7A7F87] opacity-70">시선</p>
                               </div>
                             </div>
                           </button>
@@ -591,7 +591,7 @@ export function SavedArchive({
                     type="button"
                     onClick={closeTravelCardAction}
                     aria-label="닫기"
-                    className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[#aaa] transition-colors hover:bg-[#f4f2ec] hover:text-[#777]"
+                    className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[#7A7F87] transition-colors hover:bg-[#f4f2ec] hover:text-[#777]"
                   >
                     <X className="h-4 w-4" strokeWidth={2} />
                   </button>
@@ -634,7 +634,7 @@ export function SavedArchive({
                 <h3 className="mt-4 text-[17px] font-semibold leading-snug text-[#2a2a2a]">
                   이 여행 카드를 삭제할까요?
                 </h3>
-                <p className="mt-2 text-[12px] leading-5 text-[#999]">삭제하면 다시 복구할 수 없어요.</p>
+                <p className="mt-2 text-[12px] leading-5 text-[#5F6368]">삭제하면 다시 복구할 수 없어요.</p>
                 <div className="mt-5 flex gap-2">
                   <button
                     type="button"

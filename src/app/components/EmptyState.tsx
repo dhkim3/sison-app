@@ -41,8 +41,8 @@ export function EmptyState({ type }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center py-20 px-6">
       <div className="mb-5">{getIcon()}</div>
-      <p className="text-sm text-[#999] mb-1.5 text-center">{message.title}</p>
-      <p className="text-sm text-[#bbb] text-center leading-relaxed">
+      <p className="text-sm text-[#5F6368] mb-1.5 text-center">{message.title}</p>
+      <p className="text-sm text-[#9AA0A6] text-center leading-relaxed">
         {message.subtitle}
       </p>
     </div>

@@ -15,6 +15,7 @@ interface DefaultSearchStateProps {
   recentSearches: RecentSearchItem[];
   onDestinationChange: (value: string) => void;
   onRecentSearchSelect: (item: RecentSearchItem) => void;
+  onPopularRegionSelect: (region: string) => void;
   onDateConfirm?: (start: Date, end: Date) => void;
   onDateClear?: () => void;
   onPeopleClear?: () => void;
@@ -32,6 +33,7 @@ export function DefaultSearchState({
   recentSearches,
   onDestinationChange,
   onRecentSearchSelect,
+  onPopularRegionSelect,
   onDateClear,
   onPeopleClear,
   destinationActivityLabels = {},
@@ -74,6 +76,12 @@ export function DefaultSearchState({
     onRecentSearchSelect(item);
   };
 
+  const handlePopularRegionSelect = (region: string) => {
+    destinationInputRef.current?.blur();
+    setIsDiscoveryOpen(false);
+    onPopularRegionSelect(region);
+  };
+
   const transitionToSelection = (openSelection: () => void) => {
     const shouldSequence = isDiscoveryOpen;
 
@@ -104,7 +112,7 @@ export function DefaultSearchState({
               placeholder="어디로 떠나시나요?"
               value={destination}
               onChange={(e) => onDestinationChange(e.target.value)}
-              className="flex-1 text-sm placeholder:text-[#999] outline-none bg-transparent"
+              className="flex-1 text-sm placeholder:text-[#5F6368] outline-none bg-transparent"
             />
             <div
               className={`absolute bottom-0 left-0 h-px w-full bg-black/5 transition-opacity duration-300 ease-out ${
@@ -122,7 +130,7 @@ export function DefaultSearchState({
               <SearchDiscoverySections
                 recentSearches={recentSearches}
                 onRecentSearchSelect={handleRecentSelect}
-                onRegionSelect={handleDiscoverySelect}
+                onRegionSelect={handlePopularRegionSelect}
               />
               <div className="pt-4 pb-4">
                 <div className="h-px bg-black/5" />
@@ -162,7 +170,7 @@ export function DefaultSearchState({
                   onDateClear();
                 }}
                 aria-label="일정 초기화"
-                className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-[#aaa] transition-colors hover:text-[#777] active:scale-95"
+                className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-[#7A7F87] transition-colors hover:text-[#777] active:scale-95"
               >
                 <X className="h-3 w-3" strokeWidth={2} />
               </button>
@@ -195,7 +203,7 @@ export function DefaultSearchState({
                   onPeopleClear();
                 }}
                 aria-label="인원 초기화"
-                className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-[#aaa] transition-colors hover:text-[#777] active:scale-95"
+                className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-[#7A7F87] transition-colors hover:text-[#777] active:scale-95"
               >
                 <X className="h-3 w-3" strokeWidth={2} />
               </button>
@@ -234,7 +242,7 @@ export function DefaultSearchState({
             <button
               key={region.name}
               type="button"
-              onClick={() => onSearch(region.searchKeyword, '', 0)}
+              onClick={() => onPopularRegionSelect(region.searchKeyword)}
               className="w-full rounded-2xl bg-white border border-black/5 px-4 py-3.5 text-left shadow-sm hover:bg-[#fbfbf8] transition-colors"
             >
               <div className="flex items-center gap-3">
@@ -243,7 +251,7 @@ export function DefaultSearchState({
                 </div>
                 <div className="min-w-0">
                   <p className="text-[14px] font-medium leading-snug text-[#2a2a2a]">{region.name}</p>
-                  <p className="mt-0.5 text-[12px] leading-[18px] text-[#999]">{region.description}</p>
+                  <p className="mt-0.5 text-[12px] leading-[18px] text-[#5F6368]">{region.description}</p>
                 </div>
               </div>
             </button>

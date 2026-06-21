@@ -223,20 +223,224 @@ body.bottom-sheet-scroll-locked {
   }
 }
 
-@keyframes sisonAiCalmSkeletonIn {
+@keyframes sisonAiIndeterminateBar {
   from {
-    opacity: 0;
-    transform: translateY(6px);
+    transform: translateX(-120%);
   }
   to {
-    opacity: 1;
-    transform: translateY(0);
+    transform: translateX(260%);
   }
 }
 
-.sison-ai-calm-skeleton {
-  opacity: 0;
-  animation: sisonAiCalmSkeletonIn 420ms ease-out forwards;
+@keyframes sisonAiLoadingCorePulse {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow: 0 18px 34px rgba(139, 92, 246, 0.22);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.045);
+    box-shadow: 0 22px 42px rgba(139, 92, 246, 0.28);
+  }
+}
+
+@keyframes sisonAiLoadingOrbitRotate {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@keyframes sisonAiLoadingScanBreathe {
+  0%,
+  100% {
+    opacity: 0.36;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  50% {
+    opacity: 0.64;
+    transform: translate(-50%, -50%) scale(1.05);
+  }
+}
+
+@keyframes sisonAiLoadingCardFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes sisonAiLoadingSparkTwinkle {
+  0%,
+  100% {
+    opacity: 0.38;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.12);
+  }
+}
+
+@keyframes sisonAiConditionOrbitFlow {
+  0% {
+    stroke-dashoffset: 0;
+    opacity: 0.34;
+  }
+  50% {
+    opacity: 0.66;
+  }
+  100% {
+    stroke-dashoffset: -34;
+    opacity: 0.34;
+  }
+}
+
+@keyframes sisonAiConditionBubbleFocus {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.045);
+  }
+}
+
+@keyframes sisonAiConditionPacketMove {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -50%, 0) scale(0.8);
+  }
+  18% {
+    opacity: 0.9;
+  }
+  72% {
+    opacity: 0.72;
+    transform: translate3d(34px, calc(-50% + 18px), 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(46px, calc(-50% + 28px), 0) scale(0.6);
+  }
+}
+
+@keyframes sisonAiTravelShuffleFloat {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(0, -4px, 0) rotate(1.4deg);
+  }
+}
+
+@keyframes sisonAiTravelShuffleFeatured {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    box-shadow: 0 22px 46px rgba(139, 92, 246, 0.28);
+  }
+  50% {
+    transform: translate3d(0, -5px, 0) scale(1.025);
+    box-shadow: 0 26px 54px rgba(139, 92, 246, 0.34);
+  }
+}
+
+@keyframes sisonAiTravelShufflePath {
+  0% {
+    stroke-dashoffset: 0;
+    opacity: 0.42;
+  }
+  50% {
+    opacity: 0.72;
+  }
+  100% {
+    stroke-dashoffset: -36;
+    opacity: 0.42;
+  }
+}
+
+@keyframes sisonAiLoadingProgress {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(230%);
+  }
+}
+
+.sison-ai-loading-core {
+  animation: sisonAiLoadingCorePulse 2.8s ease-in-out infinite;
+  will-change: transform, box-shadow;
+}
+
+.sison-ai-loading-orbit {
+  animation: sisonAiLoadingOrbitRotate 5.8s linear infinite;
+  will-change: transform;
+}
+
+.sison-ai-loading-scan-ring {
+  animation: sisonAiLoadingScanBreathe 4.4s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.sison-ai-loading-mini-card {
+  animation: sisonAiLoadingCardFloat 4.2s ease-in-out infinite;
+  will-change: transform;
+}
+
+.sison-ai-loading-spark {
+  animation: sisonAiLoadingSparkTwinkle 3.2s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.sison-ai-condition-orbit path {
+  animation: sisonAiConditionOrbitFlow 2.4s ease-in-out infinite;
+}
+
+.sison-ai-condition-bubble {
+  will-change: transform, opacity;
+}
+
+.sison-ai-condition-bubble-active {
+  animation: sisonAiConditionBubbleFocus 1.8s ease-in-out infinite;
+}
+
+.sison-ai-condition-packet {
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #8b5cf6;
+  box-shadow: 0 0 0 5px rgba(139, 92, 246, 0.12), 0 0 18px rgba(139, 92, 246, 0.34);
+  animation: sisonAiConditionPacketMove 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.sison-ai-travel-shuffle-card {
+  animation: sisonAiTravelShuffleFloat 2.4s ease-in-out infinite;
+  will-change: transform;
+}
+
+.sison-ai-travel-shuffle-featured {
+  animation: sisonAiTravelShuffleFeatured 2.2s ease-in-out infinite;
+  will-change: transform, box-shadow;
+}
+
+.sison-ai-travel-shuffle-path path {
+  animation: sisonAiTravelShufflePath 2.8s ease-in-out infinite;
+}
+
+.sison-ai-loading-progress {
+  animation: sisonAiLoadingProgress 2.05s ease-in-out infinite;
+  will-change: transform;
 }
 
 @keyframes recruiting-dot-breathe {
@@ -351,12 +555,29 @@ body.bottom-sheet-scroll-locked {
 
 @media (prefers-reduced-motion: reduce) {
   .recruiting-status-dot::after,
-  .sison-ai-calm-skeleton,
+  .sison-ai-loading-core,
+  .sison-ai-loading-orbit,
+  .sison-ai-loading-scan-ring,
+  .sison-ai-loading-mini-card,
+  .sison-ai-loading-spark,
+  .sison-ai-loading-progress,
+  .sison-ai-condition-orbit path,
+  .sison-ai-condition-bubble-active,
+  .sison-ai-condition-packet,
+  .sison-ai-travel-shuffle-card,
+  .sison-ai-travel-shuffle-featured,
+  .sison-ai-travel-shuffle-path path,
   .ai-loading-shimmer,
   .ai-loading-step,
-    .ai-loading-line {
+  .ai-loading-line {
     animation: none;
     opacity: 1;
+  }
+
+  .recruiting-status-dot::after,
+  .ai-loading-shimmer,
+  .ai-loading-step,
+  .ai-loading-line {
     transform: none;
   }
 

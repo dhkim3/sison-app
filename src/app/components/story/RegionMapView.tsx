@@ -287,7 +287,7 @@ export function RegionMapView({
             <div className="px-5 py-3.5 flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-bold text-[#2a2a2a] leading-tight">스토리</h2>
-                <p className="text-[12px] text-[#aaa] mt-0.5">
+                <p className="text-[12px] text-[#7A7F87] mt-0.5">
                   여행지에서 남겨진 작은 시선을 둘러보세요.
                 </p>
               </div>
@@ -310,7 +310,7 @@ export function RegionMapView({
           <section className="px-5 pt-3 pb-24">
             {fullStoryList.length === 0 ? (
               <div className="py-10 text-center">
-                <p className="text-[13px] text-[#bbb] mb-1">아직 남겨진 시선이 없어요</p>
+                <p className="text-[13px] text-[#9AA0A6] mb-1">아직 남겨진 시선이 없어요</p>
                 <p className="text-[11px] text-[#ccc]">첫 번째 기록을 남겨보세요</p>
               </div>
             ) : (
@@ -514,7 +514,7 @@ export function RegionMapView({
                   <button
                     type="button"
                     onClick={() => onSelectRegion(null)}
-                    className="text-[12px] text-[#999]"
+                    className="text-[12px] text-[#5F6368]"
                   >
                     전체보기 →
                   </button>
@@ -522,7 +522,7 @@ export function RegionMapView({
 
                 {visibleStories.length === 0 ? (
                   <div className="px-5 py-10 text-center">
-                    <p className="text-[13px] text-[#bbb] mb-1">아직 이 지역에 남겨진 시선이 없어요</p>
+                    <p className="text-[13px] text-[#9AA0A6] mb-1">아직 이 지역에 남겨진 시선이 없어요</p>
                     <p className="text-[11px] text-[#ccc]">첫 번째 기록을 남겨보세요</p>
                   </div>
                 ) : (
@@ -547,7 +547,7 @@ export function RegionMapView({
                         setRecentFullStoryCount(storyListPageSize);
                         setActiveStoryList('recent');
                       }}
-                      className="text-[12px] text-[#999]"
+                      className="text-[12px] text-[#5F6368]"
                     >
                       전체보기 →
                     </button>
@@ -555,7 +555,7 @@ export function RegionMapView({
 
                   {visibleStories.length === 0 ? (
                     <div className="px-5 py-10 text-center">
-                      <p className="text-[13px] text-[#bbb] mb-1">아직 이 지역에 남겨진 시선이 없어요</p>
+                      <p className="text-[13px] text-[#9AA0A6] mb-1">아직 이 지역에 남겨진 시선이 없어요</p>
                       <p className="text-[11px] text-[#ccc]">첫 번째 기록을 남겨보세요</p>
                     </div>
                   ) : (
@@ -575,7 +575,7 @@ export function RegionMapView({
                     <button
                       type="button"
                       onClick={() => setActiveStoryList('current-location')}
-                      className="text-[12px] text-[#999]"
+                      className="text-[12px] text-[#5F6368]"
                     >
                       전체보기 →
                     </button>
@@ -583,7 +583,7 @@ export function RegionMapView({
 
                   {currentRegionStories.length === 0 ? (
                     <div className="px-5">
-                      <p className="text-[13px] leading-5 text-[#bbb]">아직 이 근처의 스토리가 많지 않아요.</p>
+                      <p className="text-[13px] leading-5 text-[#9AA0A6]">아직 이 근처의 스토리가 많지 않아요.</p>
                     </div>
                   ) : (
                     <div className="flex items-start gap-3 overflow-x-auto scrollbar-hide px-5 pb-2">

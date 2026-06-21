@@ -115,7 +115,7 @@ export function EnhancedSearchCard({
               autoComplete="off"
               autoCorrect="off"
               spellCheck={false}
-              className="flex-1 outline-none bg-transparent placeholder:text-[#999] text-[#2a2a2a]"
+              className="flex-1 outline-none bg-transparent placeholder:text-[#5F6368] text-[#2a2a2a]"
             />
             <div
               className={`absolute bottom-0 left-0 h-px w-full bg-black/5 transition-opacity duration-300 ease-out ${
@@ -139,7 +139,7 @@ export function EnhancedSearchCard({
               {normalizedDestination ? (
                 <section>
                   <div className="mb-2 flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-[#bbb]" strokeWidth={2} />
+                    <MapPin className="w-3.5 h-3.5 text-[#9AA0A6]" strokeWidth={2} />
                     <h4 className="text-[12px] font-semibold text-[#5a5a5a] leading-none">
                       여행지 제안
                     </h4>
@@ -215,7 +215,7 @@ export function EnhancedSearchCard({
                   onDateClear();
                 }}
                 aria-label="일정 초기화"
-                className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-[#aaa] transition-colors hover:text-[#777] active:scale-95"
+                className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-[#7A7F87] transition-colors hover:text-[#777] active:scale-95"
               >
                 <X className="h-3 w-3" strokeWidth={2} />
               </button>
@@ -252,7 +252,7 @@ export function EnhancedSearchCard({
                   onPeopleClear();
                 }}
                 aria-label="인원 초기화"
-                className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-[#aaa] transition-colors hover:text-[#777] active:scale-95"
+                className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-[#7A7F87] transition-colors hover:text-[#777] active:scale-95"
               >
                 <X className="h-3 w-3" strokeWidth={2} />
               </button>

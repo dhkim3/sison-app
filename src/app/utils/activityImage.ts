@@ -205,6 +205,27 @@ const pickAlternativeImage = (
   return imageSet[(currentIndex + step) % imageSet.length];
 };
 
+const pickUnusedAlternativeImage = (
+  type: ActivityImageType,
+  currentImageUrl: string,
+  activity: ActivityImageInput,
+  index: number,
+  usedImageUrls: Set<string>,
+) => {
+  const imageSet = ACTIVITY_IMAGE_SETS[type];
+  if (imageSet.length <= 1 || !usedImageUrls.has(currentImageUrl)) return currentImageUrl;
+
+  const key = activity.id || activity.progrmRegistNo || activity.title || buildActivityText(activity) || type;
+  const startIndex = stableHash(`${key}-${index}`) % imageSet.length;
+
+  for (let offset = 0; offset < imageSet.length; offset += 1) {
+    const candidate = imageSet[(startIndex + offset) % imageSet.length];
+    if (!usedImageUrls.has(candidate)) return candidate;
+  }
+
+  return pickAlternativeImage(type, currentImageUrl, activity, index);
+};
+
 export const resolveActivityImage = (activity: ActivityImageInput): ResolvedActivityImage => {
   const text = buildActivityText(activity);
   const matchedRule = IMAGE_RULES.find((rule) => rule.keywords.some((keyword) => text.includes(keyword)));
@@ -229,6 +250,7 @@ export const withResolvedActivityImage = <T extends ActivityImageInput>(activity
 
 export const avoidConsecutiveActivityImages = <T extends ActivityImageInput>(activities: T[]): T[] => {
   let previousImageUrl = '';
+  const usedImageUrls = new Set<string>();
 
   return activities.map((activity, index) => {
     const resolvedActivity = withResolvedActivityImage(activity);
@@ -236,18 +258,26 @@ export const avoidConsecutiveActivityImages = <T extends ActivityImageInput>(act
     const imageType = isActivityImageType(resolvedActivity.imageType)
       ? resolvedActivity.imageType
       : 'default-travel';
-    const nextImageUrl = imageUrl === previousImageUrl
+    const nonRepeatedImageUrl = imageUrl === previousImageUrl
       ? pickAlternativeImage(imageType, imageUrl, resolvedActivity, index)
       : imageUrl;
+    const nextImageUrl = pickUnusedAlternativeImage(
+      imageType,
+      nonRepeatedImageUrl,
+      resolvedActivity,
+      index,
+      usedImageUrls,
+    );
 
     previousImageUrl = nextImageUrl;
+    usedImageUrls.add(nextImageUrl);
 
     if (nextImageUrl === imageUrl) return resolvedActivity;
 
     return {
       ...resolvedActivity,
       imageUrl: nextImageUrl,
-      imageReason: `${resolvedActivity.imageReason ?? '활동 이미지'} · 연속 이미지 회피`,
+      imageReason: `${resolvedActivity.imageReason ?? '활동 이미지'} · 홈 이미지 중복 회피`,
     };
   });
 };

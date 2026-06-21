@@ -78,7 +78,7 @@ export function StoryDetailSheet({
       >
         <div className="z-10 flex flex-shrink-0 flex-col border-b border-black/5 bg-white/95 px-5 py-4 backdrop-blur-sm">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-[12px] font-medium text-[#999]">
+            <div className="flex items-center gap-2 text-[12px] font-medium text-[#5F6368]">
               <MapPin className="w-3.5 h-3.5 text-[#c9897e]" strokeWidth={2} />
               <span>{story.region}</span>
             </div>
@@ -121,7 +121,7 @@ export function StoryDetailSheet({
                 <button
                   type="button"
                   onClick={() => setIsDeleteConfirmOpen(false)}
-                  className="rounded-full px-3 py-1.5 text-[12px] font-medium text-[#999] transition-colors hover:bg-white"
+                  className="rounded-full px-3 py-1.5 text-[12px] font-medium text-[#5F6368] transition-colors hover:bg-white"
                 >
                   취소
                 </button>
@@ -152,7 +152,7 @@ export function StoryDetailSheet({
           </div>
 
           <div className="px-6 pt-5 pb-6">
-            <p className="mb-2 text-[13px] text-[#999]">{story.author}의 시선</p>
+            <p className="mb-2 text-[13px] text-[#5F6368]">{story.author}의 시선</p>
             <h3 className="text-[21px] font-semibold leading-snug text-[#2a2a2a]">{story.title}</h3>
 
             <p className="mt-4 text-[15px] leading-7 text-[#5a5a5a]">{story.body}</p>
@@ -194,7 +194,7 @@ export function StoryDetailSheet({
             <section className="mt-5 border-t border-black/5 pt-5">
               <div className="mb-3 flex items-center justify-between">
                 <h4 className="text-[14px] font-semibold text-[#2a2a2a]">댓글</h4>
-                <span className="text-[12px] text-[#aaa]">{commentCount ?? comments.length}</span>
+                <span className="text-[12px] text-[#7A7F87]">{commentCount ?? comments.length}</span>
               </div>
 
               {visibleComments.length > 0 ? (
@@ -220,8 +220,8 @@ export function StoryDetailSheet({
                 </div>
               ) : (
                 <div className="rounded-2xl bg-[#f8f8f5] px-4 py-5 text-center">
-                  <p className="text-[13px] text-[#999]">아직 남겨진 댓글이 없어요</p>
-                  <p className="mt-1 text-[12px] text-[#bbb]">조용한 감상을 먼저 남겨보세요</p>
+                  <p className="text-[13px] text-[#5F6368]">아직 남겨진 댓글이 없어요</p>
+                  <p className="mt-1 text-[12px] text-[#9AA0A6]">조용한 감상을 먼저 남겨보세요</p>
                 </div>
               )}
 
@@ -240,8 +240,8 @@ export function StoryDetailSheet({
                   value={draftComment}
                   onChange={(event) => setDraftComment(event.target.value)}
                   rows={1}
-                  placeholder={`${story.author}님에게 댓글 추가`}
-                  className="min-h-[42px] flex-1 resize-none rounded-2xl border border-black/5 bg-[#f8f8f5] px-4 py-3 text-[13px] leading-5 text-[#2a2a2a] outline-none placeholder:text-[#bbb] focus:bg-white focus:ring-1 focus:ring-[#a8d5ba]/45"
+                  placeholder="조용한 시선을 남겨보세요"
+                  className="min-h-[42px] flex-1 resize-none rounded-2xl border border-black/5 bg-[#f8f8f5] px-4 py-3 text-[13px] leading-5 text-[#2a2a2a] outline-none placeholder:text-[#9AA0A6] focus:bg-white focus:ring-1 focus:ring-[#a8d5ba]/45"
                 />
                 <button
                   type="button"

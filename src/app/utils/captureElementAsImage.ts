@@ -21,6 +21,7 @@ type CaptureOptions = {
 };
 
 const DEFAULT_CAPTURE_BACKGROUND_COLOR = '#fdfcfa';
+const CAPTURE_IMAGE_PLACEHOLDER_COLOR = '#eef3ee';
 
 function isWebKitCaptureFallbackRequired() {
   const ua = window.navigator.userAgent;
@@ -32,6 +33,22 @@ function isWebKitCaptureFallbackRequired() {
 
 function resolveImageUrl(src: string, cacheBust = false) {
   const url = new URL(src, window.location.href);
+
+  if (window.location.protocol === 'https:' && url.protocol === 'http:') {
+    url.protocol = 'https:';
+  }
+
+  if (
+    (url.protocol === 'http:' || url.protocol === 'https:')
+    && url.origin !== window.location.origin
+  ) {
+    const proxyUrl = new URL('/api/image-proxy', window.location.href);
+    proxyUrl.searchParams.set('url', url.toString());
+    if (cacheBust) {
+      proxyUrl.searchParams.set('sison_capture_cache_bust', String(Date.now()));
+    }
+    return proxyUrl.toString();
+  }
 
   if (cacheBust && url.protocol !== 'data:' && url.protocol !== 'blob:') {
     url.searchParams.set('sison_capture_cache_bust', String(Date.now()));
@@ -85,11 +102,13 @@ async function waitForImages(element: HTMLElement) {
         };
         const handleError = () => {
           cleanup();
-          reject(new Error(`Image failed to load: ${src}`));
+          console.error('[capture] image load failed', { src });
+          resolve();
         };
         const timeout = window.setTimeout(() => {
           cleanup();
-          reject(new Error(`Image load timed out: ${src}`));
+          console.error('[capture] image load timed out', { src });
+          resolve();
         }, 8000);
 
         image.addEventListener('load', handleLoad, { once: true });
@@ -173,8 +192,14 @@ async function inlineImages(source: HTMLElement, clone: HTMLElement) {
       if (!src || src.startsWith('data:')) return;
 
       cloneImage.crossOrigin = 'anonymous';
-      cloneImage.src = await imageUrlToDataUrl(src, true);
       cloneImage.removeAttribute('srcset');
+      try {
+        cloneImage.src = await imageUrlToDataUrl(src, true);
+      } catch (error) {
+        console.error('[capture] image inline failed, using placeholder', { src, error });
+        cloneImage.removeAttribute('src');
+        cloneImage.style.background = CAPTURE_IMAGE_PLACEHOLDER_COLOR;
+      }
     }),
   );
 }
@@ -269,7 +294,7 @@ function hasVisibleFill(style: CSSStyleDeclaration) {
 
 async function loadDrawableImage(image: HTMLImageElement) {
   const src = image.currentSrc || image.src;
-  if (!src) throw new Error('Image source unavailable');
+  if (!src) return null;
 
   try {
     const dataUrl = src.startsWith('data:') ? src : await imageUrlToDataUrl(src, true);
@@ -284,9 +309,20 @@ async function loadDrawableImage(image: HTMLImageElement) {
 
     return drawable;
   } catch (error) {
-    console.error('capture image inline failed', { src, error });
-    throw error;
+    console.error('[capture] canvas image draw fallback to placeholder', { src, error });
+    return null;
   }
+}
+
+function drawImagePlaceholder(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) {
+  context.fillStyle = CAPTURE_IMAGE_PLACEHOLDER_COLOR;
+  context.fillRect(x, y, width, height);
 }
 
 function drawImageCover(
@@ -398,7 +434,11 @@ async function drawElementTree(
 
   if (element instanceof HTMLImageElement) {
     const drawable = await loadDrawableImage(element);
-    drawImageCover(context, drawable, rect.x, rect.y, rect.width, rect.height);
+    if (drawable) {
+      drawImageCover(context, drawable, rect.x, rect.y, rect.width, rect.height);
+    } else {
+      drawImagePlaceholder(context, rect.x, rect.y, rect.width, rect.height);
+    }
   } else {
     const children = Array.from(element.children).filter((child): child is HTMLElement => child instanceof HTMLElement);
     const isTextLeaf = children.length === 0 && Boolean(element.textContent?.trim());
@@ -429,9 +469,11 @@ function canvasToPngBlob(canvas: HTMLCanvasElement) {
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (blob) {
+        console.info('[capture] blob created', { size: blob.size, type: blob.type });
         resolve(blob);
       } else {
-        reject(new Error('Card image export failed'));
+        console.error('[capture] blob create failed', { reason: 'canvas.toBlob returned null' });
+        reject(new Error('Canvas toBlob returned null'));
       }
     }, 'image/png');
   });
@@ -456,6 +498,7 @@ async function captureElementWithCanvasFallback(
   const canvas = document.createElement('canvas');
   canvas.width = width * scale;
   canvas.height = height * scale;
+  console.info('[capture] canvas created', { width: canvas.width, height: canvas.height, mode: 'canvas-fallback' });
 
   const context = canvas.getContext('2d');
   if (!context) {
@@ -475,6 +518,8 @@ export async function captureElementAsPng(element: HTMLElement, scale = 2, optio
   const height = Math.ceil(rect.height);
   const debugInfo = buildCaptureDebugInfo(element, width, height);
   const backgroundColor = options.backgroundColor || DEFAULT_CAPTURE_BACKGROUND_COLOR;
+
+  console.info('[capture] capture start', debugInfo);
 
   if (width === 0 || height === 0) {
     throw new Error('Capture target is empty');
@@ -513,6 +558,7 @@ export async function captureElementAsPng(element: HTMLElement, scale = 2, optio
     const canvas = document.createElement('canvas');
     canvas.width = width * scale;
     canvas.height = height * scale;
+    console.info('[capture] canvas created', { width: canvas.width, height: canvas.height, mode: 'svg' });
 
     const context = canvas.getContext('2d');
     if (!context) {
@@ -538,6 +584,7 @@ export async function captureElementAsPng(element: HTMLElement, scale = 2, optio
 }
 
 export function downloadBlob(blob: Blob, filename: string) {
+  console.info('[capture] download start', { filename, size: blob.size, type: blob.type });
   const objectUrl = window.URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = objectUrl;

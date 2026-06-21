@@ -96,12 +96,12 @@ export function StoryUploadView({
                 <p className="text-[#2a2a2a] text-[14px] font-medium mb-1 line-clamp-1 leading-snug">{activity.title}</p>
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-1.5">
-                    <MapPin className="w-3 h-3 text-[#999]" strokeWidth={2} />
-                    <span className="text-[11px] text-[#999] line-clamp-1">{activity.location}</span>
+                    <MapPin className="w-3 h-3 text-[#5F6368]" strokeWidth={2} />
+                    <span className="text-[11px] text-[#5F6368] line-clamp-1">{activity.location}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <Calendar className="w-3 h-3 text-[#999]" strokeWidth={2} />
-                    <span className="text-[11px] text-[#999]">{activity.date}</span>
+                    <Calendar className="w-3 h-3 text-[#5F6368]" strokeWidth={2} />
+                    <span className="text-[11px] text-[#5F6368]">{activity.date}</span>
                   </div>
                 </div>
               </div>
@@ -112,7 +112,7 @@ export function StoryUploadView({
           <section>
             <div className="mb-3">
               <h4 className="text-[#2a2a2a] mb-0.5 font-semibold">여행 사진</h4>
-              <p className="text-[11px] text-[#bbb]">
+              <p className="text-[11px] text-[#9AA0A6]">
                 사진을 더하면 오늘의 장면이 조금 더 선명해져요
               </p>
             </div>
@@ -132,7 +132,7 @@ export function StoryUploadView({
                 onClick={handleAddPhoto}
                 className="flex h-[84px] w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-black/10 bg-[#f8f8f5] transition-all hover:border-[#a8d5ba] hover:bg-[#e8f5ed]/30"
               >
-                <ImageIcon className="h-6 w-6 text-[#aaa]" strokeWidth={1.5} />
+                <ImageIcon className="h-6 w-6 text-[#7A7F87]" strokeWidth={1.5} />
                 <p className="text-[13px] font-medium text-[#5a5a5a]">사진 추가하기</p>
               </button>
             ) : (
@@ -170,7 +170,7 @@ export function StoryUploadView({
           <section>
             <div className="mb-2.5">
               <h4 className="text-[15px] text-[#2a2a2a] mb-0.5 font-semibold">제목</h4>
-              <p className="text-[11px] text-[#bbb]">스토리를 한 줄로 표현해보세요</p>
+              <p className="text-[11px] text-[#9AA0A6]">스토리를 한 줄로 표현해보세요</p>
             </div>
 
             <div
@@ -184,14 +184,14 @@ export function StoryUploadView({
                 onChange={(e) => onTitleChange(e.target.value)}
                 placeholder="스토리 제목을 입력해주세요"
                 aria-invalid={showTitleError}
-                className="w-full px-3.5 py-2.5 text-[13px] leading-relaxed outline-none placeholder:text-[#bbb] bg-transparent"
+                className="w-full px-3.5 py-2.5 text-[13px] leading-relaxed outline-none placeholder:text-[#9AA0A6] bg-transparent"
                 maxLength={40}
               />
               <div className="px-3.5 pb-2 flex items-center justify-between">
                 <span className="text-[11px] text-[#b76e65] min-h-[1em]">
                   {showTitleError ? '스토리 제목을 입력해주세요.' : ''}
                 </span>
-                <span className="text-[11px] text-[#bbb]">{storyTitle.length} / 40</span>
+                <span className="text-[11px] text-[#9AA0A6]">{storyTitle.length} / 40</span>
               </div>
             </div>
           </section>
@@ -200,7 +200,7 @@ export function StoryUploadView({
           <section>
             <div className="mb-2.5">
               <h4 className="text-[14px] text-[#2a2a2a] mb-0.5 font-semibold">내용</h4>
-              <p className="text-[11px] text-[#bbb]">그날의 장면을 짧게 남겨보세요</p>
+              <p className="text-[11px] text-[#9AA0A6]">그날의 장면을 짧게 남겨보세요</p>
             </div>
 
             <div className="rounded-xl border border-black/10 bg-white overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[#a8d5ba]/40">
@@ -208,11 +208,11 @@ export function StoryUploadView({
                 value={storyText}
                 onChange={(e) => onTextChange(e.target.value)}
                 placeholder="오늘 여행에서 기억에 남은 순간을 남겨보세요."
-                className="w-full h-28 px-3.5 py-3 text-[13px] leading-relaxed placeholder:text-[#bbb] outline-none bg-transparent resize-none"
+                className="w-full h-28 px-3.5 py-3 text-[13px] leading-relaxed placeholder:text-[#9AA0A6] outline-none bg-transparent resize-none"
                 maxLength={300}
               />
               <div className="px-3.5 pb-2 flex justify-end">
-                <span className="text-[11px] text-[#bbb]">{storyText.length} / 300</span>
+                <span className="text-[11px] text-[#9AA0A6]">{storyText.length} / 300</span>
               </div>
             </div>
           </section>

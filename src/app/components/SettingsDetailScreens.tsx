@@ -54,7 +54,7 @@ function SettingsDetailLayout({
               {title}
             </h2>
             {subtitle && (
-              <p className={`${isEditorial ? 'mt-1.5 leading-5 text-[#9d9d9d]' : 'mt-0.5 text-[#aaa]'} text-[12px]`}>
+              <p className={`${isEditorial ? 'mt-1.5 leading-5 text-[#7A7F87]' : 'mt-0.5 text-[#7A7F87]'} text-[12px]`}>
                 {subtitle}
               </p>
             )}
@@ -73,7 +73,7 @@ export function SettingsSection({ title, description, children }: SettingsSectio
       {(title || description) && (
         <div className="mb-3">
           {title && <h3 className="text-[15px] font-semibold text-[#2a2a2a]">{title}</h3>}
-          {description && <p className="mt-1 text-[12px] leading-5 text-[#aaa]">{description}</p>}
+          {description && <p className="mt-1 text-[12px] leading-5 text-[#7A7F87]">{description}</p>}
         </div>
       )}
       <div className="rounded-3xl bg-white border border-black/5 shadow-sm overflow-hidden">{children}</div>
@@ -104,7 +104,7 @@ export function SettingsRow({
             {label}
           </p>
           {description && (
-            <p className={`${isCompact ? 'mt-0.5 leading-[1.35]' : 'mt-1 leading-5'} text-[12px] text-[#999]`}>
+            <p className={`${isCompact ? 'mt-0.5 leading-[1.35]' : 'mt-1 leading-5'} text-[12px] text-[#5F6368]`}>
               {description}
             </p>
           )}
@@ -273,7 +273,7 @@ export function AccountSettingsScreen({ onBack }: { onBack: () => void }) {
       <SettingsSection>
         <SettingsRow
           label="로그아웃"
-          icon={<LogOut className="w-4 h-4 text-[#999]" strokeWidth={2} />}
+          icon={<LogOut className="w-4 h-4 text-[#5F6368]" strokeWidth={2} />}
           tone="muted"
         />
         <SettingsRow
@@ -351,7 +351,7 @@ export function PrivacyPolicyScreen({ onBack }: { onBack: () => void }) {
     >
       <article className="space-y-5">
         <section className="rounded-3xl border border-black/[0.04] bg-white/85 px-5 py-5 shadow-[0_1px_3px_rgba(0,0,0,0.025)]">
-          <p className="text-[12px] leading-none text-[#aaa]">시행일 2026.05.22</p>
+          <p className="text-[12px] leading-none text-[#7A7F87]">시행일 2026.05.22</p>
           <h3 className="mt-4 text-[17px] font-semibold leading-snug text-[#2a2a2a]">
             시선은 여행의 기억을 필요한 만큼만 맡아둡니다.
           </h3>
@@ -446,7 +446,7 @@ export function ContactSettingsScreen({ onBack }: { onBack: () => void }) {
     >
       <section className="rounded-3xl bg-white border border-black/5 shadow-sm p-5 space-y-4">
         <div>
-          <label className="block mb-2 text-[12px] font-medium text-[#999]" htmlFor="contact-title">
+          <label className="block mb-2 text-[12px] font-medium text-[#5F6368]" htmlFor="contact-title">
             문의 제목
           </label>
           <input
@@ -460,7 +460,7 @@ export function ContactSettingsScreen({ onBack }: { onBack: () => void }) {
             onFocus={() => setContactErrors((current) => ({ ...current, title: false }))}
             placeholder="문의 제목을 입력해주세요"
             aria-invalid={showTitleError}
-            className={`w-full rounded-2xl bg-[#f8f8f5] border px-4 py-3.5 text-[14px] outline-none transition-colors placeholder:text-[#bbb] ${
+            className={`w-full rounded-2xl bg-[#f8f8f5] border px-4 py-3.5 text-[14px] outline-none transition-colors placeholder:text-[#9AA0A6] ${
               showTitleError ? 'border-[#d9aaa3]' : 'border-black/5 focus:border-[#a8d5ba]/70'
             }`}
           />
@@ -470,7 +470,7 @@ export function ContactSettingsScreen({ onBack }: { onBack: () => void }) {
         </div>
 
         <div>
-          <label className="block mb-2 text-[12px] font-medium text-[#999]" htmlFor="contact-body">
+          <label className="block mb-2 text-[12px] font-medium text-[#5F6368]" htmlFor="contact-body">
             문의 내용
           </label>
           <textarea
@@ -484,7 +484,7 @@ export function ContactSettingsScreen({ onBack }: { onBack: () => void }) {
             placeholder="궁금한 점이나 불편한 점을 남겨주세요"
             rows={6}
             aria-invalid={showBodyError}
-            className={`w-full resize-none rounded-2xl bg-[#f8f8f5] border px-4 py-3.5 text-[14px] leading-6 outline-none transition-colors placeholder:text-[#bbb] ${
+            className={`w-full resize-none rounded-2xl bg-[#f8f8f5] border px-4 py-3.5 text-[14px] leading-6 outline-none transition-colors placeholder:text-[#9AA0A6] ${
               showBodyError ? 'border-[#d9aaa3]' : 'border-black/5 focus:border-[#a8d5ba]/70'
             }`}
           />

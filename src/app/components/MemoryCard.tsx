@@ -17,7 +17,7 @@ export function MemoryCard({ imageUrl, title, date }: MemoryCardProps) {
         </div>
         <div className="p-3">
           <p className="text-sm text-[#2a2a2a] mb-0.5 line-clamp-1">{title}</p>
-          <p className="text-xs text-[#999]">{date}</p>
+          <p className="text-xs text-[#5F6368]">{date}</p>
         </div>
       </div>
     </div>

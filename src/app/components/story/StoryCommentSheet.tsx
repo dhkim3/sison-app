@@ -126,7 +126,7 @@ export function StoryCommentSheet({
                             type="button"
                             onClick={() => startEdit(comment)}
                             aria-label="댓글 수정"
-                            className="flex h-7 w-7 items-center justify-center rounded-full text-[#aaa] transition-colors hover:bg-[#f8f8f5] hover:text-[#777]"
+                            className="flex h-7 w-7 items-center justify-center rounded-full text-[#7A7F87] transition-colors hover:bg-[#f8f8f5] hover:text-[#777]"
                           >
                             <Pencil className="h-3.5 w-3.5" strokeWidth={1.7} />
                           </button>
@@ -134,7 +134,7 @@ export function StoryCommentSheet({
                             type="button"
                             onClick={() => askDelete(comment.id)}
                             aria-label="댓글 삭제"
-                            className="flex h-7 w-7 items-center justify-center rounded-full text-[#aaa] transition-colors hover:bg-[#f8f8f5] hover:text-[#777]"
+                            className="flex h-7 w-7 items-center justify-center rounded-full text-[#7A7F87] transition-colors hover:bg-[#f8f8f5] hover:text-[#777]"
                           >
                             <Trash2 className="h-3.5 w-3.5" strokeWidth={1.7} />
                           </button>
@@ -148,13 +148,13 @@ export function StoryCommentSheet({
                         value={editingBody}
                         onChange={(event) => setEditingBody(event.target.value)}
                         rows={2}
-                        className="w-full resize-none rounded-xl border border-black/5 bg-[#f8f8f5] px-3 py-2.5 text-[13px] leading-6 text-[#2a2a2a] outline-none placeholder:text-[#bbb] focus:bg-white focus:ring-1 focus:ring-[#a8d5ba]/45"
+                        className="w-full resize-none rounded-xl border border-black/5 bg-[#f8f8f5] px-3 py-2.5 text-[13px] leading-6 text-[#2a2a2a] outline-none placeholder:text-[#9AA0A6] focus:bg-white focus:ring-1 focus:ring-[#a8d5ba]/45"
                       />
                       <div className="mt-2 flex justify-end gap-1.5">
                         <button
                           type="button"
                           onClick={cancelEdit}
-                          className="rounded-full px-3 py-1.5 text-[12px] font-medium text-[#999] transition-colors hover:bg-[#f8f8f5]"
+                          className="rounded-full px-3 py-1.5 text-[12px] font-medium text-[#5F6368] transition-colors hover:bg-[#f8f8f5]"
                         >
                           취소
                         </button>
@@ -162,7 +162,7 @@ export function StoryCommentSheet({
                           type="button"
                           onClick={() => saveEdit(comment.id)}
                           disabled={!editingBody.trim()}
-                          className="rounded-full bg-[#f8f8f5] px-3 py-1.5 text-[12px] font-medium text-[#5a5a5a] transition-colors hover:bg-[#e8f5ed] disabled:text-[#bbb]"
+                          className="rounded-full bg-[#f8f8f5] px-3 py-1.5 text-[12px] font-medium text-[#5a5a5a] transition-colors hover:bg-[#e8f5ed] disabled:text-[#9AA0A6]"
                         >
                           저장
                         </button>
@@ -178,7 +178,7 @@ export function StoryCommentSheet({
                         <button
                           type="button"
                           onClick={() => setDeleteConfirmId(null)}
-                          className="rounded-full px-2.5 py-1 text-[11.5px] font-medium text-[#999] transition-colors hover:bg-white"
+                          className="rounded-full px-2.5 py-1 text-[11.5px] font-medium text-[#5F6368] transition-colors hover:bg-white"
                         >
                           취소
                         </button>
@@ -198,8 +198,8 @@ export function StoryCommentSheet({
           ) : (
             <div className="border-t border-black/5 py-10 text-center">
               <MessageCircle className="mx-auto h-8 w-8 text-[#d9d5cd]" strokeWidth={1.6} />
-              <p className="mt-3 text-[13px] text-[#999]">아직 남겨진 댓글이 없어요</p>
-              <p className="mt-1 text-[12px] text-[#bbb]">조용한 감상을 먼저 남겨보세요</p>
+              <p className="mt-3 text-[13px] text-[#5F6368]">아직 남겨진 댓글이 없어요</p>
+              <p className="mt-1 text-[12px] text-[#9AA0A6]">조용한 감상을 먼저 남겨보세요</p>
             </div>
           )}
         </div>
@@ -211,7 +211,7 @@ export function StoryCommentSheet({
               onChange={(event) => setDraftComment(event.target.value)}
               rows={1}
               placeholder="따뜻한 감상을 남겨보세요"
-              className="min-h-[44px] flex-1 resize-none rounded-2xl border border-black/5 bg-white px-4 py-3 text-[13px] leading-5 text-[#2a2a2a] outline-none placeholder:text-[#bbb] focus:ring-1 focus:ring-[#a8d5ba]/50"
+              className="min-h-[44px] flex-1 resize-none rounded-2xl border border-black/5 bg-white px-4 py-3 text-[13px] leading-5 text-[#2a2a2a] outline-none placeholder:text-[#9AA0A6] focus:ring-1 focus:ring-[#a8d5ba]/50"
             />
             <button
               type="button"

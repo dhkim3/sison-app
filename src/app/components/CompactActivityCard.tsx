@@ -144,7 +144,7 @@ export function CompactActivityCard({
                 }}
               >
                 <Calendar className="w-3.5 h-3.5 text-[#a8d5ba]" strokeWidth={2} />
-                <span className="text-[12.5px] text-[#8f8f8f] font-normal line-clamp-1 leading-[1.32]">
+                <span className="text-[12.5px] text-[#5F6368] font-normal line-clamp-1 leading-[1.32]">
                   {dateTime}
                 </span>
               </div>
@@ -159,7 +159,7 @@ export function CompactActivityCard({
                 }}
               >
                 <MapPin className="w-3.5 h-3.5 text-[#cfa3a0]" strokeWidth={2} />
-                <span className="text-[12.5px] text-[#8f8f8f] font-normal line-clamp-1 leading-[1.32]">
+                <span className="text-[12.5px] text-[#5F6368] font-normal line-clamp-1 leading-[1.32]">
                   {location || region}
                 </span>
               </div>
@@ -174,7 +174,7 @@ export function CompactActivityCard({
                 }}
               >
                 <Clock className="w-3 h-3 text-[#b7b2aa]" strokeWidth={1.8} />
-                <span className="text-[12px] font-normal text-[#8f8f8f] line-clamp-1 leading-[1.32]">
+                <span className="text-[12px] font-normal text-[#5F6368] line-clamp-1 leading-[1.32]">
                   {recruitmentMetadata}
                 </span>
               </div>

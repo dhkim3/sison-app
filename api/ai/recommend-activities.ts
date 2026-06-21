@@ -17,6 +17,10 @@ type ParsedPreference = {
   intentSummary?: string;
   keywords?: string[];
   categories?: string[];
+  preferredCategories?: string[];
+  avoidCategories?: string[];
+  intensity?: string;
+  indoorOutdoor?: string;
   preferredConditions?: {
     intensity?: string;
     indoorOutdoor?: string;
@@ -106,6 +110,24 @@ const normalizeStringList = (value: unknown, limit: number) => {
     .slice(0, limit);
 };
 
+const normalizePreference = (value: unknown, preferenceText: string): ParsedPreference => {
+  const source = value && typeof value === 'object' && !Array.isArray(value)
+    ? value as ParsedPreference
+    : {};
+
+  return {
+    intentSummary: getStringValue(source.intentSummary),
+    keywords: normalizeStringList(source.keywords, 8),
+    categories: normalizeStringList(source.categories, 6),
+    preferredCategories: normalizeStringList(source.preferredCategories, 6),
+    avoidCategories: normalizeStringList(source.avoidCategories, 6),
+    intensity: getStringValue(source.intensity),
+    indoorOutdoor: getStringValue(source.indoorOutdoor),
+    preferredConditions: source.preferredConditions,
+    excludeKeywords: normalizeStringList(source.excludeKeywords, 8),
+  };
+};
+
 const normalizeCandidates = (value: unknown) => {
   if (!Array.isArray(value)) return [];
 
@@ -127,6 +149,76 @@ const normalizeCandidates = (value: unknown) => {
       if (!item.id || !item.title || seenIds.has(item.id)) return false;
       seenIds.add(item.id);
       return true;
+    })
+    .slice(0, 20);
+};
+
+const buildPreferenceText = (preference: ParsedPreference, preferenceText: string) =>
+  [
+    preferenceText,
+    preference.intentSummary,
+    ...(preference.keywords ?? []),
+    ...(preference.categories ?? []),
+    ...(preference.preferredCategories ?? []),
+  ].map((item) => item?.trim().toLowerCase()).filter(Boolean).join(' ');
+
+const applyPreferenceScore = (
+  candidates: ReturnType<typeof normalizeCandidates>,
+  preference: ParsedPreference,
+  preferenceText: string,
+) => {
+  const positiveText = buildPreferenceText(preference, preferenceText);
+  const avoidText = [
+    ...(preference.excludeKeywords ?? []),
+    ...(preference.avoidCategories ?? []),
+  ].map((item) => item.trim().toLowerCase()).filter(Boolean).join(' ');
+  const wantsSea = /바다|해변|해안|해수욕장|항구|포구|해양/.test(positiveText);
+  const wantsQuietSolo = /혼자|조용|차분|소규모|가볍|부담|산책|걷/.test(positiveText);
+  const wantsEnvironment = /환경|정화|플로깅|쓰레기|공원|숲|하천/.test(positiveText);
+  const avoidsEvent = /행사|축제|단체|운영보조|행사보조|진행보조|부스/.test(avoidText)
+    || (wantsQuietSolo && !/행사|축제/.test(positiveText));
+
+  return candidates
+    .map((candidate) => {
+      const sourceText = [
+        candidate.title,
+        candidate.location,
+        candidate.category,
+        candidate.description,
+      ].join(' ').toLowerCase();
+      let adjustedScore = candidate.baseScore;
+      const matchReasons = [...candidate.matchReasons];
+      const isSea = /바다|해변|해안|해수욕장|항구|포구|해양|연안|방파제/.test(sourceText);
+      const isEnvironment = /환경\s*정화|환경정화|플로깅|쓰레기|공원|하천|숲길|둘레길|산책로|해변/.test(sourceText);
+      const isEvent = /축제|행사|문화제|공연|부스|운영\s*보조|운영보조|행사\s*보조|행사보조|진행\s*보조|진행보조/.test(sourceText);
+
+      if (wantsSea && isSea) {
+        adjustedScore += 18;
+        matchReasons.push('바다 선호 반영');
+      }
+      if (wantsEnvironment && isEnvironment) {
+        adjustedScore += 16;
+        matchReasons.push('환경 선호 반영');
+      }
+      if (wantsQuietSolo && isEnvironment) {
+        adjustedScore += 10;
+        matchReasons.push('조용한 활동 선호 반영');
+      }
+      if ((avoidsEvent || wantsQuietSolo) && isEvent) {
+        adjustedScore -= 24;
+      }
+      if ((preference.intensity === 'light' || preference.preferredConditions?.intensity === 'low') && /산책|걷|플로깅|정화|공원|해변/.test(sourceText)) {
+        adjustedScore += 8;
+      }
+      if ((preference.indoorOutdoor === 'outdoor' || preference.preferredConditions?.indoorOutdoor === 'outdoor') && /해변|해안|공원|하천|숲|야외|거리|플로깅|정화/.test(sourceText)) {
+        adjustedScore += 8;
+      }
+
+      return {
+        ...candidate,
+        baseScore: adjustedScore,
+        matchReasons: matchReasons.slice(0, 5),
+      };
     })
     .sort((a, b) => b.baseScore - a.baseScore)
     .slice(0, 20);
@@ -182,10 +274,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const preference = body.preference && typeof body.preference === 'object' && !Array.isArray(body.preference)
-    ? body.preference as ParsedPreference
-    : {};
-  const candidates = normalizeCandidates(body.candidates);
+  const preferenceText = getStringValue(body.preferenceText);
+  const preference = normalizePreference(body.preference, preferenceText);
+  const candidates = applyPreferenceScore(normalizeCandidates(body.candidates), preference, preferenceText);
   const validIds = new Set(candidates.map((item) => item.id));
 
   if (candidates.length === 0) {
@@ -213,7 +304,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               '반드시 입력 candidates 배열 안에 있는 id만 activityId로 반환하세요.',
               '후보에 없는 activityId는 절대 반환하지 마세요.',
               'baseScore가 높은 활동을 우선 고려하세요.',
-              '사용자 선호문구와 더 잘 맞는 낮은 점수 후보가 있으면 그 이유를 설명하고 선택할 수 있습니다.',
+              '사용자 자연어 선호문구와 더 잘 맞는 낮은 점수 후보가 있으면 그 이유를 설명하고 선택할 수 있습니다.',
+              'preferenceText와 preference.keywords, preferredCategories, avoidCategories를 반드시 함께 참고하세요.',
+              '바다/해변/해안/항구 선호는 관련 장소 후보를 우선하세요.',
+              '혼자/조용히/산책 선호는 대규모 행사, 운영보조, 행사보조 후보를 낮게 보세요.',
+              '환경정화/플로깅/공원/해변 선호는 관련 후보를 높게 보세요.',
               '활동 데이터는 수정하지 말고, 추천 이유와 fitTags만 작성하세요.',
               '추천 이유는 시선 서비스 톤으로 짧은 1문장만 작성하세요.',
               '공공기관식 표현, 실적 인정, 귀하의 조건에 부합 같은 표현은 쓰지 마세요.',
@@ -224,6 +319,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           {
             role: 'user',
             content: JSON.stringify({
+              preferenceText,
               preference,
               candidates,
             }),

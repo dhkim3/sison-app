@@ -99,7 +99,7 @@ export function DetailBottomSheet({ isOpen, onClose, onAIRecommendation, activit
             <div className="h-3 rounded-xl bg-[#f8f8f5] overflow-hidden">
               <div className="h-full w-3/4 bg-[#a8d5ba] rounded-xl" />
             </div>
-            <p className="text-xs text-[#999] text-center -mt-3">
+            <p className="text-xs text-[#5F6368] text-center -mt-3">
               지도 미리보기는 준비중입니다
             </p>
 

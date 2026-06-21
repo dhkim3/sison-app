@@ -7,7 +7,7 @@ interface TravelSummaryCardProps {
 export function TravelSummaryCard({ label, count, onClick }: TravelSummaryCardProps) {
   const content = (
     <>
-      <div className="text-sm text-[#999] mb-1.5">{label}</div>
+      <div className="text-sm text-[#5F6368] mb-1.5">{label}</div>
       <div className="text-xl text-[#2a2a2a]">{count}</div>
     </>
   );

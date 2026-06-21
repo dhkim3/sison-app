@@ -30,7 +30,7 @@ export function SegmentedTabs({ tabs, activeTab = 0, onTabChange }: SegmentedTab
             className={`flex-1 py-2.5 rounded-xl text-sm transition-all relative ${
               isActive
                 ? 'bg-white text-[#2a2a2a] shadow-sm'
-                : 'text-[#999] hover:text-[#5a5a5a]'
+                : 'text-[#5F6368] hover:text-[#5a5a5a]'
             }`}
           >
             {tab}
