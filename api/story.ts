@@ -455,7 +455,7 @@ const handleCardGenerate = async (res: VercelResponse, deviceKey: string, body: 
         prompt,
         n: 1,
         size: '1024x1536',
-        quality: 'middle',
+        quality: 'standard',
         background: 'transparent',
         output_format: 'png',
       }),
