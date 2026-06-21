@@ -314,8 +314,13 @@ const handleCardGenerate = async (res: VercelResponse, deviceKey: string, body: 
 
   const payloadText = await openaiResponse.text();
   if (!openaiResponse.ok) {
-    console.error('OpenAI error:', openaiResponse.status, payloadText.slice(0, 500));
-    return sendError(res, 502, 'AI 카드 생성에 실패했어요. 잠시 후 다시 시도해주세요.');
+    console.error('OpenAI error:', openaiResponse.status, payloadText.slice(0, 800));
+    res.status(502).json({
+      ok: false,
+      error: 'AI 카드 생성에 실패했어요. 잠시 후 다시 시도해주세요.',
+      detail: `openai ${openaiResponse.status}: ${payloadText.slice(0, 400)}`,
+    });
+    return;
   }
 
   let imageBase64 = '';
