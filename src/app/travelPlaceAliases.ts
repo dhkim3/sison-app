@@ -303,6 +303,8 @@ export const travelPlaceAliases: readonly TravelPlaceAlias[] = [
     sigungu: '수영구',
     dong: '',
     searchKeywords: ['부산 수영구', '수영구', '부산'],
+    sidoCd: '26',
+    gugunCd: '26740',
   },
   {
     keywords: ['제주 제주시', '제주시'],
@@ -317,6 +319,8 @@ export const travelPlaceAliases: readonly TravelPlaceAlias[] = [
     sigungu: '마포구',
     dong: '',
     searchKeywords: ['서울 마포구', '마포구', '서울'],
+    sidoCd: '11',
+    gugunCd: '11440',
   },
   {
     keywords: ['광안리', '광안리해수욕장'],

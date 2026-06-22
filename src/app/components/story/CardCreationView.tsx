@@ -134,18 +134,30 @@ export function CardCreationView({
     }
   };
 
-  const getFrameGradient = () => {
+  const getFrameStyle = (): React.CSSProperties => {
     if (selectedFrame === AI_FRAME) {
-      // Show AI variant during and after generation; plain fallback before first generate
-      if (hasGeneratedAIFrame || isGenerating) return AI_FRAME_VARIANTS[aiVariantIndex].bg;
-      return 'from-[#fdfcfa] to-[#f8f8f5]';
+      if (hasGeneratedAIFrame || isGenerating) {
+        const aiBgMap: Record<string, string> = {
+          'from-[#ede8f5] to-[#e8f0f8]': 'linear-gradient(135deg, #ede8f5 0%, #e8f0f8 100%)',
+          'from-[#f5ecea] to-[#ece8e0]': 'linear-gradient(135deg, #f5ecea 0%, #ece8e0 100%)',
+          'from-[#e8efe8] to-[#ede8e0]': 'linear-gradient(135deg, #e8efe8 0%, #ede8e0 100%)',
+        };
+        const bg = AI_FRAME_VARIANTS[aiVariantIndex]?.bg ?? '';
+        return { background: aiBgMap[bg] ?? 'linear-gradient(135deg, #ede8f5 0%, #e8f0f8 100%)' };
+      }
+      return { background: 'linear-gradient(180deg, #fdfcfa 0%, #f8f8f5 100%)' };
     }
     switch (selectedFrame) {
-      case '바다': return 'from-blue-50 to-cyan-50';
-      case '숲':   return 'from-green-50 to-emerald-50';
-      case '노을': return 'from-orange-50 to-pink-50';
-      case '블랙': return 'from-[#1a1a1a] to-[#0a0a0a]';
-      default:     return 'from-[#fdfcfa] to-[#f8f8f5]';
+      case '바다':
+        return { background: 'linear-gradient(to bottom right, #eff6ff, #ecfeff)' };
+      case '숲':
+        return { background: 'linear-gradient(to bottom right, #f0fdf4, #ecfdf5)' };
+      case '노을':
+        return { background: 'linear-gradient(to bottom right, #fff7ed, #fdf2f8)' };
+      case '블랙':
+        return { background: 'linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%)' };
+      default:
+        return { background: 'linear-gradient(180deg, #ffffff 0%, #fdfbf8 100%)' };
     }
   };
 
@@ -218,11 +230,9 @@ export function CardCreationView({
               <div
                 ref={cardPreviewRef}
                 className={`relative rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] overflow-hidden ${
-                  isAiMode
-                    ? 'bg-gray-100'
-                    : `bg-gradient-to-br ${getFrameGradient()} p-4`
+                  isAiMode ? 'bg-gray-100' : 'p-4'
                 }`}
-                style={{ width: '300px' }}
+                style={{ width: '300px', ...(isAiMode ? {} : getFrameStyle()) }}
               >
                 {/* AI wave scan */}
                 {showAIWave && (
@@ -269,8 +279,8 @@ export function CardCreationView({
                         )}
                         <p className={`text-[11px] font-normal leading-[1.35] ${isDarkFrame ? 'text-white/50' : 'text-[#b6b6b6]'}`}>{activity.date}</p>
                       </div>
-                      <div className="mt-3 border-t border-black/5 pt-2">
-                        <p className="text-center text-[11px] text-[#5F6368] opacity-70">시선</p>
+                      <div className={`mt-3 border-t pt-2 ${isDarkFrame ? 'border-white/15' : 'border-black/5'}`}>
+                        <p className={`text-center text-[11px] opacity-70 ${isDarkFrame ? 'text-white' : 'text-[#5F6368]'}`}>시선</p>
                       </div>
                     </div>
                   </>

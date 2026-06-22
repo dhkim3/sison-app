@@ -21,7 +21,7 @@ export type SavedArchiveTab = 0 | 1 | 2;
 type TravelCardActionMode = 'actions' | 'confirm-delete';
 type ArchiveTravelCard = TravelCard & { id: string };
 
-const initialArchiveStories: StoryItem[] = [
+export const initialArchiveStories: StoryItem[] = [
   {
     id: 101,
     imageUrl: '/activity-images/beach-cleanup-1.png',
@@ -35,6 +35,7 @@ const initialArchiveStories: StoryItem[] = [
     relatedActivity: '광안리 해변 환경정화',
     activityTitle: '광안리 해변 환경정화',
     activityDate: '2026.07.20',
+    isMine: true,
   },
   {
     id: 102,
@@ -49,6 +50,7 @@ const initialArchiveStories: StoryItem[] = [
     relatedActivity: '함덕해수욕장 해양 환경 정화 봉사',
     activityTitle: '함덕해수욕장 해양 환경 정화 봉사',
     activityDate: '2026.06.15',
+    isMine: true,
   },
   {
     id: 103,
@@ -63,6 +65,7 @@ const initialArchiveStories: StoryItem[] = [
     relatedActivity: '수영 공원 산책로 정비',
     activityTitle: '수영 공원 산책로 정비',
     activityDate: '2026.05.28',
+    isMine: true,
   },
   {
     id: 104,
@@ -77,6 +80,7 @@ const initialArchiveStories: StoryItem[] = [
     relatedActivity: '제주 숲길 산책로 정비',
     activityTitle: '제주 숲길 산책로 정비',
     activityDate: '2026.06.08',
+    isMine: true,
   },
   {
     id: 105,
@@ -91,6 +95,7 @@ const initialArchiveStories: StoryItem[] = [
     relatedActivity: '안목해변 아침 플로깅',
     activityTitle: '안목해변 아침 플로깅',
     activityDate: '2026.08.05',
+    isMine: true,
   },
   {
     id: 106,
@@ -105,6 +110,7 @@ const initialArchiveStories: StoryItem[] = [
     relatedActivity: '통영 항구 마을 행사 도우미',
     activityTitle: '통영 항구 마을 행사 도우미',
     activityDate: '2026.04.26',
+    isMine: true,
   },
   {
     id: 107,
@@ -119,6 +125,7 @@ const initialArchiveStories: StoryItem[] = [
     relatedActivity: '경주 황리단길 작은 문화 안내',
     activityTitle: '경주 황리단길 작은 문화 안내',
     activityDate: '2026.05.04',
+    isMine: true,
   },
 ];
 

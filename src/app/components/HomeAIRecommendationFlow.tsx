@@ -948,7 +948,9 @@ export function HomeAIRecommendationFlow({
   const [deckInteractionType, setDeckInteractionType] = useState<'button' | 'swipe' | null>(null);
   const [isDeckEntering, setIsDeckEntering] = useState(false);
   const [exitingRecommendationIndex, setExitingRecommendationIndex] = useState<number | null>(null);
+  const [fallingPhase, setFallingPhase] = useState<'hidden' | 'in' | 'hold' | 'out'>('hidden');
   const calendarAdvanceTimerRef = useRef<number | null>(null);
+  const fallingPhaseTimerRef = useRef<number | null>(null);
   const loadingMessageTimerRef = useRef<number | null>(null);
   const loadingCompleteTimerRef = useRef<number | null>(null);
   const loadingTextFadeTimerRef = useRef<number | null>(null);
@@ -963,6 +965,11 @@ export function HomeAIRecommendationFlow({
   const deckDragFrameRef = useRef<number | null>(null);
   const deckPendingDragOffsetRef = useRef(0);
   const deckSuppressClickRef = useRef(false);
+  // Prevents pointerUp + pointerCancel double-firing on the same gesture
+  const deckSwipeHandledRef = useRef(false);
+  // Ref-based transition lock: prevents concurrent moveRecommendation calls
+  // (state-based deckTransitionDirection is async and can't guard synchronous double calls)
+  const deckTransitionActiveRef = useRef(false);
   const recommendationRequestInFlightRef = useRef(false);
   const recommendationRequestIdRef = useRef(0);
 
@@ -1040,6 +1047,8 @@ export function HomeAIRecommendationFlow({
     setDeckInteractionType(null);
     setIsDeckEntering(false);
     setExitingRecommendationIndex(null);
+    deckSwipeHandledRef.current = false;
+    deckTransitionActiveRef.current = false;
   };
 
   const resetAndClose = () => {
@@ -1088,8 +1097,39 @@ export function HomeAIRecommendationFlow({
     if (calendarAdvanceTimerRef.current) {
       window.clearTimeout(calendarAdvanceTimerRef.current);
     }
+    if (fallingPhaseTimerRef.current) {
+      window.clearTimeout(fallingPhaseTimerRef.current);
+    }
     clearLoadingTimers();
   }, []);
+
+  useEffect(() => {
+    if (step !== 4) {
+      if (fallingPhaseTimerRef.current) window.clearTimeout(fallingPhaseTimerRef.current);
+      setFallingPhase('hidden');
+      return;
+    }
+
+    const runCycle = () => {
+      setFallingPhase('hidden');
+      fallingPhaseTimerRef.current = window.setTimeout(() => {
+        setFallingPhase('in');
+        fallingPhaseTimerRef.current = window.setTimeout(() => {
+          setFallingPhase('hold');
+          fallingPhaseTimerRef.current = window.setTimeout(() => {
+            setFallingPhase('out');
+            fallingPhaseTimerRef.current = window.setTimeout(runCycle, 560);
+          }, 800);
+        }, 1450);
+      }, 50);
+    };
+
+    runCycle();
+
+    return () => {
+      if (fallingPhaseTimerRef.current) window.clearTimeout(fallingPhaseTimerRef.current);
+    };
+  }, [step]);
 
   const selectedSummary = [
     region && { label: `${region}에서`, targetStep: 0 },
@@ -1123,6 +1163,45 @@ export function HomeAIRecommendationFlow({
       className: 'right-1 bottom-2 w-[148px]',
     },
   ];
+
+  const fallingCardConfigs = [
+    { dx: -14, dy: -175, rotate: -8, exitDx: -38, exitDy: 52, exitRotate: -13 },
+    { dx: 7,  dy: -155, rotate:  5, exitDx: -14, exitDy: 68, exitRotate:   7 },
+    { dx: -8, dy: -195, rotate: -6, exitDx:  16, exitDy: 56, exitRotate:  -9 },
+    { dx: 14, dy: -168, rotate:  9, exitDx:  42, exitDy: 60, exitRotate:  12 },
+  ] as const;
+
+  const getFallingCardStyle = (phase: 'hidden' | 'in' | 'hold' | 'out', i: number): React.CSSProperties => {
+    const cfg = fallingCardConfigs[i];
+    const stagger = i * 190;
+    switch (phase) {
+      case 'hidden':
+        return {
+          transform: `translateX(${cfg.dx}px) translateY(${cfg.dy}px) rotate(${cfg.rotate}deg)`,
+          opacity: 0,
+          transition: 'none',
+        };
+      case 'in':
+        return {
+          transform: 'translateX(0) translateY(0) rotate(0deg)',
+          opacity: 1,
+          transition: `transform 920ms cubic-bezier(0.22, 1, 0.36, 1) ${stagger}ms, opacity 380ms ease ${stagger}ms`,
+        };
+      case 'hold':
+        return {
+          transform: 'translateX(0) translateY(0) rotate(0deg)',
+          opacity: 1,
+          transition: 'none',
+        };
+      case 'out':
+        return {
+          transform: `translateX(${cfg.exitDx}px) translateY(${cfg.exitDy}px) rotate(${cfg.exitRotate}deg)`,
+          opacity: 0,
+          transition: 'transform 500ms cubic-bezier(0.4, 0, 1, 1), opacity 400ms ease',
+        };
+    }
+  };
+
   const aiRegionSuggestions = useMemo(() => {
     const filteredSuggestions = getSearchSuggestions(draftRegion);
 
@@ -1589,7 +1668,10 @@ export function HomeAIRecommendationFlow({
     indexDelta: 1 | -1 = direction,
     interactionType: 'button' | 'swipe' = 'button',
   ) => {
-    if (!canMoveRecommendation || deckTransitionDirection !== null) return;
+    // Use ref-based lock to guard against stale-closure double calls
+    // (state-based deckTransitionDirection is async — two synchronous calls both see null)
+    if (!canMoveRecommendation || deckTransitionActiveRef.current) return;
+    deckTransitionActiveRef.current = true;
 
     setIsDeckDragging(false);
     // For swipe: keep deckDragOffset at its current position so the exit animation
@@ -1608,6 +1690,7 @@ export function HomeAIRecommendationFlow({
     );
 
     window.setTimeout(() => {
+      deckTransitionActiveRef.current = false;
       setDeckDragOffset(0);
       deckPendingDragOffsetRef.current = 0;
       deckDragVelocityXRef.current = 0;
@@ -1624,6 +1707,7 @@ export function HomeAIRecommendationFlow({
     const target = event.target as HTMLElement;
     if (target.closest('button')) return;
 
+    deckSwipeHandledRef.current = false;
     deckDragStartXRef.current = event.clientX;
     deckDragStartYRef.current = event.clientY;
     deckDragLastXRef.current = event.clientX;
@@ -1664,6 +1748,9 @@ export function HomeAIRecommendationFlow({
 
   const settleDeckDrag = (shouldOpenOnTap = false) => {
     if (!isDeckDragging) return;
+    // Prevent pointerUp + pointerCancel from both processing the same gesture
+    if (deckSwipeHandledRef.current) return;
+    deckSwipeHandledRef.current = true;
     if (deckDragFrameRef.current) {
       window.cancelAnimationFrame(deckDragFrameRef.current);
       deckDragFrameRef.current = null;
@@ -2065,102 +2152,47 @@ export function HomeAIRecommendationFlow({
 
             {step === 4 && (
               <section className="-mx-5 -mb-[calc(24px+env(safe-area-inset-bottom))] flex min-h-[calc(var(--sison-sheet-tall-height)-150px)] overflow-hidden px-5 pb-[calc(22px+env(safe-area-inset-bottom))] pt-2 text-center">
-                <div className="relative mx-auto flex w-full max-w-[340px] flex-col items-center justify-center">
-                  <div
-                    aria-hidden="true"
-                    className="absolute left-1/2 top-10 h-56 w-56 -translate-x-1/2 rounded-full bg-[#a78bfa]/16 blur-3xl"
-                  />
-                  <div
-                    aria-hidden="true"
-                    className="absolute bottom-8 right-2 h-28 w-28 rounded-full bg-[#c084fc]/12 blur-3xl"
-                  />
+                <div className="mx-auto flex w-full max-w-[340px] flex-col items-center justify-center">
 
-                  <div className="relative mx-auto flex w-full max-w-[340px] flex-col items-center">
-                    <div className="relative mb-6 h-[286px] w-full max-w-[340px]" aria-hidden="true">
-                      <svg className="sison-ai-condition-orbit absolute left-1/2 top-[132px] h-[218px] w-[286px] -translate-x-1/2 -translate-y-1/2 text-[#8b5cf6]/24" viewBox="0 0 286 218" fill="none">
-                        <path
-                          d="M34 58C81 14 156 15 217 61C268 100 254 157 202 184C134 220 50 188 32 123C24 94 34 70 54 56"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeDasharray="7 10"
-                        />
-                        <path d="M217 61L230 64L222 75" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        <path d="M35 124L25 115L38 111" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                      <span className="sison-ai-loading-scan-ring absolute left-1/2 top-[132px] h-[142px] w-[142px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-[#8b5cf6]/22" />
-
-                      {loadingConditionBubbles.map((item, index) => {
-                        const isActive = index === activeLoadingConditionIndex;
-                        const isComplete = activeLoadingConditionIndex === loadingConditionBubbles.length || index < activeLoadingConditionIndex;
-                        return (
-                          <div
-                            key={item.label}
-                            className={`sison-ai-condition-bubble absolute ${item.className} rounded-[22px] border px-3 py-2.5 text-left backdrop-blur-md transition-all duration-300 ${
-                              isActive
-                                ? 'sison-ai-condition-bubble-active border-[#cdbbff] bg-white/94 opacity-100 shadow-[0_16px_36px_rgba(139,92,246,0.20)]'
-                                : isComplete
-                                  ? 'border-white/75 bg-white/82 opacity-90 shadow-[0_10px_24px_rgba(82,58,135,0.09)]'
-                                  : 'border-white/60 bg-white/58 opacity-45 shadow-[0_8px_20px_rgba(82,58,135,0.06)]'
-                            }`}
-                          >
-                            {isActive && <span className="sison-ai-condition-packet" />}
-                            <div className="flex items-center gap-2">
-                              <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${
-                                isActive ? 'bg-[#8b5cf6] text-white' : 'bg-[#f3f0ff] text-[#8b5cf6]'
-                              }`}>
-                                {item.icon}
-                              </span>
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-[12.5px] font-bold leading-tight text-[#514165]">
-                                  {item.label}
-                                </p>
-                                <p className="mt-1 truncate text-[10px] font-semibold leading-none text-[#8a7aa3]">
-                                  {isComplete ? '분석 완료' : item.caption}
-                                </p>
-                              </div>
-                              {isComplete && (
-                                <span className="ml-1 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-[#8b5cf6]/12 text-[10px] font-black text-[#8b5cf6]">
-                                  ✓
-                                </span>
-                              )}
-                            </div>
+                  {/* Falling condition cards */}
+                  <div className="mb-8 flex h-[116px] w-full items-center justify-center" aria-hidden="true">
+                    <div className="flex items-center justify-center gap-2">
+                      {loadingConditionBubbles.map((item, i) => (
+                        <div key={item.label} style={getFallingCardStyle(fallingPhase, i)}>
+                          <div className="flex h-[116px] w-[76px] flex-col items-center justify-center rounded-3xl border border-[#e0d8ff] bg-white/92 px-2 py-3 text-center shadow-[0_8px_22px_rgba(100,70,200,0.10)]">
+                            <span className="mb-2.5 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-[#f3f0ff] text-[#8b5cf6] [&_svg]:h-[22px] [&_svg]:w-[22px]">
+                              {item.icon}
+                            </span>
+                            <p className="line-clamp-2 overflow-hidden text-[10px] font-semibold leading-[1.35] text-[#514165]">
+                              {item.label}
+                            </p>
                           </div>
-                        );
-                      })}
-
-                      <span className="sison-ai-loading-core absolute left-1/2 top-[132px] flex h-[88px] w-[88px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[32px] border border-white/70 bg-[radial-gradient(circle_at_32%_24%,#ffffff_0%,#f1ebff_28%,#c4b5fd_64%,#8b5cf6_100%)] text-white shadow-[0_22px_48px_rgba(139,92,246,0.28)]">
-                        <Sparkles className="h-8 w-8 drop-shadow-sm" strokeWidth={2.2} />
-                      </span>
-
-                      <Sparkles className="sison-ai-loading-spark absolute left-[122px] top-[74px] h-3.5 w-3.5 text-[#a78bfa]" strokeWidth={2.1} />
-                      <Sparkles className="sison-ai-loading-spark absolute right-[96px] top-[128px] h-3 w-3 text-[#c084fc]" strokeWidth={2.1} style={{ animationDelay: '680ms' }} />
-                      <Sparkles className="sison-ai-loading-spark absolute left-[104px] bottom-[70px] h-3 w-3 text-[#8b5cf6]" strokeWidth={2.1} style={{ animationDelay: '1180ms' }} />
+                        </div>
+                      ))}
                     </div>
+                  </div>
 
-                    <div className="min-h-[52px]">
-                      <p
-                        className={`flex min-h-[48px] max-w-full items-center justify-center gap-1.5 whitespace-nowrap text-[clamp(13.5px,3.65vw,16px)] font-bold leading-6 text-[#6f4bd8] transition-all duration-[260ms] ${
-                          isAiLoadingTextVisible ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
-                        }`}
-                      >
-                        <Sparkles className="h-4 w-4 flex-shrink-0 translate-y-[-1px]" strokeWidth={2.1} />
-                        <span>{aiLoadingMessage}</span>
-                      </p>
-                      <p className="mt-0.5 text-[12px] font-medium leading-5 text-[#756b89]">
-                        선택한 조건을 분석하고 있어요
-                      </p>
-                    </div>
-
-                    <div className="mt-4 h-2 w-[78%] overflow-hidden rounded-full bg-[#8b5cf6]/14">
-                      <span
-                        aria-hidden="true"
-                        className="sison-ai-loading-progress block h-full w-[48%] rounded-full bg-[linear-gradient(90deg,#8b5cf6,#c084fc,#a78bfa)]"
-                      />
-                    </div>
-                    <p className="mt-4 text-[12px] font-medium text-[#756b89]">
-                      잠시만 기다려주세요
+                  {/* Message */}
+                  <div className="min-h-[52px]">
+                    <p
+                      className={`flex min-h-[48px] max-w-full items-center justify-center gap-1.5 whitespace-nowrap text-[clamp(13.5px,3.65vw,16px)] font-bold leading-6 text-[#6f4bd8] transition-all duration-[260ms] ${
+                        isAiLoadingTextVisible ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+                      }`}
+                    >
+                      <Sparkles className="h-4 w-4 flex-shrink-0 translate-y-[-1px]" strokeWidth={2.1} />
+                      <span>가장 잘 맞는 활동을 찾고 있어요…</span>
                     </p>
+                    <p className="mt-0.5 text-[12px] font-medium leading-5 text-[#756b89]">
+                      선택한 조건을 분석하고 있어요
+                    </p>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="mt-5 h-2 w-[78%] overflow-hidden rounded-full bg-[#8b5cf6]/14">
+                    <span
+                      aria-hidden="true"
+                      className="sison-ai-loading-progress block h-full w-[48%] rounded-full bg-[linear-gradient(90deg,#8b5cf6,#c084fc,#a78bfa)]"
+                    />
                   </div>
                 </div>
               </section>

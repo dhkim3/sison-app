@@ -219,7 +219,7 @@ export function StoryDetailSheet({
                   onChange={(event) => setDraftComment(event.target.value)}
                   rows={1}
                   placeholder={`${story.author}님에게 댓글 추가`}
-                  className="min-h-[42px] flex-1 resize-none rounded-2xl border border-black/5 bg-[#f8f8f5] px-4 py-3 text-[13px] leading-5 text-[#2a2a2a] outline-none placeholder:text-[#9AA0A6] focus:bg-white focus:ring-1 focus:ring-[#a8d5ba]/45"
+                  className="min-h-[42px] flex-1 resize-none rounded-full border border-black/5 bg-[#f8f8f5] px-4 py-3 text-[13px] leading-5 text-[#2a2a2a] outline-none placeholder:text-[#9AA0A6] focus:bg-white focus:ring-1 focus:ring-[#a8d5ba]/45"
                 />
                 <button
                   type="button"

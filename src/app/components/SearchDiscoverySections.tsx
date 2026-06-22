@@ -3,9 +3,9 @@ import { formatRecentSearchShort, type RecentSearchItem } from '../searchState';
 
 export const popularRegionItems = [
   {
-    name: '부산 수영구',
-    description: '바다 산책과 함께하는 가벼운 활동',
-    searchKeyword: '부산 수영구',
+    name: '부산',
+    description: '바다와 골목이 이어지는 여행지',
+    searchKeyword: '부산',
   },
   {
     name: '제주',
@@ -13,9 +13,9 @@ export const popularRegionItems = [
     searchKeyword: '제주',
   },
   {
-    name: '서울 마포구',
+    name: '서울',
     description: '공원과 도심을 잇는 가벼운 활동',
-    searchKeyword: '서울 마포구',
+    searchKeyword: '서울',
   },
 ] as const;
 

@@ -8,6 +8,7 @@ import { StoryCommentSheet } from './StoryCommentSheet';
 import type { StoryItem } from './storyTypes';
 import type { StoryInteractionProps } from '../../storyInteractionState';
 import { scrollToTop } from '../../utils/scrollToTop';
+import { initialArchiveStories } from '../SavedArchive';
 
 interface RegionMapViewProps {
   onNavigate: (screen: string) => void;
@@ -204,9 +205,17 @@ export function RegionMapView({
 }: RegionMapViewProps) {
   const [selectedStory, setSelectedStory] = useState<StoryItem | null>(null);
   const [commentStory, setCommentStory] = useState<StoryItem | null>(null);
-  const [activeStoryList, setActiveStoryList] = useState<'recent' | 'current-location' | null>(null);
+  const [activeStoryList, setActiveStoryList] = useState<'recent' | 'current-location' | 'selected-region' | null>(null);
   const [recentFullStoryCount, setRecentFullStoryCount] = useState(storyListPageSize);
-  const stories = [...userStories, ...mockStories];
+  // Merge user stories, archive seed stories, and mock stories — deduplicate by id
+  const stories = (() => {
+    const seen = new Set<number>();
+    return [...userStories, ...initialArchiveStories, ...mockStories].filter((s) => {
+      if (seen.has(s.id)) return false;
+      seen.add(s.id);
+      return true;
+    });
+  })();
   const [currentRegion, setCurrentRegion] = useState('부산');
 
   // 단말기 GPS로 현재 위치를 가져와 '가장 가까운 지역'으로만 변환해 사용한다.
@@ -234,13 +243,20 @@ export function RegionMapView({
   const fullStoryList =
     activeStoryList === 'current-location'
       ? stories.filter((story) => story.region === currentRegion)
-      : stories;
+      : activeStoryList === 'selected-region'
+        ? stories.filter((story) => story.region === selectedRegion)
+        : stories;
   const isRecentFullStoryList = activeStoryList === 'recent';
   const visibleFullStoryList = isRecentFullStoryList
     ? fullStoryList.slice(0, recentFullStoryCount)
     : fullStoryList;
   const hasMoreRecentFullStories = isRecentFullStoryList && recentFullStoryCount < fullStoryList.length;
-  const fullStoryListTitle = activeStoryList === 'current-location' ? '현재 위치 스토리' : '최근 올라온 스토리';
+  const fullStoryListTitle =
+    activeStoryList === 'current-location'
+      ? '현재 위치 스토리'
+      : activeStoryList === 'selected-region'
+        ? `${selectedRegionLabel}의 스토리`
+        : '최근 올라온 스토리';
 
   useLayoutEffect(() => {
     scrollToTop();
@@ -513,7 +529,7 @@ export function RegionMapView({
                   <h3 className="text-[15px] font-semibold text-[#2a2a2a]">{selectedRegionLabel}의 스토리</h3>
                   <button
                     type="button"
-                    onClick={() => onSelectRegion(null)}
+                    onClick={() => setActiveStoryList('selected-region')}
                     className="text-[12px] text-[#5F6368]"
                   >
                     전체보기 →
