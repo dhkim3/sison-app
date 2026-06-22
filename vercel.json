@@ -1,4 +1,10 @@
 {
+  "regions": ["icn1"],
+  "functions": {
+    "api/story.ts": {
+      "maxDuration": 60
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/sync-volunteers",
