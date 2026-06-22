@@ -696,14 +696,18 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
                                           />
                                         )}
                                         <div className="flex-1 min-w-0">
-                                          <p className="text-sm font-medium text-[#2a2a2a] leading-snug">
-                                            {stop.title}
+                                          <div className="flex items-baseline gap-1.5 flex-wrap leading-snug">
+                                            {stop.title && (
+                                              <span className="text-sm font-medium" style={{ color: '#2a2a2a' }}>
+                                                {stop.title}
+                                              </span>
+                                            )}
                                             {distKm && (
-                                              <span className="ml-1.5 text-[12px] font-normal text-[#6B7280]">
+                                              <span className="text-[12px] font-normal flex-shrink-0" style={{ color: '#6B7280' }}>
                                                 · {distKm}
                                               </span>
                                             )}
-                                          </p>
+                                          </div>
                                           <p className="mt-0.5 text-[12px] text-[#7A7F87] leading-snug line-clamp-2">
                                             {description}
                                           </p>

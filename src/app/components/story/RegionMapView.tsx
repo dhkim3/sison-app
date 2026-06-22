@@ -304,7 +304,7 @@ export function RegionMapView({
               <div>
                 <h2 className="text-xl font-bold text-[#2a2a2a] leading-tight">스토리</h2>
                 <p className="text-[12px] text-[#7A7F87] mt-0.5">
-                  여행지에서 남겨진 작은 시선을 둘러보세요.
+                  여행지에서 남겨진 작은 시선
                 </p>
               </div>
               <button
