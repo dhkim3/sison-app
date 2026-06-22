@@ -453,7 +453,7 @@ export function EnhancedDetailBottomSheet({
   const handleKakaoMapOpen = () => {
     if (!hasMapQuery) return;
 
-    const kakaoMapUrl = `https://map.kakao.com/link/search/${encodeURIComponent(kakaoMapQuery)}`;
+    const kakaoMapUrl = `https://map.kakao.com/?q=${encodeURIComponent(kakaoMapQuery)}`;
 
     window.open(kakaoMapUrl, '_blank', 'noopener,noreferrer');
   };

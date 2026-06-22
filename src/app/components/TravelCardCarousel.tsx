@@ -25,14 +25,15 @@ interface TravelCardCarouselProps {
 
 export function TravelCardCarousel({ cards, onCardClick }: TravelCardCarouselProps) {
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-6 px-6">
+    <div className="flex gap-4 overflow-x-auto pt-3 pb-6 scrollbar-hide -mx-6 px-6">
       {cards.map((card, index) => (
         <div key={index} className="flex-shrink-0" style={{ width: '280px' }}>
           {/* Polaroid Style Card */}
           <button
             type="button"
             onClick={() => onCardClick?.(card)}
-            className="w-full bg-white rounded-lg shadow-md p-3 cursor-pointer hover:shadow-lg transition-shadow text-left"
+            className="w-full bg-white rounded-lg p-3 cursor-pointer text-left transition-shadow"
+            style={{ boxShadow: '0 14px 32px rgba(32, 32, 32, 0.08)' }}
           >
             <div className="aspect-square bg-[#f0f0eb] mb-3 overflow-hidden">
               <img

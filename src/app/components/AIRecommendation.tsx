@@ -81,53 +81,9 @@ function getSafeImageSource(src: string | null) {
   }
 }
 
-function openBlobInNewTab(blob: Blob) {
-  const objectUrl = window.URL.createObjectURL(blob);
-  const popup = window.open(objectUrl, '_blank', 'noopener,noreferrer');
-  window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 60000);
 
-  if (!popup) {
-    throw new Error('Image new tab fallback was blocked');
-  }
-}
-
-async function saveScreenshotBlob(blob: Blob, filename: string) {
-  const file = new File([blob], filename, { type: 'image/png' });
-  const canUseNativeShare = typeof navigator.share === 'function';
-  const canUseFileShare = typeof navigator.canShare === 'function'
-    ? navigator.canShare({ files: [file] })
-    : canUseNativeShare;
-  const canShareFile = Boolean(
-    canUseNativeShare && canUseFileShare,
-  );
-
-  if (canShareFile) {
-    try {
-      console.info('[capture] share start', { filename, size: blob.size, type: blob.type });
-      await navigator.share({
-        files: [file],
-        title: '시선 추천 일정',
-        text: '시선에서 추천한 여행 일정을 저장해 보세요.',
-      });
-      console.info('[capture] share success');
-      return;
-    } catch (error) {
-      const errorName = error instanceof Error ? error.name : '';
-      console.error('[capture] share fail', { error });
-      if (errorName === 'AbortError') return;
-    }
-  }
-
-  try {
-    console.info('[capture] download/share start', { mode: 'download', filename });
-    downloadBlob(blob, filename);
-    return;
-  } catch (error) {
-    console.error('[capture] download fail', { error });
-  }
-
-  console.info('[capture] download/share start', { mode: 'new-tab', filename });
-  openBlobInNewTab(blob);
+function saveScreenshotBlob(blob: Blob, filename: string) {
+  downloadBlob(blob, filename);
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -545,17 +501,13 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
 
     try {
       setScreenshotMessage('');
-      console.info('[capture] upload start', { enabled: false, reason: 'Vercel Blob upload is not used for screenshot save' });
+      const today = new Date().toISOString().slice(0, 10);
       const blob = await captureElementAsPng(sourceElement, 2, { backgroundColor: '#fdfcfa' });
-      await saveScreenshotBlob(
-        blob,
-        `${selectedActivity.title.replace(/[\\/:*?"<>|]/g, '').slice(0, 20) || 'sison'}-itinerary.png`,
-      );
-      console.info('[capture] upload success', { skipped: true });
+      saveScreenshotBlob(blob, `sison-trip-plan-${today}.png`);
+      setScreenshotMessage('이미지가 저장되었어요');
     } catch (error) {
       console.error('AI recommendation screenshot download failed', error);
-      console.error('[capture] upload fail', { skipped: true, error });
-      setScreenshotMessage('이미지 저장에 실패했어요. 다시 시도해 주세요.');
+      setScreenshotMessage('이미지 저장에 실패했어요. 다시 시도해주세요.');
     }
   };
 
@@ -827,7 +779,7 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
                 </section>
               )}
 
-              {/* 스크린샷 저장 */}
+              {/* 이미지 저장 */}
               {plans.length > 0 && (
                 <section className="pt-2 pb-3">
                   <button
@@ -836,10 +788,12 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
                     className="w-full bg-[#2a2a2a] text-white py-4 rounded-2xl transition-all hover:bg-[#1a1a1a] flex items-center justify-center gap-2"
                   >
                     <Download className="w-5 h-5" strokeWidth={2} />
-                    <span>스크린샷 저장하기</span>
+                    <span>이미지 저장</span>
                   </button>
                   {screenshotMessage && (
-                    <p className="mt-3 text-center text-[12.5px] leading-relaxed text-[#c9897e]">
+                    <p className={`mt-3 text-center text-[12.5px] leading-relaxed ${
+                      screenshotMessage.includes('실패') ? 'text-[#c9897e]' : 'text-[#6fa985]'
+                    }`}>
                       {screenshotMessage}
                     </p>
                   )}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Heart, MessageCircle, MapPin, Sparkles, Trash2, X } from 'lucide-react';
+import { ArrowUp, Heart, MessageCircle, MapPin, Sparkles, Trash2, X } from 'lucide-react';
 import type { StoryComment } from '../../storyInteractionState';
 import type { StoryItem } from './storyTypes';
 import { useBottomSheetScrollLock } from '../useBottomSheetScrollLock';
@@ -218,16 +218,17 @@ export function StoryDetailSheet({
                   value={draftComment}
                   onChange={(event) => setDraftComment(event.target.value)}
                   rows={1}
-                  placeholder="조용한 시선을 남겨보세요"
+                  placeholder={`${story.author}님에게 댓글 추가`}
                   className="min-h-[42px] flex-1 resize-none rounded-2xl border border-black/5 bg-[#f8f8f5] px-4 py-3 text-[13px] leading-5 text-[#2a2a2a] outline-none placeholder:text-[#9AA0A6] focus:bg-white focus:ring-1 focus:ring-[#a8d5ba]/45"
                 />
                 <button
                   type="button"
                   onClick={handleAddComment}
                   disabled={!draftComment.trim()}
-                  className="h-[42px] rounded-2xl bg-[#2a2a2a] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#1a1a1a] disabled:bg-[#d8d5ce]"
+                  className="flex h-[42px] w-[42px] flex-shrink-0 items-center justify-center rounded-full bg-[#2a2a2a] text-white transition-colors hover:bg-[#1a1a1a] disabled:bg-[#d8d5ce]"
+                  aria-label="댓글 남기기"
                 >
-                  남기기
+                  <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
                 </button>
               </div>
             </section>

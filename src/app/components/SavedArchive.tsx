@@ -475,7 +475,7 @@ export function SavedArchive({
                         {year}년 {Number(month)}월
                       </p>
                       <div
-                        className="overflow-x-auto scrollbar-hide pb-4"
+                        className="overflow-x-auto scrollbar-hide -mx-5 px-5 pt-4 pb-14"
                         style={{ display: 'flex', gap: '14px', scrollSnapType: 'x mandatory' }}
                       >
                         {sortedCards.map((card, i) => (
@@ -493,7 +493,7 @@ export function SavedArchive({
                             style={{
                               flex: '0 0 min(62vw, 246px)',
                               scrollSnapAlign: 'start',
-                              boxShadow: '0 8px 22px rgba(80,64,45,0.09)',
+                              boxShadow: '0 8px 28px rgba(0, 0, 0, 0.11), 0 2px 8px rgba(0, 0, 0, 0.06)',
                             }}
                           >
                             <div

@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react';
-import { Search, Calendar, Users, MapPin, X } from 'lucide-react';
+import { Search, Calendar, Users, MapPin, X, ChevronRight } from 'lucide-react';
 import { SearchHistory } from './SearchHistory';
 import { DestinationCard } from './DestinationCard';
 import { SearchDiscoverySections, popularRegionItems } from './SearchDiscoverySections';
 import { type RecentSearchItem } from '../searchState';
+import { getSearchSuggestions } from '../locationSuggestions';
 
 interface DefaultSearchStateProps {
   onSearch: (dest: string, dates: string, people: number) => void;
@@ -40,6 +41,8 @@ export function DefaultSearchState({
 }: DefaultSearchStateProps) {
   const [isDiscoveryOpen, setIsDiscoveryOpen] = useState(false);
   const destinationInputRef = useRef<HTMLInputElement>(null);
+  const normalizedDestination = destination.trim().toLowerCase();
+  const autocompleteItems = getSearchSuggestions(destination);
 
   const destinations = [
     {
@@ -127,11 +130,44 @@ export function DefaultSearchState({
             }`}
           >
             <div className="pt-4">
-              <SearchDiscoverySections
-                recentSearches={recentSearches}
-                onRecentSearchSelect={handleRecentSelect}
-                onRegionSelect={handlePopularRegionSelect}
-              />
+              {normalizedDestination ? (
+                <section>
+                  <div className="mb-2 flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-[#9AA0A6]" strokeWidth={2} />
+                    <h4 className="text-[12px] font-semibold text-[#5a5a5a] leading-none">
+                      여행지 제안
+                    </h4>
+                  </div>
+                  <div className="overflow-hidden rounded-2xl bg-[#fbfaf6] border border-black/5 shadow-[0_8px_18px_rgba(65,78,66,0.04)]">
+                    {autocompleteItems.length > 0 ? (
+                      autocompleteItems.map((item) => (
+                        <button
+                          key={item}
+                          type="button"
+                          onPointerDown={(event) => {
+                            event.preventDefault();
+                            handleDiscoverySelect(item);
+                          }}
+                          className="flex w-full items-center justify-between gap-3 border-b border-black/[0.04] px-3.5 py-3 text-left text-[13px] text-[#4f5b53] transition-colors last:border-b-0 hover:bg-[#f1f8f3]"
+                        >
+                          <span className="font-medium">{item}</span>
+                          <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-[#c8d8cd]" strokeWidth={2} />
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-3.5 py-3 text-[12.5px] text-[#9a9a9a]">
+                        어울리는 여행지를 찾고 있어요
+                      </div>
+                    )}
+                  </div>
+                </section>
+              ) : (
+                <SearchDiscoverySections
+                  recentSearches={recentSearches}
+                  onRecentSearchSelect={handleRecentSelect}
+                  onRegionSelect={handlePopularRegionSelect}
+                />
+              )}
               <div className="pt-4 pb-4">
                 <div className="h-px bg-black/5" />
               </div>

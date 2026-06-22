@@ -1,7 +1,7 @@
 import { type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Bookmark, Calendar, ChevronLeft, ChevronRight, Clock, Lightbulb, MapPin, Route, Sparkles, X } from 'lucide-react';
 import { useBottomSheetScrollLock } from './useBottomSheetScrollLock';
-import { filterLocationSuggestions, locationSuggestions } from '../locationSuggestions';
+import { getSearchSuggestions, locationSuggestions } from '../locationSuggestions';
 import type { ActivitySaveLookup, ActivitySaveRecord } from '../activitySaveState';
 import { resolveActivityImage } from '../utils/activityImage';
 
@@ -503,16 +503,18 @@ const getExitingDeckCardStyle = (direction: 1 | -1) => {
   const prefersReducedMotion = typeof window !== 'undefined'
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 430;
-  const exitOffset = direction === 1 ? -viewportWidth * 1.12 : viewportWidth * 1.12;
+  // Use 100% viewport width so exit card goes just off-screen (not 1.12x)
+  // to avoid increasing the document scroll width on Android
+  const exitOffset = direction === 1 ? -viewportWidth : viewportWidth;
 
   return {
     zIndex: 40,
-    opacity: 0,
+    opacity: 1,
     transform: `translate3d(${exitOffset}px, 0, 0) scale(0.96) rotate(${direction === 1 ? -9 : 9}deg)`,
     boxShadow: '0 12px 28px rgba(38,28,66,0.10)',
     transition: prefersReducedMotion
       ? 'none'
-      : 'transform 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease-out, box-shadow 260ms ease-out',
+      : 'transform 300ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 300ms ease-out',
   };
 };
 
@@ -1122,7 +1124,7 @@ export function HomeAIRecommendationFlow({
     },
   ];
   const aiRegionSuggestions = useMemo(() => {
-    const filteredSuggestions = filterLocationSuggestions(draftRegion);
+    const filteredSuggestions = getSearchSuggestions(draftRegion);
 
     return draftRegion.trim() ? filteredSuggestions : locationSuggestions.slice(0, 5);
   }, [draftRegion]);
@@ -1590,8 +1592,12 @@ export function HomeAIRecommendationFlow({
     if (!canMoveRecommendation || deckTransitionDirection !== null) return;
 
     setIsDeckDragging(false);
-    setDeckDragOffset(0);
-    deckPendingDragOffsetRef.current = 0;
+    // For swipe: keep deckDragOffset at its current position so the exit animation
+    // starts from where the finger left off, not from center. Reset in timeout.
+    if (interactionType !== 'swipe') {
+      setDeckDragOffset(0);
+      deckPendingDragOffsetRef.current = 0;
+    }
     deckDragVelocityXRef.current = 0;
     setDeckInteractionType(interactionType);
     setExitingRecommendationIndex(interactionType === 'swipe' ? activeRecommendationIndex : null);
@@ -1668,7 +1674,9 @@ export function HomeAIRecommendationFlow({
     const dragDistance = Math.abs(finalDragOffset);
     const velocityX = deckDragVelocityXRef.current;
 
-    if (dragDistance > 8) {
+    // Use 12px tap threshold instead of 8px for Android compatibility
+    // (Android touch events can report slight movement even for taps)
+    if (dragDistance > 12) {
       deckSuppressClickRef.current = true;
     }
 
@@ -1679,7 +1687,7 @@ export function HomeAIRecommendationFlow({
       return;
     }
 
-    if (shouldOpenOnTap && dragDistance <= 8) {
+    if (shouldOpenOnTap && dragDistance <= 12) {
       const activeRecommendation = recommendationDisplayItems[activeRecommendationIndex];
       const activeActivity = activeRecommendation
         ? { ...activeRecommendation.activity, imageUrl: activeRecommendation.imageUrl }
@@ -1702,7 +1710,7 @@ export function HomeAIRecommendationFlow({
     deckPendingDragOffsetRef.current = 0;
     deckDragVelocityXRef.current = 0;
     setIsDeckDragging(false);
-    if (dragDistance > 8) {
+    if (dragDistance > 12) {
       window.setTimeout(() => {
         deckSuppressClickRef.current = false;
       }, 120);
@@ -1812,7 +1820,11 @@ export function HomeAIRecommendationFlow({
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') confirmRegion();
                   }}
-                  autoFocus
+                  onFocus={(event) => {
+                    window.setTimeout(() => {
+                      event.target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                    }, 320);
+                  }}
                   placeholder="어디에서 활동을 찾을까요?"
                   className={aiInputClassName}
                 />
@@ -2163,6 +2175,9 @@ export function HomeAIRecommendationFlow({
                 )}
                 {recommendationDisplayItems.length > 0 ? (
                   <div>
+                    {/* Clip horizontal overflow from exit/enter card animations to prevent
+                        Android horizontal scroll. overflowX clip does not affect vertical overflow. */}
+                    <div className="-mx-5 px-5" style={{ overflowX: 'clip', overflowY: 'visible' }}>
                     <div
                       className="relative z-10 mx-auto h-[364px] max-w-[332px] touch-pan-y select-none overflow-visible overscroll-x-none [touch-action:pan-y] [-webkit-user-select:none]"
                       onPointerDown={handleDeckPointerDown}
@@ -2295,6 +2310,7 @@ export function HomeAIRecommendationFlow({
                         );
                       })}
                     </div>
+                    </div>{/* overflow-x clip wrapper */}
 
                     <div className="relative z-[60] mt-7 flex items-center justify-center gap-4">
                       <button

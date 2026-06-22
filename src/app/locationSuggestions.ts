@@ -1,3 +1,5 @@
+import { travelPlaceAliases } from './travelPlaceAliases';
+
 export const locationSuggestions = [
   '서울',
   '부산',
@@ -21,11 +23,31 @@ export const locationSuggestions = [
   '수원',
 ];
 
-export const filterLocationSuggestions = (query: string) => {
+// Primary display name for each travel place alias entry
+const aliasDisplayNames: readonly string[] = travelPlaceAliases.map((alias) => alias.keywords[0]);
+
+export function getSearchSuggestions(query: string): string[] {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) return [];
 
-  return locationSuggestions
-    .filter((location) => location.toLowerCase().includes(normalizedQuery))
-    .slice(0, 5);
-};
+  const exact: string[] = [];
+  const startsWith: string[] = [];
+  const partial: string[] = [];
+  const seen = new Set<string>();
+
+  const addItem = (display: string) => {
+    if (seen.has(display)) return;
+    seen.add(display);
+    const lower = display.toLowerCase();
+    if (lower === normalizedQuery) exact.push(display);
+    else if (lower.startsWith(normalizedQuery)) startsWith.push(display);
+    else if (lower.includes(normalizedQuery)) partial.push(display);
+  };
+
+  for (const name of locationSuggestions) addItem(name);
+  for (const name of aliasDisplayNames) addItem(name);
+
+  return [...exact, ...startsWith, ...partial].slice(0, 5);
+}
+
+export const filterLocationSuggestions = (query: string) => getSearchSuggestions(query);

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Search, Calendar, Users, MapPin, ChevronRight, X } from 'lucide-react';
 import { SearchDiscoverySections } from './SearchDiscoverySections';
-import { filterLocationSuggestions } from '../locationSuggestions';
+import { getSearchSuggestions } from '../locationSuggestions';
 import { type RecentSearchItem } from '../searchState';
 
 interface EnhancedSearchCardProps {
@@ -35,7 +35,7 @@ export function EnhancedSearchCard({
   const discoveryContentRef = useRef<HTMLDivElement>(null);
   const discoveryCloseTimerRef = useRef<number | null>(null);
   const normalizedDestination = destination.trim().toLowerCase();
-  const autocompleteItems = filterLocationSuggestions(destination);
+  const autocompleteItems = getSearchSuggestions(destination);
 
   useLayoutEffect(() => {
     const content = discoveryContentRef.current;
