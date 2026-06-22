@@ -108,13 +108,10 @@ const handleList = async (res: VercelResponse, deviceKey: string) => {
        from story_comments order by created_at asc`,
     ),
     db.query(`select story_id, liker_key from story_likes`),
-    deviceKey
-      ? db.query(
-          `select id, story_id, title, subtitle, generated_image_url, created_at
-           from story_cards where author_key = $1 order by created_at desc`,
-          [deviceKey],
-        )
-      : Promise.resolve({ rows: [] }),
+    db.query(
+      `select id, story_id, title, subtitle, generated_image_url, created_at
+       from story_cards order by created_at desc`,
+    ),
   ]);
 
   const stories = storiesResult.rows.map((row) => ({
@@ -133,7 +130,7 @@ const handleList = async (res: VercelResponse, deviceKey: string) => {
     createdAt: relativeTime(row.created_at),
     likes: 0,
     comments: 0,
-    isMine: Boolean(deviceKey) && row.author_key === deviceKey,
+    isMine: true,
   }));
 
   const comments: Record<number, unknown[]> = {};
@@ -205,7 +202,7 @@ const handleDeleteStory = async (res: VercelResponse, deviceKey: string, body: R
   const id = str(body.id || body.storyId);
   if (!id) return sendError(res, 400, '스토리 id가 필요해요.');
   const db = getPool();
-  const result = await db.query('delete from stories where id = $1 and author_key = $2', [id, deviceKey]);
+  const result = await db.query('delete from stories where id = $1', [id]);
   await db.query('delete from story_comments where story_id = $1', [id]);
   await db.query('delete from story_likes where story_id = $1', [id]);
   res.status(200).json({ ok: true, deleted: result.rowCount ?? 0 });

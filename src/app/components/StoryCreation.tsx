@@ -277,10 +277,7 @@ export function StoryCreation({ onNavigate, storyInteractions, userStories, prof
     };
 
     onCreateStory(nextStory);
-    setSaveMessage('스토리가 저장되었어요.');
-    window.setTimeout(() => {
-      handleBackToMap(true);
-    }, 700);
+    handleBackToMap(true);
   };
 
   return (

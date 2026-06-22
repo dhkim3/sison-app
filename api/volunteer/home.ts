@@ -150,7 +150,7 @@ const toSortableDate = (value?: string | null) => {
 
 const hasFutureRecruitmentDeadline = (activity: { recruitmentEndDate?: string | null }) => {
   const recruitmentEndDate = toSortableDate(activity.recruitmentEndDate);
-  return recruitmentEndDate > 0 && recruitmentEndDate >= getTodayApiDate();
+  return recruitmentEndDate > Number(getTodayApiDate());
 };
 
 const hasOnlyFutureRecruitmentDeadlines = (sections: HomeVolunteerSections) =>

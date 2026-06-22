@@ -447,16 +447,11 @@ export function EnhancedDetailBottomSheet({
     await copyShareUrl();
   };
 
-  const kakaoMapQuery = volunteerPlace || activity.recruitingOrganization || activity.title;
+  const kakaoMapQuery = (volunteerPlace || activity.recruitingOrganization || activity.title || '').trim();
   const hasMapQuery = Boolean(kakaoMapQuery);
-
-  const handleKakaoMapOpen = () => {
-    if (!hasMapQuery) return;
-
-    const kakaoMapUrl = `https://map.kakao.com/?q=${encodeURIComponent(kakaoMapQuery)}`;
-
-    window.open(kakaoMapUrl, '_blank', 'noopener,noreferrer');
-  };
+  const kakaoMapUrl = hasMapQuery
+    ? `https://map.kakao.com/link/search/${encodeURIComponent(kakaoMapQuery)}`
+    : '';
 
   const handleDetailDescriptionToggle = () => {
     if (isDetailDescriptionExpanded) {
@@ -561,18 +556,24 @@ export function EnhancedDetailBottomSheet({
               <div className="min-w-0 flex-1">
                 <p className="text-[#2a2a2a] leading-relaxed">{volunteerPlace}</p>
               </div>
-              <button
-                type="button"
-                onClick={handleKakaoMapOpen}
-                disabled={!hasMapQuery}
-                className={`flex-shrink-0 rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors ${
-                  hasMapQuery
-                    ? 'bg-[#f8f8f5] text-[#5a5a5a] hover:bg-[#e8f5ed] hover:text-[#2a2a2a]'
-                    : 'cursor-not-allowed bg-[#f5f5f2] text-[#9AA0A6]'
-                }`}
-              >
-                {hasMapQuery ? '카카오맵' : '지도 확인 필요'}
-              </button>
+              {hasMapQuery ? (
+                <a
+                  href={kakaoMapUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    console.info('[detail] open kakao map', { url: kakaoMapUrl, query: kakaoMapQuery });
+                  }}
+                  className="flex-shrink-0 rounded-full bg-[#f8f8f5] px-3 py-1.5 text-[12px] font-medium text-[#5a5a5a] transition-colors hover:bg-[#e8f5ed] hover:text-[#2a2a2a]"
+                >
+                  카카오맵
+                </a>
+              ) : (
+                <span className="flex-shrink-0 rounded-full bg-[#f5f5f2] px-3 py-1.5 text-[12px] font-medium text-[#9AA0A6]">
+                  지도 확인 필요
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-3">

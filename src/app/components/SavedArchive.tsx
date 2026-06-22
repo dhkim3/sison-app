@@ -256,7 +256,7 @@ export function SavedArchive({
   const [stories, setStories] = useState<StoryItem[]>(initialArchiveStories);
   const [travelCards, setTravelCards] = useState<ArchiveTravelCard[]>(initialTravelCards);
   const travelCardToastTimerRef = useRef<number | null>(null);
-  const travelCardRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const travelCardRefs = useRef<Record<string, HTMLElement | null>>({});
   const resolvedSavedActivities = avoidConsecutiveActivityImages(savedActivities);
 
   useLayoutEffect(() => {
@@ -470,69 +470,71 @@ export function SavedArchive({
                   const [year, month] = key.split('.');
                   const sortedCards = [...groups[key]].sort((a, b) => b.date.localeCompare(a.date));
                   return (
-                    <section key={key} className="mb-7">
-                      <p className="text-[13px] font-semibold text-[#2a2a2a] mb-3">
+                    <section key={key} className="mb-10 last:mb-7">
+                      <p className="mb-4 text-[13px] font-semibold text-[#2a2a2a]">
                         {year}년 {Number(month)}월
                       </p>
-                      <div
-                        className="overflow-x-auto scrollbar-hide -mx-5 px-5 pt-4 pb-14"
-                        style={{ display: 'flex', gap: '14px', scrollSnapType: 'x mandatory' }}
-                      >
-                        {sortedCards.map((card, i) => (
-                          <button
-                            key={card.id}
-                            ref={(element) => {
-                              travelCardRefs.current[card.id] = element;
-                            }}
-                            type="button"
-                            onClick={() => {
-                              setSelectedTravelCardAction(card);
-                              setTravelCardActionMode('actions');
-                            }}
-                            className="text-left bg-white rounded-3xl p-3 hover:opacity-90 transition-opacity"
-                            style={{
-                              flex: '0 0 min(62vw, 246px)',
-                              scrollSnapAlign: 'start',
-                              boxShadow: '0 8px 28px rgba(0, 0, 0, 0.11), 0 2px 8px rgba(0, 0, 0, 0.06)',
-                            }}
-                          >
+                      <div className="scrollbar-hide -mx-5 overflow-x-auto px-6 pb-7 pt-1">
+                        <div className="flex w-max items-start gap-[18px] overflow-visible pr-7" style={{ scrollSnapType: 'x mandatory' }}>
+                          {sortedCards.map((card) => (
                             <div
-                              className="overflow-hidden bg-[#f4f1ed]"
-                              style={{ aspectRatio: '1 / 1', borderRadius: '16px' }}
+                              key={card.id}
+                              ref={(element) => {
+                                travelCardRefs.current[card.id] = element;
+                              }}
+                              className="flex-none overflow-visible rounded-3xl shadow-[0_12px_26px_rgba(0,0,0,0.095),0_2px_8px_rgba(0,0,0,0.055)]"
+                              style={{
+                                width: 'min(62vw, 246px)',
+                                scrollSnapAlign: 'start',
+                              }}
                             >
-                              <img
-                                src={card.photoUrl}
-                                alt={card.title}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                            <div className="px-0.5 pt-3">
-                              <p
-                                className="text-[15px] font-semibold text-[#2a2a2a]"
-                                style={{
-                                  display: '-webkit-box',
-                                  WebkitLineClamp: 1,
-                                  WebkitBoxOrient: 'vertical',
-                                  overflow: 'hidden',
-                                  lineHeight: '1.35',
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedTravelCardAction(card);
+                                  setTravelCardActionMode('actions');
                                 }}
+                                className="block w-full overflow-hidden rounded-3xl bg-white p-3 text-left transition-opacity hover:opacity-90"
                               >
-                                {card.title}
-                              </p>
-                              <div className="mt-3 space-y-1">
-                                {card.locationLabel && (
-                                  <p className="text-[12px] font-medium leading-[1.35] text-[#6f6f6f]">
-                                    {card.locationLabel}
+                                <div
+                                  className="overflow-hidden bg-[#f4f1ed]"
+                                  style={{ aspectRatio: '1 / 1', borderRadius: '16px' }}
+                                >
+                                  <img
+                                    src={card.photoUrl}
+                                    alt={card.title}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                                <div className="px-0.5 pt-3">
+                                  <p
+                                    className="text-[15px] font-semibold text-[#2a2a2a]"
+                                    style={{
+                                      display: '-webkit-box',
+                                      WebkitLineClamp: 1,
+                                      WebkitBoxOrient: 'vertical',
+                                      overflow: 'hidden',
+                                      lineHeight: '1.35',
+                                    }}
+                                  >
+                                    {card.title}
                                   </p>
-                                )}
-                                <p className="text-[12px] font-normal leading-[1.35] text-[#b6b6b6]">{card.date}</p>
-                              </div>
-                              <div className="mt-3 border-t border-black/5 pt-2.5">
-                                <p className="text-center text-[11px] leading-none text-[#7A7F87] opacity-70">시선</p>
-                              </div>
+                                  <div className="mt-3 space-y-1">
+                                    {card.locationLabel && (
+                                      <p className="text-[12px] font-medium leading-[1.35] text-[#6f6f6f]">
+                                        {card.locationLabel}
+                                      </p>
+                                    )}
+                                    <p className="text-[12px] font-normal leading-[1.35] text-[#b6b6b6]">{card.date}</p>
+                                  </div>
+                                  <div className="mt-3 border-t border-black/5 pt-2.5">
+                                    <p className="text-center text-[11px] leading-none text-[#7A7F87] opacity-70">시선</p>
+                                  </div>
+                                </div>
+                              </button>
                             </div>
-                          </button>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     </section>
                   );

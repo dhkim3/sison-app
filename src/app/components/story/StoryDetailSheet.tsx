@@ -246,7 +246,7 @@ export function StoryDetailSheet({
           />
           <section className="relative w-full max-w-[342px] rounded-3xl border border-black/[0.04] bg-[#fdfcfa] p-5 shadow-[0_18px_42px_rgba(42,42,42,0.18)]">
             <h3 className="text-[17px] font-semibold leading-snug text-[#2a2a2a]">
-              이 기록을 삭제할까요?
+              이 스토리를 삭제할까요?
             </h3>
             <p className="mt-2 text-[12px] leading-5 text-[#5F6368]">
               삭제하면 다시 복구할 수 없어요.

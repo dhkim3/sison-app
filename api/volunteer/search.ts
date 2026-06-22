@@ -1105,7 +1105,7 @@ const getUpcomingActivityScore = (item: ParsedVolunteerItem, index: number) => {
 
   if (!isRecruitingItem(item)) return null;
   if (isActivityEnded(item)) return null;
-  if (!recruitmentEndDate || recruitmentEndValue < todayValue) return null;
+  if (!recruitmentEndDate || recruitmentEndValue <= todayValue) return null;
   if (activityEndValue > 0 && activityEndValue < todayValue) return null;
   if (candidateDateValue > 0 && candidateDateValue < todayValue) return null;
   if (candidateDate && candidateDateValue === 0) return null;
@@ -1136,8 +1136,6 @@ const getUpcomingActivityScore = (item: ParsedVolunteerItem, index: number) => {
   if (upcomingSecondaryPenaltyPattern.test(searchableText)) score -= 18;
   if (upcomingInstitutionalPenaltyPattern.test(searchableText)) score -= 24;
   if (upcomingRepeatPenaltyPattern.test(searchableText)) score -= 20;
-  if (recruitmentEndValue === todayValue) score -= 10;
-
   return {
     item,
     index,
@@ -1175,7 +1173,7 @@ const getUpcomingHomeFallbackScore = (
 
   if (!isRecruitingItem(item)) return null;
   if (isActivityEnded(item)) return null;
-  if (!recruitmentEndDate || recruitmentEndValue < todayValue) return null;
+  if (!recruitmentEndDate || recruitmentEndValue <= todayValue) return null;
   if (activityEndValue > 0 && activityEndValue < todayValue) return null;
   if (candidateDateValue > 0 && candidateDateValue < todayValue) return null;
   if (candidateDate && candidateDateValue === 0) return null;

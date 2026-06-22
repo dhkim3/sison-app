@@ -429,7 +429,7 @@ export default function App() {
           storyInteractions={storyInteractions}
           activeArchiveTab={savedArchiveTab}
           onArchiveTabChange={setSavedArchiveTab}
-          myStories={userStories.filter((story) => story.isMine)}
+          myStories={userStories}
           myCards={myCards}
           dismissedArchiveStoryIds={dismissedArchiveStoryIds}
           onDeleteArchiveStory={handleDeleteStory}

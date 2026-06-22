@@ -218,13 +218,7 @@ export function StoryUploadView({
           </section>
 
           {/* Action Buttons */}
-          <section className="space-y-2.5 pt-2">
-            {saveMessage && (
-              <p className="text-center text-[12px] leading-5 text-[#6f8b78]" role="status" aria-live="polite">
-                {saveMessage}
-              </p>
-            )}
-
+          <section className="pt-2">
             <button
               type="button"
               onClick={onSave}
@@ -238,6 +232,12 @@ export function StoryUploadView({
 
       {/* Bottom Tab Bar */}
       <BottomTabBar activeTab="story" onNavigate={onNavigate} />
+
+      {saveMessage && (
+        <div className="pointer-events-none fixed left-1/2 top-6 z-[100] -translate-x-1/2 rounded-full bg-[#2f3430]/92 px-4 py-2 text-center text-[12.5px] font-medium text-white shadow-[0_8px_24px_rgba(34,39,34,0.16)] backdrop-blur-md" role="status" aria-live="polite">
+          {saveMessage}
+        </div>
+      )}
     </>
   );
 }
