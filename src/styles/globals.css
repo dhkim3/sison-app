@@ -53,6 +53,8 @@ html {
   width: 100%;
   max-width: 100%;
   min-height: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   /* overflow 미설정: html에 overflow를 주면 body→viewport 전파가 끊겨 PC 마우스 휠 스크롤이 작동하지 않음 */
   overscroll-behavior-y: none;
   scrollbar-gutter: stable;
@@ -69,6 +71,8 @@ body,
 
 body {
   margin: 0;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   overflow-y: auto;
   overscroll-behavior-y: none;
   scrollbar-gutter: stable;

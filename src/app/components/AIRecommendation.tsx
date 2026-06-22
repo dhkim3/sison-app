@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Download, MapPin, Clock, Sparkles } from 'lucide-react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { ArrowLeft, Download, Sparkles } from 'lucide-react';
 import { PageShell } from './PageShell';
 import { useBottomSheetScrollLock } from './useBottomSheetScrollLock';
 import type { ActivitySaveRecord } from '../activitySaveState';
@@ -36,6 +36,57 @@ type TravelPlan = {
 
 type GeocodeSource = 'activity_place' | 'meeting_place' | 'institution' | 'region_center';
 type FetchResult = { plans: TravelPlan[]; baseLocationSource: GeocodeSource | null };
+
+type StableIconProps = {
+  size: number;
+  color: string;
+  strokeWidth?: number;
+  style?: CSSProperties;
+};
+
+function StableClockIcon({ size, color, strokeWidth = 2, style }: StableIconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      color={color}
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ display: 'block', flexShrink: 0, ...style }}
+    >
+      <circle cx="12" cy="12" r="10" stroke={color} />
+      <path d="M12 6v6l4 2" stroke={color} />
+    </svg>
+  );
+}
+
+function StableMapPinIcon({ size, color, strokeWidth = 2, style }: StableIconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      color={color}
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ display: 'block', flexShrink: 0, ...style }}
+    >
+      <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z" stroke={color} />
+      <circle cx="12" cy="10" r="3" stroke={color} />
+    </svg>
+  );
+}
 
 
 // ─── Cache ────────────────────────────────────────────────────────────────────
@@ -478,7 +529,17 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
     try {
       setScreenshotMessage('');
       const today = new Date().toISOString().slice(0, 10);
-      const blob = await captureElementAsPng(el, window.devicePixelRatio || 2, { backgroundColor: '#fdfcfa' });
+      const rect = el.getBoundingClientRect();
+      const blob = await captureElementAsPng(
+        el,
+        Math.max(2, window.devicePixelRatio || 1),
+        {
+          backgroundColor: '#fdfcfa',
+          width: rect.width,
+          height: rect.height,
+          preferSvgRenderer: true,
+        },
+      );
       downloadBlob(blob, `sison-itinerary-${today}.png`);
       setScreenshotMessage('이미지가 저장되었어요');
     } catch (error) {
@@ -627,13 +688,13 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
                     <h3 className="mb-4" style={{ color: '#2a2a2a' }}>{selectedActivity.title}</h3>
                     <div className="space-y-2">
                       <div className="flex items-center gap-2.5">
-                        <MapPin size={16} strokeWidth={2} style={{ color: '#c9897e', flexShrink: 0 }} />
+                        <StableMapPinIcon size={16} color="#c9897e" strokeWidth={2} />
                         <span className="text-sm font-normal min-w-0 truncate" style={{ color: '#5F6368' }}>
                           {selectedActivity.volunteerPlace || selectedActivity.location}
                         </span>
                       </div>
                       <div className="flex items-center gap-2.5">
-                        <Clock size={16} strokeWidth={2} style={{ color: '#b8b2aa', flexShrink: 0 }} />
+                        <StableClockIcon size={16} color="#b8b2aa" strokeWidth={2} />
                         <span className="text-sm font-normal" style={{ color: '#5F6368' }}>
                           {[selectedActivity.date, selectedActivity.time].filter(Boolean).join(' · ')}
                         </span>
@@ -687,12 +748,12 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
 
                             <div className="mb-4 flex items-center gap-4" style={{ fontSize: '12px', color: '#6B7280' }}>
                               <span className="flex items-center gap-1.5">
-                                <Clock size={14} strokeWidth={2} style={{ color: accentColor, flexShrink: 0 }} />
+                                <StableClockIcon size={14} color={accentColor} strokeWidth={2} />
                                 {plan.duration}
                               </span>
                               {radiusKm && (
                                 <span className="flex items-center gap-1.5">
-                                  <MapPin size={14} strokeWidth={2} style={{ color: accentColor, flexShrink: 0 }} />
+                                  <StableMapPinIcon size={14} color={accentColor} strokeWidth={2} />
                                   반경 {radiusKm}
                                 </span>
                               )}

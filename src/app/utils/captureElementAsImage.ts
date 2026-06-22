@@ -18,6 +18,9 @@ type CaptureDebugInfo = {
 
 type CaptureOptions = {
   backgroundColor?: string;
+  width?: number;
+  height?: number;
+  preferSvgRenderer?: boolean;
 };
 
 const DEFAULT_CAPTURE_BACKGROUND_COLOR = '#fdfcfa';
@@ -153,10 +156,6 @@ async function imageUrlToDataUrl(src: string, cacheBust = false) {
 function sanitizeCaptureStyles(target: HTMLElement) {
   for (const property of SAFARI_UNSUPPORTED_CAPTURE_STYLES) {
     target.style.removeProperty(property);
-  }
-
-  if (target.style.transform.includes('translateZ') || target.style.transform.includes('scale')) {
-    target.style.transform = 'none';
   }
 }
 
@@ -515,8 +514,8 @@ async function captureElementWithCanvasFallback(
 
 export async function captureElementAsPng(element: HTMLElement, scale = 2, options: CaptureOptions = {}) {
   const rect = element.getBoundingClientRect();
-  const width = Math.ceil(rect.width);
-  const height = Math.ceil(rect.height);
+  const width = Math.ceil(options.width ?? rect.width);
+  const height = Math.ceil(options.height ?? rect.height);
   const debugInfo = buildCaptureDebugInfo(element, width, height);
   const backgroundColor = options.backgroundColor || DEFAULT_CAPTURE_BACKGROUND_COLOR;
 
@@ -529,7 +528,7 @@ export async function captureElementAsPng(element: HTMLElement, scale = 2, optio
   try {
     await prepareElementForCapture(element);
 
-    if (isWebKitCaptureFallbackRequired()) {
+    if (!options.preferSvgRenderer && isWebKitCaptureFallbackRequired()) {
       return await captureElementWithCanvasFallback(element, width, height, Math.min(scale, 2), backgroundColor);
     }
 
@@ -540,7 +539,6 @@ export async function captureElementAsPng(element: HTMLElement, scale = 2, optio
 
     clone.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
     clone.style.margin = '0';
-    clone.style.transform = 'none';
     // 투명 캡처 모드에서는 클론 자체의 배경(예: 카드 bg-white)을 덮어쓰지 않는다.
     // 그래야 둥근 모서리 안쪽은 원본 색이 유지되고, 바깥쪽 사각형 영역만 투명해진다.
     if (backgroundColor !== 'transparent') {
