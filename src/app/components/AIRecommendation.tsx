@@ -592,18 +592,18 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
               <div ref={itineraryContentRef} className="relative space-y-8 px-6 py-6">
                 {/* 봉사활동 정보 */}
                 <section>
-                  <div className="bg-white rounded-3xl p-5 shadow-sm border border-black/5">
-                    <h3 className="mb-4">{selectedActivity.title}</h3>
+                  <div className="bg-white rounded-3xl p-5" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.06)' }}>
+                    <h3 className="mb-4" style={{ color: '#2a2a2a' }}>{selectedActivity.title}</h3>
                     <div className="space-y-2">
                       <div className="flex items-center gap-2.5">
-                        <MapPin className="w-4 h-4 text-[#c9897e]" strokeWidth={2} />
-                        <span className="text-sm font-normal text-[#5F6368]">
+                        <MapPin size={16} strokeWidth={2} style={{ color: '#c9897e', flexShrink: 0 }} />
+                        <span className="text-sm font-normal min-w-0 truncate" style={{ color: '#5F6368' }}>
                           {selectedActivity.volunteerPlace || selectedActivity.location}
                         </span>
                       </div>
                       <div className="flex items-center gap-2.5">
-                        <Clock className="w-4 h-4 text-[#b8b2aa]" strokeWidth={2} />
-                        <span className="text-sm font-normal text-[#5F6368]">
+                        <Clock size={16} strokeWidth={2} style={{ color: '#b8b2aa', flexShrink: 0 }} />
+                        <span className="text-sm font-normal" style={{ color: '#5F6368' }}>
                           {[selectedActivity.date, selectedActivity.time].filter(Boolean).join(' · ')}
                         </span>
                       </div>
@@ -642,25 +642,26 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
                         return (
                           <div
                             key={planIndex}
-                            className="bg-white rounded-3xl p-5 shadow-sm border border-black/5"
+                            className="bg-white rounded-3xl p-5"
+                            style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.06)' }}
                           >
                             <p
-                              className="mb-1 text-[11px] font-medium uppercase tracking-wide"
-                              style={{ color: accentColor }}
+                              className="mb-1 font-medium uppercase tracking-wide"
+                              style={{ fontSize: '11px', color: accentColor }}
                             >
                               일정 {planIndex + 1}
                             </p>
-                            <h4 className="mb-1.5 text-[#2a2a2a]">{plan.title}</h4>
-                            <p className="mb-3 text-sm leading-relaxed text-[#777]">{plan.summary}</p>
+                            <h4 className="mb-1.5" style={{ color: '#2a2a2a' }}>{plan.title}</h4>
+                            <p className="mb-3 text-sm leading-relaxed" style={{ color: '#777' }}>{plan.summary}</p>
 
-                            <div className="mb-4 flex items-center gap-4 text-[12px] text-[#6B7280]">
+                            <div className="mb-4 flex items-center gap-4" style={{ fontSize: '12px', color: '#6B7280' }}>
                               <span className="flex items-center gap-1.5">
-                                <Clock className="w-3.5 h-3.5" strokeWidth={2} style={{ color: accentColor }} />
+                                <Clock size={14} strokeWidth={2} style={{ color: accentColor, flexShrink: 0 }} />
                                 {plan.duration}
                               </span>
                               {radiusKm && (
                                 <span className="flex items-center gap-1.5">
-                                  <MapPin className="w-3.5 h-3.5" strokeWidth={2} style={{ color: accentColor }} />
+                                  <MapPin size={14} strokeWidth={2} style={{ color: accentColor, flexShrink: 0 }} />
                                   반경 {radiusKm}
                                 </span>
                               )}
@@ -696,19 +697,19 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
                                           />
                                         )}
                                         <div className="flex-1 min-w-0">
-                                          <div className="flex items-baseline gap-1.5 flex-wrap leading-snug">
+                                          <div className="flex items-center gap-1.5 min-w-0">
                                             {stop.title && (
-                                              <span className="text-sm font-medium" style={{ color: '#2a2a2a' }}>
+                                              <span className="text-sm font-medium truncate min-w-0 flex-1" style={{ color: '#2a2a2a' }}>
                                                 {stop.title}
                                               </span>
                                             )}
                                             {distKm && (
-                                              <span className="text-[12px] font-normal flex-shrink-0" style={{ color: '#6B7280' }}>
+                                              <span className="font-normal flex-shrink-0" style={{ fontSize: '12px', color: '#6B7280' }}>
                                                 · {distKm}
                                               </span>
                                             )}
                                           </div>
-                                          <p className="mt-0.5 text-[12px] text-[#7A7F87] leading-snug line-clamp-2">
+                                          <p className="mt-0.5 leading-snug line-clamp-2" style={{ fontSize: '12px', color: '#7A7F87' }}>
                                             {description}
                                           </p>
                                         </div>
@@ -728,7 +729,7 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
 
               {/* 이미지 저장 버튼 — 캡처 범위 외 */}
               {plans.length > 0 && (
-                <section className="px-6 pt-2 pb-8">
+                <section className="px-6 pt-2" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom, 0px) + 1.5rem)' }}>
                   <button
                     type="button"
                     onClick={handleSaveScreenshot}
