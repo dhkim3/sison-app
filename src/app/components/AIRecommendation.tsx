@@ -304,7 +304,7 @@ const aiPreparationMessages = [
 const travelShuffleCards = [
   {
     title: '해변 산책',
-    image: '/activity-images/default-travel-1.png',
+    image: '/activity-images/ai-shuffle-beach.jpg',
     positionClass: 'left-4 top-4 -rotate-[7deg]',
     cardClass: 'h-[104px] w-[92px]',
     imageClass: 'h-[58px]',
@@ -312,7 +312,7 @@ const travelShuffleCards = [
   },
   {
     title: '숲길 산책',
-    image: '/activity-images/forest-trail-2.png',
+    image: '/activity-images/ai-shuffle-forest.jpg',
     positionClass: 'right-5 top-12 rotate-[7deg]',
     cardClass: 'h-[100px] w-[90px]',
     imageClass: 'h-[56px]',
@@ -320,7 +320,7 @@ const travelShuffleCards = [
   },
   {
     title: '감성 카페거리',
-    image: '/activity-images/city-travel-2.png',
+    image: '/activity-images/ai-shuffle-cafe.jpg',
     positionClass: 'bottom-9 left-2 -rotate-[5deg]',
     cardClass: 'h-[98px] w-[92px]',
     imageClass: 'h-[54px]',
@@ -328,7 +328,7 @@ const travelShuffleCards = [
   },
   {
     title: '전망대',
-    image: '/activity-images/city-travel-3.png',
+    image: '/activity-images/ai-shuffle-viewpoint.jpg',
     positionClass: 'bottom-4 right-4 rotate-[8deg]',
     cardClass: 'h-[102px] w-[90px]',
     imageClass: 'h-[58px]',
@@ -338,8 +338,29 @@ const travelShuffleCards = [
 
 const featuredShuffleCard = {
   title: '전통시장 탐방',
-  image: '/activity-images/festival-event-2.png',
+  image: '/activity-images/ai-shuffle-market.jpg',
 };
+
+const aiShuffleImageSources = [
+  ...travelShuffleCards.map((card) => card.image),
+  featuredShuffleCard.image,
+];
+
+let didPreloadAiShuffleImages = false;
+
+function preloadAiShuffleImages() {
+  if (didPreloadAiShuffleImages || typeof window === 'undefined') return;
+  didPreloadAiShuffleImages = true;
+
+  aiShuffleImageSources.forEach((src) => {
+    const href = new URL(src, window.location.href).toString();
+    const image = new Image();
+    image.decoding = 'sync';
+    image.src = href;
+  });
+}
+
+preloadAiShuffleImages();
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -367,6 +388,10 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
   const handleBack = () => {
     onBack();
   };
+
+  useEffect(() => {
+    preloadAiShuffleImages();
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -531,6 +556,9 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
                           src={card.image}
                           alt=""
                           draggable={false}
+                          loading="eager"
+                          decoding="sync"
+                          fetchPriority="high"
                           className={`${card.imageClass} pointer-events-none mb-2 w-full select-none rounded-[13px] object-cover [-webkit-user-drag:none]`}
                         />
                         <p className="truncate text-[10.5px] font-bold text-[#65527d]">
@@ -546,6 +574,9 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
                         src={featuredShuffleCard.image}
                         alt=""
                         draggable={false}
+                        loading="eager"
+                        decoding="sync"
+                        fetchPriority="high"
                         className="pointer-events-none h-[72px] w-full select-none rounded-[16px] object-cover shadow-[0_8px_18px_rgba(68,40,114,0.16)] [-webkit-user-drag:none]"
                       />
                       <div className="mt-2 flex items-center gap-1.5">
