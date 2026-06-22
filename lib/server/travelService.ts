@@ -247,6 +247,46 @@ function stripIndoorSuffix(text: string): string {
   return text.replace(INDOOR_SUFFIX_RE, '').trim();
 }
 
+// 층 정보가 중간에 있는 경우 제거 ("서현유스센터 1층 작은도서관" → "서현유스센터")
+const MID_FLOOR_RE = /\s+\d+층\s+.+$/;
+function stripMidFloor(text: string): string {
+  return text.replace(MID_FLOOR_RE, '').trim();
+}
+
+// 공백 없는 복합 시설명에서 선행 행정구역 분리
+// "동래구혁신어울림센터" → ["동래구", "혁신어울림센터"]
+// "인천시서구자원봉사센터" → ["인천시서구", "자원봉사센터"]
+const LEADING_ADMIN_RE = /^([가-힣]+(특별시|광역시|특별자치시|특별자치도|도)?[가-힣]*(시|군|구))/;
+function splitCompoundAdmin(text: string): [string, string] | null {
+  if (text.includes(' ')) return null;
+  const m = text.match(LEADING_ADMIN_RE);
+  if (!m) return null;
+  const admin = m[0];
+  const rest = text.slice(admin.length);
+  return rest.length >= 2 ? [admin, rest] : null;
+}
+
+// 공백 없는 복합 토큰에서 선행 동/읍/면 추출
+// "고운동남측복컴" → "고운동"
+function extractLeadingDong(token: string): string | null {
+  if (token.includes(' ')) return null;
+  const m = token.match(/^([가-힣]+(?:동|읍|면|리))(?=[가-힣])/);
+  return m ? m[1] : null;
+}
+
+// 괄호 내용이 주소인지 확인 — 한국식 도로명(옥천로91)도 포함
+const BRACKET_ADDR_RE = /\d+(?:길|로|번길|번지)|[가-힣]+(?:로|길)\s*\d|[시군구동읍면리][\s,]/;
+
+// & 구분 다중 장소 문자열 분리 ("북촌문화센터 & 부암동 & 이화마을(택1)" → ["북촌문화센터", ...])
+function splitMultiLocation(text: string): string[] | null {
+  if (!text.includes('&') && !text.includes('＆')) return null;
+  const parts = text
+    .split(/\s*[&＆]\s*/)
+    .map((s) => s.replace(/\(택\d+\)/g, '').trim())
+    .filter((s) => s.length > 1);
+  return parts.length >= 2 ? parts : null;
+}
+
 // 뒤에서 한 토큰씩 제거 (행정단위에서 멈춤)
 function buildShrinkCandidates(address: string): string[] {
   const tokens = address.trim().split(/\s+/);
@@ -284,19 +324,28 @@ export function normalizeVolunteerAddress(rawAddress: string, region = ''): stri
   // 1. 접두어 제거
   let base = rawAddress.trim().replace(ADDRESS_PREFIX_RE, '');
 
-  // 1-b. 괄호 안 주소 우선 추출 — 숫자+길/로 또는 행정구역+숫자 패턴이면 최우선 후보로 등록
-  // 예) "여수시육아종합지원센터(웅천6길47)" → "웅천6길47" 최우선 시도
+  // 1-b. 괄호 안 주소 우선 추출 — 숫자+길/로, 한국식 도로명(옥천로91), 행정구역 패턴이면 최우선 후보로 등록
+  // 예) "감천문화마을캠프(옥천로91)" → "옥천로91" 최우선 시도
   {
     const bracketMatch = base.match(/\(([^)]{2,60})\)/);
     if (bracketMatch) {
       const inner = bracketMatch[1].replace(/[\r\n\t]+/g, ' ').trim();
-      if (/\d+(?:길|로|번길|번지)|[시군구동읍면리]\s/.test(inner)) {
+      if (BRACKET_ADDR_RE.test(inner)) {
         push(inner);
         const r =
           extractSigungu(region) ??
           (region.trim() ? region.trim().split(/\s+/).slice(0, 2).join(' ') : '');
         if (r && !inner.startsWith(r)) push(`${r} ${inner}`);
       }
+    }
+  }
+
+  // 1-c. & 구분 다중 장소 분리 — 첫 번째 장소를 최우선 후보로 추가
+  // 예) "북촌문화센터 & 부암동 & 이화마을(택1)" → "북촌문화센터" 먼저 시도
+  {
+    const multiParts = splitMultiLocation(base.replace(/\(택\d+\)/g, ''));
+    if (multiParts) {
+      for (const part of multiParts) push(part);
     }
   }
 
@@ -312,6 +361,12 @@ export function normalizeVolunteerAddress(rawAddress: string, region = ''): stri
 
   // 2-b. 실내 위치 표현 제거 (끝에 붙은 층/호/강당/내 등)
   base = stripIndoorSuffix(base);
+
+  // 2-c. 층 정보가 중간에 있는 경우 축약본 추가 ("서현유스센터 1층 작은도서관" → "서현유스센터")
+  {
+    const midFloorStripped = stripMidFloor(base);
+    if (midFloorStripped !== base && midFloorStripped.length > 1) push(midFloorStripped);
+  }
 
   // 3. 정제된 원본 추가
   push(base);
@@ -393,6 +448,37 @@ export function normalizeVolunteerAddress(rawAddress: string, region = ''): stri
         const locPart = m[1];
         push(`${locPart}동`);
         if (locPart.length >= 3) push(`${locPart.slice(0, -1)}동`);
+      }
+    }
+  }
+
+  // 11. 공백 없는 복합 시설명에서 선행 행정구역 분리
+  //     "동래구혁신어울림센터" → "동래구" + "혁신어울림센터" → "동래구 혁신어울림센터"
+  //     "인천시서구자원봉사센터" → "인천시서구" + "자원봉사센터" → "인천시서구 자원봉사센터"
+  {
+    const tokens = addrBase.trim().split(/\s+/);
+    for (const tok of tokens) {
+      const split = splitCompoundAdmin(tok);
+      if (split) {
+        const [admin, rest] = split;
+        push(`${admin} ${rest}`);
+        if (region.trim() && !admin.startsWith(region.trim())) {
+          push(`${region.trim()} ${admin} ${rest}`);
+        }
+        push(rest);
+      }
+    }
+  }
+
+  // 12. 공백 없는 복합 토큰에서 선행 동/읍/면 추출
+  //     "고운동남측복컴" → "고운동" (+ region prefix로 DISTRICT 폴백)
+  {
+    const tokens = addrBase.trim().split(/\s+/);
+    for (const tok of tokens) {
+      const dong = extractLeadingDong(tok);
+      if (dong) {
+        push(dong);
+        if (region.trim()) push(`${region.trim()} ${dong}`);
       }
     }
   }

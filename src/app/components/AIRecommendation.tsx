@@ -82,10 +82,6 @@ function getSafeImageSource(src: string | null) {
 }
 
 
-function saveScreenshotBlob(blob: Blob, filename: string) {
-  downloadBlob(blob, filename);
-}
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function deriveDestination(location: string): string {
@@ -154,178 +150,120 @@ async function fetchTravelPlans(
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+// 제목 문자 기반 단순 해시 — 같은 장소는 항상 같은 variation 선택
+function hashVariation(text: string, count: number): number {
+  let h = 0;
+  for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) & 0xffff;
+  return h % count;
+}
+
 function getStopDescription(stop: PlaceStop): string {
-  // 1순위: API에서 받아온 overview
-  if (stop.overview) return stop.overview;
+  if (stop.overview) {
+    const cleaned = stop.overview
+      .replace(/<[^>]+>/g, '')
+      .replace(/^\S+(?:시|군|구|도)의\s*/g, '')
+      .replace(/서울특별시의?\s*/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (cleaned && cleaned !== stop.title.trim()) return cleaned;
+  }
 
-  // 2순위: contentTypeId + 제목 키워드 기반 설명
   const { title, contentTypeId, address } = stop;
+  const v = (arr: string[]) => arr[hashVariation(title, arr.length)];
   const region = address.match(/(\S+[시군])\s/)?.[1] ?? '';
-  const pre = region ? `${region}의 ` : '';
 
-  if (contentTypeId === '39') return '지역 대표 음식을 맛볼 수 있는 맛집';
-  if (contentTypeId === '38') return '지역 특산품을 구매할 수 있는 쇼핑 명소';
-  if (contentTypeId === '28') return '레포츠와 액티비티를 즐길 수 있는 명소';
-  if (/사찰|절|암자/.test(title)) return '조용한 분위기의 전통 사찰';
-  if (/박물관|기념관|전시관/.test(title)) return `${pre}지역 역사와 문화를 전시하는 공간`;
-  if (/미술관|갤러리/.test(title)) return '예술 작품을 감상할 수 있는 전시 공간';
-  if (/전망대|전망/.test(title)) return '탁 트인 풍경을 감상할 수 있는 전망 명소';
-  if (/해수욕장|해변|모래사장/.test(title)) return '바다 풍경과 산책을 즐길 수 있는 해수욕장';
-  if (/수목원|식물원/.test(title)) return '다양한 식물과 자연을 체험할 수 있는 공간';
-  if (/공원|정원/.test(title)) return '가볍게 산책하기 좋은 휴식 공간';
-  if (/시장|장터/.test(title)) return `${pre}지역 먹거리와 문화를 경험할 수 있는 시장`;
-  if (/향교|서원|고택/.test(title)) return '조선시대 전통 건축을 살펴볼 수 있는 유적지';
-  if (/항$|항구|포구/.test(title)) return '바다와 어항 풍경을 감상하기 좋은 장소';
-  if (/숲|수림/.test(title)) return '자연 속 숲길 산책을 즐기기 좋은 명소';
-  if (/계곡|폭포/.test(title)) return '시원한 자연 경관을 즐길 수 있는 명소';
-  if (contentTypeId === '14') return `${pre}문화와 역사를 살펴볼 수 있는 시설`;
-  return `${pre}지역을 대표하는 관광 명소`;
+  if (contentTypeId === '39') return v([
+    '봉사 후 가볍게 들러 지역 음식을 맛보기 좋은 곳이에요.',
+    '일정 마무리 후 부담 없이 들러보기 좋은 식당이에요.',
+  ]);
+  if (contentTypeId === '38') return v([
+    '지역 특산품을 천천히 둘러보기 좋은 쇼핑 명소예요.',
+    '산책 후 잠깐 들러보기 좋은 상점 공간이에요.',
+  ]);
+  if (contentTypeId === '28') return v([
+    '가볍게 체험하며 에너지를 충전하기 좋은 공간이에요.',
+    '봉사 후 액티비티로 마무리하기 좋은 장소예요.',
+  ]);
+  if (/사찰|절$|암자/.test(title)) return v([
+    '봉사 후 고요하게 산책하기 좋은 사찰 공간이에요.',
+    '조용한 분위기에서 잠시 머물러보기 좋은 사찰이에요.',
+  ]);
+  if (/박물관|기념관|전시관/.test(title)) return v([
+    '짧게 머물며 지역 이야기를 살펴보기 좋은 전시 공간이에요.',
+    '실내에서 가볍게 둘러보기 좋은 문화 시설이에요.',
+  ]);
+  if (/미술관|갤러리/.test(title)) return v([
+    '짧게 머물며 예술 분위기를 느껴보기 좋은 공간이에요.',
+    '조용히 감상하며 쉬어가기 좋은 전시 공간이에요.',
+  ]);
+  if (/전망대|전망/.test(title)) return v([
+    '탁 트인 경관을 가볍게 감상하기 좋은 곳이에요.',
+    '봉사 후 탁 트인 풍경으로 숨을 고르기 좋아요.',
+  ]);
+  if (/해수욕장|해변|모래사장/.test(title)) return v([
+    '봉사 후 바닷바람을 맞으며 산책하기 좋은 해변이에요.',
+    '가볍게 걸으며 바다 풍경을 감상하기 좋아요.',
+  ]);
+  if (/수목원|식물원/.test(title)) return v([
+    '자연 속에서 조용히 산책하기 좋은 공간이에요.',
+    '초록 풍경을 느끼며 여유롭게 둘러보기 좋아요.',
+  ]);
+  if (/공원|정원/.test(title)) return v([
+    '봉사 후 잠깐 걸으며 숨을 고르기 좋은 공원이에요.',
+    '이동 중 가볍게 들러 산책하기 좋은 녹지 공간이에요.',
+    '짧은 휴식과 산책을 함께 하기 좋은 코스예요.',
+  ]);
+  if (/시장|장터/.test(title)) return v([
+    '일정 마무리 전 지역 분위기를 느끼며 거닐기 좋아요.',
+    '지역 먹거리와 분위기를 가볍게 체험하기 좋은 시장이에요.',
+  ]);
+  if (/향교|서원|고택/.test(title)) return v([
+    '도심 속에서 오래된 지역 분위기를 천천히 느껴볼 수 있어요.',
+    '지역의 역사적 분위기를 가볍게 살펴보기 좋은 유적지예요.',
+  ]);
+  if (/항$|항구|포구/.test(title)) return v([
+    '바다와 어항 풍경을 천천히 감상하기 좋은 공간이에요.',
+    '봉사 후 항구 풍경을 바라보며 쉬어가기 좋아요.',
+  ]);
+  if (/숲|수림/.test(title)) return v([
+    '조용한 숲길을 걸으며 여유를 찾기 좋은 곳이에요.',
+    '봉사 후 숲 속 산책으로 마무리하기 좋은 코스예요.',
+  ]);
+  if (/계곡|폭포/.test(title)) return v([
+    '시원한 자연 경관 속에서 잠시 쉬어가기 좋아요.',
+    '봉사 후 자연 경관으로 마음을 가라앉히기 좋은 명소예요.',
+  ]);
+  if (/거리|상권|골목/.test(title)) return v([
+    '산책 후 간단히 쉬어가거나 주변을 둘러보기 좋은 거리예요.',
+    '지역 분위기를 느끼며 가볍게 걷기 좋은 구간이에요.',
+    '일정 마무리 전 지역 거리 분위기를 느끼며 쉬어가기 좋아요.',
+  ]);
+  if (/문화센터|문화원|아트센터/.test(title)) return v([
+    '짧게 머물며 지역 문화 분위기를 느껴보기 좋은 공간이에요.',
+    '실내에서 잠시 쉬며 둘러보기 좋은 문화 공간이에요.',
+  ]);
+  if (contentTypeId === '14') return v([
+    '지역의 역사와 문화를 가볍게 살펴보기 좋은 곳이에요.',
+    '짧은 탐방 코스로 부담 없이 둘러보기 좋아요.',
+  ]);
+
+  if (region) return v([
+    `${region} 여행의 흐름을 이어주는 탐방 명소예요.`,
+    `${region} 일정에 가볍게 포함하기 좋은 장소예요.`,
+    '봉사 후 가볍게 들러보기 좋은 여행 명소예요.',
+  ]);
+
+  return v([
+    '봉사 후 가볍게 들러보기 좋은 여행 명소예요.',
+    '이동 중 부담 없이 들러볼 수 있는 장소예요.',
+    '일정 사이에 짧게 머물러보기 좋은 공간이에요.',
+  ]);
 }
 
 function formatDistance(distance: number): string {
   if (!Number.isFinite(distance) || distance <= 0) return '';
   if (distance < 1000) return `${Math.round(distance)}m`;
   return `${(distance / 1000).toFixed(1)}km`;
-}
-
-function getShareStopDescription(stop: PlaceStop): string {
-  const rawDescription = getStopDescription(stop)
-    .replace(/\s+/g, ' ')
-    .replace(/서울특별시의\s*/g, '')
-    .trim();
-
-  if (!rawDescription) return '';
-  if (/지역을 대표하는 관광 명소/.test(rawDescription)) return '';
-  if (rawDescription === stop.title.trim()) return '';
-  return rawDescription;
-}
-
-function getShareStops(plan: TravelPlan): PlaceStop[] {
-  const seenTitles = new Set<string>();
-
-  return plan.stops
-    .filter((stop) => stop.title?.trim())
-    .filter((stop) => {
-      const key = stop.title.trim();
-      if (seenTitles.has(key)) return false;
-      seenTitles.add(key);
-      return true;
-    })
-    .slice(0, 4);
-}
-
-function AiItineraryShareCaptureView({
-  activity,
-  plans,
-}: {
-  activity: ActivitySaveRecord;
-  plans: TravelPlan[];
-}) {
-  return (
-    <div className="w-[430px] bg-[#fdfcfa] px-6 py-7 font-['Pretendard'] text-[#1f2937]">
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <p className="text-[12px] font-semibold tracking-[0.16em] text-[#8bb99d]">SISON AI ITINERARY</p>
-          <h2 className="mt-1 text-[24px] font-bold leading-tight text-[#1f2937]">추천 여행 일정</h2>
-        </div>
-        <div className="rounded-full bg-[#e8f5ed] px-3 py-1.5 text-[12px] font-semibold text-[#5f8d70]">
-          AI 추천
-        </div>
-      </div>
-
-      <section className="mb-7 rounded-[24px] border border-[#edf0ec] bg-white px-5 py-5 shadow-[0_10px_26px_rgba(31,41,55,0.05)]">
-        <p className="mb-2 text-[12px] font-semibold text-[#7ba98b]">선택한 봉사활동</p>
-        <h3 className="text-[18px] font-bold leading-snug text-[#1f2937]">
-          {activity.title}
-        </h3>
-        <div className="mt-3 space-y-1.5 text-[13px] font-medium leading-relaxed text-[#4b5563]">
-          <p className="truncate">{activity.volunteerPlace || activity.location}</p>
-          <p>{[activity.date, activity.time].filter(Boolean).join(' · ')}</p>
-        </div>
-      </section>
-
-      <section>
-        <h3 className="mb-4 text-[18px] font-bold text-[#1f2937]">추천 일정</h3>
-        <div className="space-y-4">
-          {plans.map((plan, planIndex) => {
-            const radiusKm = plan.maxDistanceM > 0 ? `${(plan.maxDistanceM / 1000).toFixed(1)}km` : '';
-            const accentColor = itineraryAccentColors[planIndex % itineraryAccentColors.length];
-            const stops = getShareStops(plan);
-
-            return (
-              <article
-                key={`${plan.title}-${planIndex}`}
-                className="rounded-[24px] border border-[#edf0ec] bg-white px-5 py-5 shadow-[0_10px_26px_rgba(31,41,55,0.05)]"
-              >
-                <p className="mb-1 text-[12px] font-bold" style={{ color: accentColor }}>
-                  일정 {planIndex + 1}
-                </p>
-                <h4 className="text-[19px] font-bold leading-snug text-[#1f2937]">
-                  {plan.title}
-                </h4>
-                <p className="mt-2 line-clamp-2 text-[13.5px] font-medium leading-[1.55] text-[#4b5563]">
-                  {plan.summary}
-                </p>
-
-                <div className="mt-3 flex items-center gap-3 text-[12.5px] font-semibold text-[#6b7280]">
-                  <span>{plan.duration}</span>
-                  {radiusKm && <span>반경 {radiusKm}</span>}
-                </div>
-
-                {stops.length > 0 && (
-                  <div className="mt-4 space-y-3">
-                    {stops.map((stop, stopIndex) => {
-                      const description = getShareStopDescription(stop);
-                      const distance = formatDistance(stop.distance);
-
-                      return (
-                        <div key={`${stop.id || stop.title}-${stopIndex}`} className="flex min-h-[56px] gap-3">
-                          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#eef4ef]">
-                            {stop.image ? (
-                              <img
-                                src={getSafeImageSource(stop.image)}
-                                crossOrigin="anonymous"
-                                referrerPolicy="no-referrer"
-                                alt=""
-                                className="h-12 w-12 object-cover"
-                              />
-                            ) : (
-                              <span className="text-[13px] font-bold" style={{ color: accentColor }}>
-                                {stopIndex + 1}
-                              </span>
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1 pt-0.5">
-                            <p className="truncate text-[15px] font-bold leading-tight text-[#1f2937]">
-                              {stop.title}
-                            </p>
-                            {description && (
-                              <p className="mt-1 line-clamp-2 text-[12.5px] font-medium leading-[1.45] text-[#4b5563]">
-                                {description}
-                              </p>
-                            )}
-                            {distance && (
-                              <p className="mt-1 text-[12px] font-semibold text-[#6b7280]">
-                                {distance}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </article>
-            );
-          })}
-        </div>
-      </section>
-
-      <div className="mt-7 border-t border-[#edf0ec] pt-4 text-center text-[12px] font-semibold text-[#6b7280]">
-        시선이 고른 봉사 후 여행 일정
-      </div>
-    </div>
-  );
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -396,7 +334,7 @@ const featuredShuffleCard = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: AIRecommendationProps) {
-  const captureRef = useRef<HTMLDivElement>(null);
+  const itineraryContentRef = useRef<HTMLDivElement>(null);
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [isPreparing, setIsPreparing] = useState(true);
   const [screenshotMessage, setScreenshotMessage] = useState('');
@@ -496,17 +434,17 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
   }, [screenshotMessage]);
 
   const handleSaveScreenshot = async () => {
-    const sourceElement = captureRef.current;
-    if (!sourceElement) return;
+    const el = itineraryContentRef.current;
+    if (!el) return;
 
     try {
       setScreenshotMessage('');
       const today = new Date().toISOString().slice(0, 10);
-      const blob = await captureElementAsPng(sourceElement, 2, { backgroundColor: '#fdfcfa' });
-      saveScreenshotBlob(blob, `sison-trip-plan-${today}.png`);
+      const blob = await captureElementAsPng(el, window.devicePixelRatio || 2, { backgroundColor: '#fdfcfa' });
+      downloadBlob(blob, `sison-itinerary-${today}.png`);
       setScreenshotMessage('이미지가 저장되었어요');
     } catch (error) {
-      console.error('AI recommendation screenshot download failed', error);
+      console.error('AI itinerary screenshot failed', error);
       setScreenshotMessage('이미지 저장에 실패했어요. 다시 시도해주세요.');
     }
   };
@@ -525,15 +463,6 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
         }`}
         data-bottom-sheet-scrollable="true"
       >
-        {plans.length > 0 && !isPreparing && (
-          <div
-            ref={captureRef}
-            aria-hidden="true"
-            className="pointer-events-none fixed left-[-10000px] top-0 w-[430px]"
-          >
-            <AiItineraryShareCaptureView activity={selectedActivity} plans={plans} />
-          </div>
-        )}
         <PageShell reserveBottomTabSpace={false}>
           <header className="sticky top-0 z-20 bg-[#fdfcfa]/95 backdrop-blur-sm border-b border-black/5">
             <div className="px-6 py-5">
@@ -645,143 +574,137 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
               </section>
             </div>
           ) : (
-            <div className="relative space-y-8 bg-[#fdfcfa] px-6 py-6">
-              {/* 봉사활동 정보 */}
-              <section>
-                <div className="bg-white rounded-3xl p-5 shadow-sm border border-black/5">
-                  <h3 className="mb-4">{selectedActivity.title}</h3>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2.5">
-                      <MapPin className="w-4 h-4 text-[#c9897e]" strokeWidth={2} />
-                      <span className="text-sm font-normal text-[#5F6368]">
-                        {selectedActivity.volunteerPlace || selectedActivity.location}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2.5">
-                      <Clock className="w-4 h-4 text-[#b8b2aa]" strokeWidth={2} />
-                      <span className="text-sm font-normal text-[#5F6368]">
-                        {[selectedActivity.date, selectedActivity.time].filter(Boolean).join(' · ')}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              {/* 에러 */}
-              {planError && (
+            <div className="bg-[#fdfcfa]">
+              {/* 캡처 대상: 봉사활동 카드 + 추천 일정 (저장 버튼 제외) */}
+              <div ref={itineraryContentRef} className="relative space-y-8 px-6 py-6">
+                {/* 봉사활동 정보 */}
                 <section>
-                  <div className="rounded-2xl bg-[#fff5f5] border border-[#f5d5d5] p-5">
-                    <p className="text-sm text-[#c9897e] leading-relaxed">{planError}</p>
-                    <p className="mt-1 text-[12px] text-[#7A7F87]">잠시 후 다시 시도해주세요.</p>
+                  <div className="bg-white rounded-3xl p-5 shadow-sm border border-black/5">
+                    <h3 className="mb-4">{selectedActivity.title}</h3>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2.5">
+                        <MapPin className="w-4 h-4 text-[#c9897e]" strokeWidth={2} />
+                        <span className="text-sm font-normal text-[#5F6368]">
+                          {selectedActivity.volunteerPlace || selectedActivity.location}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2.5">
+                        <Clock className="w-4 h-4 text-[#b8b2aa]" strokeWidth={2} />
+                        <span className="text-sm font-normal text-[#5F6368]">
+                          {[selectedActivity.date, selectedActivity.time].filter(Boolean).join(' · ')}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </section>
-              )}
 
-              {/* 추천 일정 카드 3개 */}
-              {plans.length > 0 && (
-                <section>
-                  <h3 className="mb-4">추천 일정</h3>
-                  <div className="space-y-4">
-                    {plans.map((plan, planIndex) => {
-                      const radiusKm =
-                        plan.maxDistanceM > 0
-                          ? `${(plan.maxDistanceM / 1000).toFixed(1)}km`
-                          : null;
-                      const accentColor = itineraryAccentColors[planIndex % itineraryAccentColors.length];
-                      return (
-                        <div
-                          key={planIndex}
-                          className="bg-white rounded-3xl p-5 shadow-sm border border-black/5"
-                        >
-                          {/* 헤더 */}
-                          <p
-                            className="mb-1 text-[11px] font-medium uppercase tracking-wide"
-                            style={{ color: accentColor }}
+                {/* 에러 */}
+                {planError && (
+                  <section>
+                    <div className="rounded-2xl bg-[#fff5f5] border border-[#f5d5d5] p-5">
+                      <p className="text-sm text-[#c9897e] leading-relaxed">{planError}</p>
+                      <p className="mt-1 text-[12px] text-[#7A7F87]">잠시 후 다시 시도해주세요.</p>
+                    </div>
+                  </section>
+                )}
+
+                {/* 추천 일정 카드 */}
+                {plans.length > 0 && (
+                  <section>
+                    <h3 className="mb-4">추천 일정</h3>
+                    <div className="space-y-4">
+                      {plans.map((plan, planIndex) => {
+                        const radiusKm =
+                          plan.maxDistanceM > 0
+                            ? `${(plan.maxDistanceM / 1000).toFixed(1)}km`
+                            : null;
+                        const accentColor = itineraryAccentColors[planIndex % itineraryAccentColors.length];
+                        return (
+                          <div
+                            key={planIndex}
+                            className="bg-white rounded-3xl p-5 shadow-sm border border-black/5"
                           >
-                            일정 {planIndex + 1}
-                          </p>
-                          <h4 className="mb-1.5 text-[#2a2a2a]">{plan.title}</h4>
-                          <p className="mb-3 text-sm leading-relaxed text-[#777]">{plan.summary}</p>
+                            <p
+                              className="mb-1 text-[11px] font-medium uppercase tracking-wide"
+                              style={{ color: accentColor }}
+                            >
+                              일정 {planIndex + 1}
+                            </p>
+                            <h4 className="mb-1.5 text-[#2a2a2a]">{plan.title}</h4>
+                            <p className="mb-3 text-sm leading-relaxed text-[#777]">{plan.summary}</p>
 
-                          {/* 소요 시간 + 총 이동 거리 */}
-                          <div className="mb-4 flex items-center gap-4 text-[12px] text-[#6B7280]">
-                            <span className="flex items-center gap-1.5">
-                              <Clock className="w-3.5 h-3.5" strokeWidth={2} style={{ color: accentColor }} />
-                              {plan.duration}
-                            </span>
-                            {radiusKm && (
+                            <div className="mb-4 flex items-center gap-4 text-[12px] text-[#6B7280]">
                               <span className="flex items-center gap-1.5">
-                                <MapPin className="w-3.5 h-3.5" strokeWidth={2} style={{ color: accentColor }} />
-                                반경 {radiusKm}
+                                <Clock className="w-3.5 h-3.5" strokeWidth={2} style={{ color: accentColor }} />
+                                {plan.duration}
                               </span>
-                            )}
-                          </div>
+                              {radiusKm && (
+                                <span className="flex items-center gap-1.5">
+                                  <MapPin className="w-3.5 h-3.5" strokeWidth={2} style={{ color: accentColor }} />
+                                  반경 {radiusKm}
+                                </span>
+                              )}
+                            </div>
 
-                          {/* 장소 목록 */}
-                          {plan.stops.length > 0 && (
-                            <div className="mb-1">
-                              {plan.stops.map((stop, stopIndex) => {
-                                const distKm =
-                                  stop.distance > 0
-                                    ? `${(stop.distance / 1000).toFixed(1)}km`
-                                    : null;
-                                const description = getStopDescription(stop);
-                                return (
-                                  <div key={stopIndex} className="flex gap-3">
-                                    {/* 타임라인 점·선 */}
-                                    <div className="flex flex-col items-center flex-shrink-0 pt-[5px]">
-                                      <div
-                                        className="h-2 w-2 rounded-full flex-shrink-0"
-                                        style={{ backgroundColor: accentColor }}
-                                      />
-                                      {stopIndex < plan.stops.length - 1 && (
-                                        <div className="mt-1 w-px flex-1 min-h-[36px] bg-[#e3efe8]" />
-                                      )}
-                                    </div>
-                                    {/* 썸네일 + 텍스트 */}
-                                    <div className="flex-1 pb-3.5 flex gap-2.5">
-                                      {stop.image && (
-                                        <img
-                                          src={getSafeImageSource(stop.image)}
-                                          crossOrigin="anonymous"
-                                          referrerPolicy="no-referrer"
-                                          alt=""
-                                          className="w-11 h-11 rounded-xl object-cover flex-shrink-0 self-start"
-                                          onError={() => {
-                                            console.error('[capture] itinerary image render failed', { src: stop.image });
-                                          }}
+                            {plan.stops.length > 0 && (
+                              <div className="mb-1">
+                                {plan.stops.map((stop, stopIndex) => {
+                                  const distKm =
+                                    stop.distance > 0
+                                      ? `${(stop.distance / 1000).toFixed(1)}km`
+                                      : null;
+                                  const description = getStopDescription(stop);
+                                  return (
+                                    <div key={stopIndex} className="flex gap-3">
+                                      <div className="flex flex-col items-center flex-shrink-0 pt-[5px]">
+                                        <div
+                                          className="h-2 w-2 rounded-full flex-shrink-0"
+                                          style={{ backgroundColor: accentColor }}
                                         />
-                                      )}
-                                      <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium text-[#2a2a2a] leading-snug">
-                                          {stop.title}
-                                          {distKm && (
-                                            <span className="ml-1.5 text-[12px] font-normal text-[#6B7280]">
-                                              · {distKm}
-                                            </span>
-                                          )}
-                                        </p>
-                                        <p className="mt-0.5 text-[12px] text-[#7A7F87] leading-snug line-clamp-2">
-                                          {description}
-                                        </p>
+                                        {stopIndex < plan.stops.length - 1 && (
+                                          <div className="mt-1 w-px flex-1 min-h-[36px] bg-[#e3efe8]" />
+                                        )}
+                                      </div>
+                                      <div className="flex-1 pb-3.5 flex gap-2.5">
+                                        {stop.image && (
+                                          <img
+                                            src={getSafeImageSource(stop.image)}
+                                            crossOrigin="anonymous"
+                                            referrerPolicy="no-referrer"
+                                            alt=""
+                                            className="w-11 h-11 rounded-xl object-cover flex-shrink-0 self-start"
+                                          />
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm font-medium text-[#2a2a2a] leading-snug">
+                                            {stop.title}
+                                            {distKm && (
+                                              <span className="ml-1.5 text-[12px] font-normal text-[#6B7280]">
+                                                · {distKm}
+                                              </span>
+                                            )}
+                                          </p>
+                                          <p className="mt-0.5 text-[12px] text-[#7A7F87] leading-snug line-clamp-2">
+                                            {description}
+                                          </p>
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                )}
+              </div>
 
-                        </div>
-                      );
-                    })}
-                  </div>
-                </section>
-              )}
-
-              {/* 이미지 저장 */}
+              {/* 이미지 저장 버튼 — 캡처 범위 외 */}
               {plans.length > 0 && (
-                <section className="pt-2 pb-3">
+                <section className="px-6 pt-2 pb-8">
                   <button
                     type="button"
                     onClick={handleSaveScreenshot}

@@ -314,6 +314,38 @@ function stripIndoorSuffix(text: string): string {
   return text.replace(INDOOR_SUFFIX_RE, '').trim();
 }
 
+const MID_FLOOR_RE = /\s+\d+층\s+.+$/;
+function stripMidFloor(text: string): string {
+  return text.replace(MID_FLOOR_RE, '').trim();
+}
+
+const LEADING_ADMIN_RE = /^([가-힣]+(특별시|광역시|특별자치시|특별자치도|도)?[가-힣]*(시|군|구))/;
+function splitCompoundAdmin(text: string): [string, string] | null {
+  if (text.includes(' ')) return null;
+  const m = text.match(LEADING_ADMIN_RE);
+  if (!m) return null;
+  const admin = m[0];
+  const rest = text.slice(admin.length);
+  return rest.length >= 2 ? [admin, rest] : null;
+}
+
+function extractLeadingDong(token: string): string | null {
+  if (token.includes(' ')) return null;
+  const m = token.match(/^([가-힣]+(?:동|읍|면|리))(?=[가-힣])/);
+  return m ? m[1] : null;
+}
+
+const BRACKET_ADDR_RE = /\d+(?:길|로|번길|번지)|[가-힣]+(?:로|길)\s*\d|[시군구동읍면리][\s,]/;
+
+function splitMultiLocation(text: string): string[] | null {
+  if (!text.includes('&') && !text.includes('＆')) return null;
+  const parts = text
+    .split(/\s*[&＆]\s*/)
+    .map((s) => s.replace(/\(택\d+\)/g, '').trim())
+    .filter((s) => s.length > 1);
+  return parts.length >= 2 ? parts : null;
+}
+
 function buildShrinkCandidates(address: string): string[] {
   const tokens = address.trim().split(/\s+/);
   const results: string[] = [];
@@ -338,18 +370,26 @@ function normalizeVolunteerAddress(rawAddress: string, region = ''): string[] {
 
   let base = rawAddress.trim().replace(ADDRESS_PREFIX_RE, '');
 
-  // 1-b. 괄호 안 주소 우선 추출
+  // 1-b. 괄호 안 주소 우선 추출 (한국식 도로명 옥천로91 패턴 포함)
   {
     const bracketMatch = base.match(/\(([^)]{2,60})\)/);
     if (bracketMatch) {
       const inner = bracketMatch[1].replace(/[\r\n\t]+/g, ' ').trim();
-      if (/\d+(?:길|로|번길|번지)|[시군구동읍면리]\s/.test(inner)) {
+      if (BRACKET_ADDR_RE.test(inner)) {
         push(inner);
         const r =
           extractSigungu(region) ??
           (region.trim() ? region.trim().split(/\s+/).slice(0, 2).join(' ') : '');
         if (r && !inner.startsWith(r)) push(`${r} ${inner}`);
       }
+    }
+  }
+
+  // 1-c. & 구분 다중 장소 분리
+  {
+    const multiParts = splitMultiLocation(base.replace(/\(택\d+\)/g, ''));
+    if (multiParts) {
+      for (const part of multiParts) push(part);
     }
   }
 
@@ -364,6 +404,12 @@ function normalizeVolunteerAddress(rawAddress: string, region = ''): string[] {
 
   // 2-b. 실내 위치 표현 제거 (3층, B101호, 강당, 내 등)
   base = stripIndoorSuffix(base);
+
+  // 2-c. 층 정보가 중간에 있는 경우 축약본 추가
+  {
+    const midFloorStripped = stripMidFloor(base);
+    if (midFloorStripped !== base && midFloorStripped.length > 1) push(midFloorStripped);
+  }
 
   push(base);
 
@@ -409,6 +455,34 @@ function normalizeVolunteerAddress(rawAddress: string, region = ''): string[] {
     push(sigungu);
     const stripped = stripProvince(sigungu);
     if (stripped) push(stripped);
+  }
+
+  // 11. 공백 없는 복합 시설명에서 선행 행정구역 분리
+  {
+    const tokens = addrBase.trim().split(/\s+/);
+    for (const tok of tokens) {
+      const split = splitCompoundAdmin(tok);
+      if (split) {
+        const [admin, rest] = split;
+        push(`${admin} ${rest}`);
+        if (region.trim() && !admin.startsWith(region.trim())) {
+          push(`${region.trim()} ${admin} ${rest}`);
+        }
+        push(rest);
+      }
+    }
+  }
+
+  // 12. 공백 없는 복합 토큰에서 선행 동/읍/면 추출
+  {
+    const tokens = addrBase.trim().split(/\s+/);
+    for (const tok of tokens) {
+      const dong = extractLeadingDong(tok);
+      if (dong) {
+        push(dong);
+        if (region.trim()) push(`${region.trim()} ${dong}`);
+      }
+    }
   }
 
   return result;
