@@ -39,9 +39,22 @@ type InputPlace = {
 
 type ActivityInfo = {
   title: string;
-  address?: string;
-  location?: string;
-  region?: string;
+  address: string;
+  location: string;
+  meetingPlace: string;
+  institutionName: string;
+  organizationName: string;
+  region: string;
+};
+
+type GeocodeSource = 'activity_place' | 'meeting_place' | 'institution' | 'region_center';
+type BaseLocation = {
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+  source: GeocodeSource;
+  query: string;
 };
 
 type RawStop = { id: string };
@@ -147,6 +160,21 @@ function validatePlans(rawPlans: RawPlan[], metaMap: Map<string, PlaceMeta>): Tr
     result.push({ title, summary, duration, maxDistanceM: Math.max(0, ...placeStops.map(s => s.distance)), stops: placeStops });
   }
   return result;
+}
+
+// ─── Geocode Helpers ──────────────────────────────────────────────────────────
+
+async function tryGeocode(
+  query: string,
+  region: string,
+  expectedRegion: TravelRegionKey | null,
+): Promise<GeocodeResult | null> {
+  if (!query.trim()) return null;
+  try {
+    const result = await geocodeAddress(query, region);
+    if (expectedRegion && !isCoordinateInTravelRegion(result.lat, result.lng, expectedRegion)) return null;
+    return result;
+  } catch { return null; }
 }
 
 // ─── OpenAI Call ──────────────────────────────────────────────────────────────
@@ -264,8 +292,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const date = str(body.date);
   const timePreference = str(body.timePreference);
 
-  if (!address) { res.status(400).json({ ok: false, error: '봉사활동 주소가 없어요.' }); return; }
-
   const actRaw = body.activity && typeof body.activity === 'object' && !Array.isArray(body.activity)
     ? (body.activity as Record<string, unknown>) : null;
   if (!actRaw) { res.status(400).json({ ok: false, error: '봉사활동 정보가 없어요.' }); return; }
@@ -274,9 +300,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     title: str(actRaw.title),
     address,
     location: str(actRaw.location),
+    meetingPlace: str(actRaw.meetingPlace),
+    institutionName: str(actRaw.institutionName),
+    organizationName: str(actRaw.organizationName),
     region: str(actRaw.region),
   };
   if (!activity.title) { res.status(400).json({ ok: false, error: '봉사활동 제목이 없어요.' }); return; }
+
+  const hasAnyLocationHint = [
+    address, activity.location, activity.meetingPlace,
+    activity.institutionName, activity.organizationName, region,
+  ].some(s => s.length > 0);
+  if (!hasAnyLocationHint) { res.status(400).json({ ok: false, error: '위치 정보가 없어요.' }); return; }
+
   const expectedRegion: TravelRegionKey | null = inferTravelRegion(
     region,
     destination,
@@ -286,30 +322,58 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     activity.title,
   );
   console.log('activity title', activity.title);
-  console.log('activity location', activity.location ?? '');
+  console.log('activity location', activity.location);
   console.log('activity region', activity.region || region || destination || '');
 
   try {
-    // Step 1: 주소 → 좌표
-    let geo: GeocodeResult;
-    try {
-      geo = await geocodeAddress(address, region);
-      console.log('resolved lat', geo.lat);
-      console.log('resolved lng', geo.lng);
-      if (expectedRegion && !isCoordinateInTravelRegion(geo.lat, geo.lng, expectedRegion)) {
-        console.error('[travel-plan:error] geocode region mismatch', {
-          expectedRegion,
-          lat: geo.lat,
-          lng: geo.lng,
-          roadAddress: geo.roadAddress,
-          parcelAddress: geo.parcelAddress,
-        });
-        res.status(200).json({ ok: false, error: '주변 추천 장소를 찾을 수 없어요.' });
-        return;
+    // Step 1: 주소 → 좌표 (우선순위 fallback)
+    type GeoCandidate = { query: string; source: GeocodeSource; name: string; skipRegionCheck?: boolean };
+    const geoCandidates: GeoCandidate[] = [];
+
+    if (address) geoCandidates.push({ query: address, source: 'activity_place', name: address });
+    if (activity.location && activity.location !== address)
+      geoCandidates.push({ query: activity.location, source: 'activity_place', name: activity.location });
+    if (activity.meetingPlace)
+      geoCandidates.push({ query: activity.meetingPlace, source: 'meeting_place', name: activity.meetingPlace });
+    if (activity.institutionName) {
+      geoCandidates.push({ query: activity.institutionName, source: 'institution', name: activity.institutionName });
+      if (region)
+        geoCandidates.push({ query: `${region} ${activity.institutionName}`, source: 'institution', name: activity.institutionName });
+    }
+    if (activity.organizationName) {
+      geoCandidates.push({ query: activity.organizationName, source: 'institution', name: activity.organizationName });
+      if (region)
+        geoCandidates.push({ query: `${region} ${activity.organizationName}`, source: 'institution', name: activity.organizationName });
+    }
+    if (region) geoCandidates.push({ query: region, source: 'region_center', name: region, skipRegionCheck: true });
+
+    let geo: GeocodeResult | null = null;
+    let baseLocation: BaseLocation | null = null;
+
+    for (const candidate of geoCandidates) {
+      const result = await tryGeocode(
+        candidate.query,
+        region,
+        candidate.skipRegionCheck ? null : expectedRegion,
+      );
+      if (result) {
+        geo = result;
+        baseLocation = {
+          name: candidate.name,
+          address: result.roadAddress || result.parcelAddress || '',
+          lat: result.lat,
+          lng: result.lng,
+          source: candidate.source,
+          query: candidate.query,
+        };
+        console.log('[travel-plan] geocode success', { source: candidate.source, query: candidate.query, lat: result.lat, lng: result.lng });
+        break;
       }
-      console.log('[travel-plan] geocode success', { lat: geo.lat, lng: geo.lng });
-    } catch (err) {
-      console.error('[travel-plan:error] geocode fail', { message: err instanceof Error ? err.message : String(err), address, region });
+      console.log('[travel-plan] geocode miss', { query: candidate.query });
+    }
+
+    if (!geo || !baseLocation) {
+      console.error('[travel-plan:error] all geocode candidates failed', { address, region });
       res.status(200).json({ ok: false, error: '주변 추천 장소를 찾을 수 없어요.' });
       return;
     }
@@ -359,8 +423,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const tourKey = process.env.TOUR_API_SERVICE_KEY?.trim() ?? '';
     if (tourKey) plans = await enrichOverviews(plans, tourKey);
 
-    console.log('[travel-plan] complete', { planCount: plans.length });
-    res.status(200).json({ ok: true, plans });
+    console.log('[travel-plan] complete', { planCount: plans.length, baseSource: baseLocation.source });
+    res.status(200).json({ ok: true, plans, baseLocation });
   } catch (err) {
     console.error('[travel-plan:error]', { message: err instanceof Error ? err.message : String(err), stack: err instanceof Error ? err.stack : undefined });
     res.status(500).json({ ok: false, error: '일정을 만들지 못했어요.' });

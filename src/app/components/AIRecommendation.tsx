@@ -34,6 +34,9 @@ type TravelPlan = {
   stops: Stop[];
 };
 
+type GeocodeSource = 'activity_place' | 'meeting_place' | 'institution' | 'region_center';
+type FetchResult = { plans: TravelPlan[]; baseLocationSource: GeocodeSource | null };
+
 
 // ─── Cache ────────────────────────────────────────────────────────────────────
 
@@ -103,17 +106,15 @@ function deriveTimePreference(time: string): string {
 async function fetchTravelPlans(
   activity: ActivitySaveRecord,
   signal: AbortSignal,
-): Promise<TravelPlan[]> {
-  const address = activity.volunteerPlace?.trim() || activity.location?.trim() || '';
-  if (!address) throw new Error('활동 주소 정보가 없어요.');
-
-  const destination = deriveDestination(activity.location || '');
+): Promise<FetchResult> {
+  const address = activity.volunteerPlace?.trim() || '';
+  const destination = deriveDestination(activity.location || activity.volunteerPlace || '');
   const date = activity.date || activity.activityDate || '';
   const timePreference = deriveTimePreference(activity.time || '');
   const cacheKey = getCacheKey(destination, date, timePreference, `${activity.title}|${address}`);
 
   const cached = readCache(cacheKey);
-  if (cached) return cached;
+  if (cached) return { plans: cached, baseLocationSource: null };
 
   const res = await fetch('/api/ai/travel-plan', {
     method: 'POST',
@@ -126,8 +127,11 @@ async function fetchTravelPlans(
       timePreference,
       activity: {
         title: activity.title,
-        location: activity.volunteerPlace || activity.location || '',
-        region: activity.region || activity.location || '',
+        location: activity.location || activity.volunteerPlace || '',
+        meetingPlace: '',
+        institutionName: activity.recruitingOrganization || '',
+        organizationName: activity.registrationOrganization || '',
+        region: activity.region || '',
       },
     }),
     signal,
@@ -139,13 +143,18 @@ async function fetchTravelPlans(
     throw new Error('일정을 만들지 못했어요.');
   }
 
-  const data = await res.json() as { ok: boolean; plans?: TravelPlan[]; error?: string };
+  const data = await res.json() as {
+    ok: boolean;
+    plans?: TravelPlan[];
+    error?: string;
+    baseLocation?: { source: GeocodeSource };
+  };
   if (!data.ok || !data.plans?.length) {
     throw new Error(data.error || '일정을 만들지 못했어요.');
   }
 
   writeCache(cacheKey, data.plans);
-  return data.plans;
+  return { plans: data.plans, baseLocationSource: data.baseLocation?.source ?? null };
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -157,7 +166,7 @@ function hashVariation(text: string, count: number): number {
   return h % count;
 }
 
-function getStopDescription(stop: PlaceStop): string {
+function getStopDescription(stop: PlaceStop, stopIndex = 0): string {
   if (stop.overview) {
     const cleaned = stop.overview
       .replace(/<[^>]+>/g, '')
@@ -169,7 +178,8 @@ function getStopDescription(stop: PlaceStop): string {
   }
 
   const { title, contentTypeId, address } = stop;
-  const v = (arr: string[]) => arr[hashVariation(title, arr.length)];
+  const seed = title || stop.id || address;
+  const v = (arr: string[]) => arr[(hashVariation(seed, arr.length) + stopIndex) % arr.length];
   const region = address.match(/(\S+[시군])\s/)?.[1] ?? '';
 
   if (contentTypeId === '39') return v([
@@ -341,6 +351,7 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
   const [preparationMessageIndex, setPreparationMessageIndex] = useState(0);
   const [plans, setPlans] = useState<TravelPlan[]>([]);
   const [planError, setPlanError] = useState<string | null>(null);
+  const [baseLocationSource, setBaseLocationSource] = useState<GeocodeSource | null>(null);
   const preparationMessageTimerRef = useRef<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const selectedActivity = activity ?? defaultActivity;
@@ -374,6 +385,7 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
     setPreparationMessageIndex(0);
     setPlans([]);
     setPlanError(null);
+    setBaseLocationSource(null);
 
     preparationMessageTimerRef.current = window.setInterval(() => {
       setPreparationMessageIndex((prev) => (prev + 1) % aiPreparationMessages.length);
@@ -384,9 +396,10 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
     abortControllerRef.current = controller;
 
     fetchTravelPlans(selectedActivity, controller.signal)
-      .then((result) => {
+      .then(({ plans: fetchedPlans, baseLocationSource: source }) => {
         if (!controller.signal.aborted) {
-          setPlans(result);
+          setPlans(fetchedPlans);
+          setBaseLocationSource(source);
           setPlanError(null);
         }
       })
@@ -611,7 +624,14 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
                 {/* 추천 일정 카드 */}
                 {plans.length > 0 && (
                   <section>
-                    <h3 className="mb-4">추천 일정</h3>
+                    <h3 className="mb-1.5">추천 일정</h3>
+                    <p className="mb-4 text-[12px] text-[#9AA0A6] leading-snug">
+                      {baseLocationSource === 'institution'
+                        ? '활동 정보와 모집기관 위치를 기준으로 주변 일정을 준비했어요.'
+                        : baseLocationSource === 'region_center'
+                        ? '정확한 장소를 찾지 못해 지역 중심 기준으로 가벼운 일정을 준비했어요.'
+                        : '활동 장소 주변으로 일정을 준비했어요.'}
+                    </p>
                     <div className="space-y-4">
                       {plans.map((plan, planIndex) => {
                         const radiusKm =
@@ -653,7 +673,7 @@ export function AIRecommendation({ activity, isOpen, onBack, onExitComplete }: A
                                     stop.distance > 0
                                       ? `${(stop.distance / 1000).toFixed(1)}km`
                                       : null;
-                                  const description = getStopDescription(stop);
+                                  const description = getStopDescription(stop, stopIndex);
                                   return (
                                     <div key={stopIndex} className="flex gap-3">
                                       <div className="flex flex-col items-center flex-shrink-0 pt-[5px]">
