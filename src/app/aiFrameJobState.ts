@@ -112,6 +112,27 @@ async function ensureDataUrl(src: string): Promise<string> {
   });
 }
 
+// Vercel 4.5MB 바디 제한 대응: 이미지를 최대 1024px / JPEG 85%로 압축
+function compressImageForApi(dataUrl: string, maxPx = 1024, quality = 0.85): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxPx / Math.max(img.naturalWidth || img.width, img.naturalHeight || img.height));
+      const w = Math.round((img.naturalWidth || img.width) * scale);
+      const h = Math.round((img.naturalHeight || img.height) * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { resolve(dataUrl); return; }
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 const updateJob = (jobId: string, updater: (job: AIFrameJob) => AIFrameJob) => {
   const currentJob = snapshot.jobsById[jobId];
   if (!currentJob) return;
@@ -165,7 +186,8 @@ export const startAIFrameJob = (params: StartAIFrameJobParams) => {
 
   void (async () => {
     try {
-      const sourceDataUrl = await ensureDataUrl(params.photo);
+      const rawDataUrl = await ensureDataUrl(params.photo);
+      const sourceDataUrl = await compressImageForApi(rawDataUrl);
       const result = await storyApi.generateCard(params.deviceKey, {
         storyId: params.storyId,
         dataUrl: sourceDataUrl,

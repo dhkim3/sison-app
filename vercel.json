@@ -5,5 +5,10 @@
       "path": "/api/cron/sync-volunteers",
       "schedule": "0 18 * * *"
     }
-  ]
+  ],
+  "functions": {
+    "api/story.ts": {
+      "maxDuration": 180
+    }
+  }
 }

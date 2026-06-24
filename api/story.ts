@@ -177,6 +177,31 @@ const handleCreate = async (res: VercelResponse, deviceKey: string, body: Record
   const title = str(story.title).trim();
   if (!title) return sendError(res, 400, '제목이 필요해요.');
 
+  if (!getConnectionString()) {
+    res.status(200).json({
+      ok: true,
+      story: {
+        id: Number(id),
+        title,
+        region: str(story.region) || '',
+        city: str(story.city) || undefined,
+        location: str(story.location) || undefined,
+        author: str(story.authorName) || str(story.author) || '여행자',
+        authorName: str(story.authorName) || str(story.author) || '여행자',
+        body: str(story.body) || str(story.content) || '',
+        content: str(story.body) || str(story.content) || '',
+        imageUrl: str(story.imageUrl) || '',
+        activityTitle: str(story.activityTitle) || undefined,
+        activityDate: str(story.activityDate) || undefined,
+        createdAt: '방금 전',
+        likes: 0,
+        comments: 0,
+        isMine: true,
+      },
+    });
+    return;
+  }
+
   const db = getPool();
   await db.query(
     `insert into stories (id, author_name, author_key, region, city, location, title, body, image_url, activity_title, activity_date)

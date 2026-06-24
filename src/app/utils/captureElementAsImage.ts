@@ -3,9 +3,6 @@ const SAFARI_UNSUPPORTED_CAPTURE_STYLES = [
   'backdrop-filter',
   '-webkit-backdrop-filter',
   'mix-blend-mode',
-  'mask',
-  '-webkit-mask',
-  'clip-path',
 ];
 
 type CaptureDebugInfo = {
@@ -353,6 +350,106 @@ function drawImageCover(
   context.drawImage(image, sx, sy, sw, sh, x, y, width, height);
 }
 
+function drawImageContain(
+  context: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) {
+  const sourceWidth = image.naturalWidth || image.width;
+  const sourceHeight = image.naturalHeight || image.height;
+  const sourceRatio = sourceWidth / sourceHeight;
+  const targetRatio = width / height;
+
+  let dw = width;
+  let dh = height;
+  let dx = x;
+  let dy = y;
+
+  if (sourceRatio > targetRatio) {
+    dh = width / sourceRatio;
+    dy = y + (height - dh) / 2;
+  } else {
+    dw = height * sourceRatio;
+    dx = x + (width - dw) / 2;
+  }
+
+  context.drawImage(image, 0, 0, sourceWidth, sourceHeight, dx, dy, dw, dh);
+}
+
+function drawImageWithObjectFit(
+  context: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  style: CSSStyleDeclaration,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) {
+  switch (style.objectFit) {
+    case 'fill':
+      context.drawImage(image, x, y, width, height);
+      return;
+    case 'contain':
+      drawImageContain(context, image, x, y, width, height);
+      return;
+    case 'none': {
+      const sourceWidth = image.naturalWidth || image.width;
+      const sourceHeight = image.naturalHeight || image.height;
+      context.drawImage(image, x, y, sourceWidth, sourceHeight);
+      return;
+    }
+    case 'scale-down': {
+      const sourceWidth = image.naturalWidth || image.width;
+      const sourceHeight = image.naturalHeight || image.height;
+      if (sourceWidth <= width && sourceHeight <= height) {
+        context.drawImage(image, x, y, sourceWidth, sourceHeight);
+      } else {
+        drawImageContain(context, image, x, y, width, height);
+      }
+      return;
+    }
+    case 'cover':
+    default:
+      drawImageCover(context, image, x, y, width, height);
+  }
+}
+
+function applyAIFramePhotoEdgeOverlayClip(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) {
+  const ellipses = [
+    { cx: 0.50, cy: 0.08, rx: 0.56, ry: 0.20 },
+    { cx: 0.84, cy: 0.12, rx: 0.34, ry: 0.24 },
+    { cx: 0.93, cy: 0.38, rx: 0.24, ry: 0.46 },
+    { cx: 0.07, cy: 0.46, rx: 0.22, ry: 0.42 },
+    { cx: 0.54, cy: 0.72, rx: 0.56, ry: 0.22 },
+    { cx: 0.78, cy: 0.70, rx: 0.38, ry: 0.24 },
+    { cx: 0.86, cy: 0.84, rx: 0.32, ry: 0.32 },
+    { cx: 0.17, cy: 0.70, rx: 0.28, ry: 0.22 },
+  ];
+
+  context.beginPath();
+  for (const ellipse of ellipses) {
+    context.ellipse(
+      x + width * ellipse.cx,
+      y + height * ellipse.cy,
+      width * ellipse.rx,
+      height * ellipse.ry,
+      0,
+      0,
+      Math.PI * 2,
+    );
+  }
+  context.clip();
+}
+
 function truncateText(context: CanvasRenderingContext2D, text: string, maxWidth: number) {
   if (context.measureText(text).width <= maxWidth) return text;
 
@@ -434,7 +531,14 @@ async function drawElementTree(
   if (element instanceof HTMLImageElement) {
     const drawable = await loadDrawableImage(element);
     if (drawable) {
-      drawImageCover(context, drawable, rect.x, rect.y, rect.width, rect.height);
+      if (element.classList.contains('ai-frame-photo-edge-overlay')) {
+        context.save();
+        applyAIFramePhotoEdgeOverlayClip(context, rect.x, rect.y, rect.width, rect.height);
+        drawImageWithObjectFit(context, drawable, style, rect.x, rect.y, rect.width, rect.height);
+        context.restore();
+      } else {
+        drawImageWithObjectFit(context, drawable, style, rect.x, rect.y, rect.width, rect.height);
+      }
     } else {
       drawImagePlaceholder(context, rect.x, rect.y, rect.width, rect.height);
     }

@@ -42,6 +42,16 @@ interface CardCreationViewProps {
 const BASE_FRAMES = ['기본', '바다', '숲', '노을', '블랙'];
 const AI_FRAME = 'AI';
 
+const blobToDataUrl = (blob: Blob) => new Promise<string>((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onloadend = () => {
+    if (typeof reader.result === 'string') resolve(reader.result);
+    else reject(new Error('Card image encoding failed'));
+  };
+  reader.onerror = () => reject(new Error('Card image encoding failed'));
+  reader.readAsDataURL(blob);
+});
+
 export function CardCreationView({
   activity,
   photo,
@@ -114,17 +124,17 @@ export function CardCreationView({
   const handleDownload = async () => {
     try {
       // 클라이언트에서 합성한 카드 전체를 캡처한다. AI 이미지는 장식 레이어로만 포함된다.
-      if (!cardPreviewRef.current) throw new Error('Card preview unavailable');
-      const blob = await captureElementAsPng(cardPreviewRef.current, 2, { backgroundColor: 'transparent' });
-      const imageUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          if (typeof reader.result === 'string') resolve(reader.result);
-          else reject(new Error('Card image encoding failed'));
-        };
-        reader.onerror = () => reject(new Error('Card image encoding failed'));
-        reader.readAsDataURL(blob);
-      });
+      const previewElement = cardPreviewRef.current;
+      if (!previewElement) throw new Error('Card preview unavailable');
+      const captureBackground = isDarkFrame ? '#0a0a0a' : '#ffffff';
+      const blob = await captureElementAsPng(previewElement, 2, { backgroundColor: captureBackground });
+      const imageUrl = await blobToDataUrl(blob);
+      const compactImageUrlPromise = captureElementAsPng(previewElement, 1, { backgroundColor: captureBackground })
+        .then(blobToDataUrl)
+        .catch((compactCaptureError) => {
+          console.error('card compact capture failed, using full capture for server retry', compactCaptureError);
+          return imageUrl;
+        });
       downloadBlob(blob, `sison-card-${storyId ?? activity.id ?? 'my-card'}.png`);
       const activityId = Number(activity.id);
       const savedCardId = storyId ?? (Number.isFinite(activityId) && activityId > 0 ? activityId : Date.now());
@@ -144,21 +154,47 @@ export function CardCreationView({
         date: activity.date || '',
         createdAt: new Date().toISOString(),
       };
-      const savedCard = await storyApi.saveCard(deviceKey, draftCard);
-      onSaveTravelCard?.({
-        ...draftCard,
-        ...savedCard,
-        frameType: draftCard.frameType,
-        photoUrl: savedCard.photoUrl || draftCard.photoUrl,
-        region: savedCard.region || draftCard.region,
-        date: savedCard.date || draftCard.date,
-      });
+      onSaveTravelCard?.(draftCard);
       setDownloadMessage('여행 카드가 저장됐어요.');
       dismissCurrentAIFrameJob();
       window.setTimeout(() => {
         setDownloadMessage('');
         onSaved?.();
       }, 1000);
+      void (async () => {
+        try {
+          const savedCard = await storyApi.saveCard(deviceKey, draftCard);
+          onSaveTravelCard?.({
+            ...draftCard,
+            ...savedCard,
+            frameType: draftCard.frameType,
+            photoUrl: savedCard.photoUrl || draftCard.photoUrl,
+            region: savedCard.region || draftCard.region,
+            date: savedCard.date || draftCard.date,
+          });
+        } catch (serverSaveError) {
+          console.error('card server save failed, retrying with compact capture', serverSaveError);
+          try {
+            const compactImageUrl = await compactImageUrlPromise;
+            const savedCard = await storyApi.saveCard(deviceKey, {
+              ...draftCard,
+              imageUrl: compactImageUrl,
+              cardPreviewDataUrl: compactImageUrl,
+              finalCardImageUrl: compactImageUrl,
+            });
+            onSaveTravelCard?.({
+              ...draftCard,
+              ...savedCard,
+              frameType: draftCard.frameType,
+              photoUrl: savedCard.photoUrl || draftCard.photoUrl,
+              region: savedCard.region || draftCard.region,
+              date: savedCard.date || draftCard.date,
+            });
+          } catch (compactSaveError) {
+            console.error('card compact server save failed', compactSaveError);
+          }
+        }
+      })();
     } catch (error) {
       console.error('card save failed', error);
       setDownloadMessage('카드를 저장하지 못했어요. 잠시 후 다시 시도해주세요.');
@@ -271,8 +307,8 @@ export function CardCreationView({
                   />
                 )}
 
-                <div className="relative z-10">
-                  <div className="mb-3 aspect-[3/4] overflow-hidden rounded-lg bg-white shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+                <div className="relative z-10 mb-3">
+                  <div className="aspect-[3/4] overflow-hidden rounded-lg bg-white shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
                     <img
                       src={photo}
                       alt="Travel memory"
