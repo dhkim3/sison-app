@@ -207,10 +207,10 @@ export function RegionMapView({
   const [commentStory, setCommentStory] = useState<StoryItem | null>(null);
   const [activeStoryList, setActiveStoryList] = useState<'recent' | 'current-location' | 'selected-region' | null>(null);
   const [recentFullStoryCount, setRecentFullStoryCount] = useState(storyListPageSize);
-  // Use shared API stories first. Seed/mock stories are fallback only when the shared manifest is empty.
+  // Use shared API stories first, while keeping demo seed/mock stories for contest presentation.
   const stories = (() => {
     const seen = new Set<number>();
-    const sourceStories = userStories.length > 0 ? userStories : [...initialArchiveStories, ...mockStories];
+    const sourceStories = [...userStories, ...initialArchiveStories, ...mockStories];
     return sourceStories.filter((s) => {
       if (seen.has(s.id)) return false;
       seen.add(s.id);

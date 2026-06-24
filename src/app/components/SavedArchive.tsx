@@ -352,16 +352,27 @@ export function SavedArchive({
     setActiveTab(activeArchiveTab);
   }, [activeArchiveTab]);
 
-  // 내가 올린 스토리/생성한 카드를 저장 탭에 반영 (목 데이터 앞에 배치)
+  // 내가 올린 스토리/생성한 카드를 저장 탭에 반영 (시연용 목 데이터도 함께 유지)
   // 사용자가 삭제한 시드 스토리는 dismissedArchiveStoryIds로 영속 관리되어 화면 전환 후에도 유지된다.
   useEffect(() => {
     const dismissed = new Set(dismissedArchiveStoryIds ?? []);
-    const combined = (myStories && myStories.length > 0) ? myStories : initialArchiveStories;
+    const seen = new Set<number>();
+    const combined = [...(myStories ?? []), ...initialArchiveStories].filter((story) => {
+      if (seen.has(story.id)) return false;
+      seen.add(story.id);
+      return true;
+    });
     setStories(sortStoriesByLatestDate(combined.filter((story) => !dismissed.has(story.id))));
   }, [myStories, dismissedArchiveStoryIds]);
 
   useEffect(() => {
-    setTravelCards(myCards && myCards.length > 0 ? myCards.map(storyCardToArchiveCard) : initialTravelCards);
+    const seen = new Set<string>();
+    const combined = [...(myCards ?? []).map(storyCardToArchiveCard), ...initialTravelCards].filter((card) => {
+      if (seen.has(card.id)) return false;
+      seen.add(card.id);
+      return true;
+    });
+    setTravelCards(combined);
   }, [myCards]);
 
   useEffect(() => {
