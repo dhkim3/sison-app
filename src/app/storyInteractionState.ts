@@ -334,15 +334,7 @@ export const storyApi = {
     };
   },
   createStory: async (key: string, story: Partial<StoryItem>): Promise<StoryItem> => {
-    const response = await fetch('/api/stories', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key, story }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || data?.ok === false) {
-      throw new Error(data?.error || `story create failed (${response.status})`);
-    }
+    const data = await postStoryAction('create', { key, story });
     return data.story as StoryItem;
   },
   deleteStory: (key: string, id: number | string) => postStoryAction('delete', { key, id: String(id) }),
@@ -357,15 +349,7 @@ export const storyApi = {
     return data.url as string;
   },
   saveCard: async (key: string, card: StoryCardItem): Promise<StoryCardItem> => {
-    const response = await fetch('/api/travel-cards', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key, ...card }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || data?.ok === false) {
-      throw new Error(data?.error || `travel card save failed (${response.status})`);
-    }
+    const data = await postStoryAction('card-save', { key, ...card });
     return data.card as StoryCardItem;
   },
   generateCard: (

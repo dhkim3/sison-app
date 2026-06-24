@@ -1,4 +1,4 @@
-import { geocodeAddress } from './_service.js';
+import { geocodeAddress } from '../../lib/server/travelService.js';
 
 type VercelRequest = {
   method?: string;
