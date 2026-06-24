@@ -289,6 +289,14 @@ export interface StoryCardItem {
   subtitle: string;
   imageUrl: string;
   createdAt: string;
+  frameType?: string;
+  cardPreviewDataUrl?: string;
+  finalCardImageUrl?: string;
+  aiFrameBackgroundUrl?: string | null;
+  aiFrameOverlayUrl?: string | null;
+  photoUrl?: string;
+  region?: string;
+  date?: string;
 }
 
 export interface StoryListResponse {
@@ -337,6 +345,31 @@ export const storyApi = {
     const data = await postStoryAction('upload', { dataUrl });
     return data.url as string;
   },
-  generateCard: (key: string, params: Record<string, unknown>): Promise<{ url: string; elapsedMs: number }> =>
-    postStoryAction('card-generate', { key, ...params }) as Promise<{ url: string; elapsedMs: number }>,
+  generateCard: (
+    key: string,
+    params: Record<string, unknown>,
+  ): Promise<{
+    url: string;
+    backgroundUrl?: string;
+    overlayUrl?: string | null;
+    elapsedMs: number;
+    imageModel?: string;
+    imageQuality?: string;
+    imageSize?: string;
+    generatedLayers?: number;
+    estimatedCostUsd?: number | null;
+    layerTimingsMs?: { background?: number; overlay?: number | null };
+  }> =>
+    postStoryAction('card-generate', { key, ...params }) as Promise<{
+      url: string;
+      backgroundUrl?: string;
+      overlayUrl?: string | null;
+      elapsedMs: number;
+      imageModel?: string;
+      imageQuality?: string;
+      imageSize?: string;
+      generatedLayers?: number;
+      estimatedCostUsd?: number | null;
+      layerTimingsMs?: { background?: number; overlay?: number | null };
+    }>,
 };

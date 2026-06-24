@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Sparkles } from 'lucide-react';
 import { Home } from './components/Home';
 import { SearchTab } from './components/SearchTab';
 import { AIRecommendation } from './components/AIRecommendation';
@@ -31,10 +32,13 @@ import {
 } from './searchState';
 import { resolveSearchLocation } from './travelPlaceAliases';
 import { scrollToTop } from './utils/scrollToTop';
+import { getAIFrameJobById, useAIFrameJobs } from './aiFrameJobState';
 
 type Screen = 'home' | 'search' | 'ai-recommendation' | 'story' | 'saved' | 'profile';
 type SearchEntrySource = 'tab' | 'home-search';
 type AIRecommendationState = 'closed' | 'open' | 'closing';
+type StoryViewState = 'map' | 'my-activities' | 'upload' | 'card' | null;
+type AIFrameJobToast = { jobId: string; status: 'ready' | 'error' };
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
@@ -54,9 +58,17 @@ export default function App() {
   const [userStories, setUserStories] = useState<StoryItem[]>([]);
   const [profileNickname, setProfileNickname] = useState('여행자');
   const [pendingCardStory, setPendingCardStory] = useState<StoryItem | null>(null);
+  const [pendingAIFrameJobId, setPendingAIFrameJobId] = useState<string | null>(null);
+  const [storyView, setStoryView] = useState<StoryViewState>(null);
+  const [activeAIFrameTargetKey, setActiveAIFrameTargetKey] = useState<string | null>(null);
+  const [aiFrameJobToast, setAIFrameJobToast] = useState<AIFrameJobToast | null>(null);
   const [myCards, setMyCards] = useState<StoryCardItem[]>([]);
+  const [localSavedTravelCards, setLocalSavedTravelCards] = useState<StoryCardItem[]>([]);
   const [dismissedArchiveStoryIds, setDismissedArchiveStoryIds] = useState<number[]>([]);
+  const [dismissedAIFrameJobIds, setDismissedAIFrameJobIds] = useState<string[]>([]);
   const saveFeedbackTimers = useRef<number[]>([]);
+  const seenAIFrameJobStatusesRef = useRef<Record<string, string>>({});
+  const aiFrameJobs = useAIFrameJobs();
 
   useLayoutEffect(() => {
     scrollToTop();
@@ -90,6 +102,28 @@ export default function App() {
   useEffect(() => () => {
     saveFeedbackTimers.current.forEach((timer) => window.clearTimeout(timer));
   }, []);
+
+  useEffect(() => {
+    for (const job of aiFrameJobs) {
+      if (!job.completedAt || job.superseded) continue;
+      if (job.status !== 'ready' && job.status !== 'error') continue;
+      if (dismissedAIFrameJobIds.includes(job.jobId)) continue;
+
+      const statusKey = `${job.status}:${job.completedAt}`;
+      if (seenAIFrameJobStatusesRef.current[job.jobId] === statusKey) continue;
+
+      seenAIFrameJobStatusesRef.current[job.jobId] = statusKey;
+      const isViewingSameCard =
+        currentScreen === 'story' &&
+        storyView === 'card' &&
+        activeAIFrameTargetKey === job.targetKey;
+
+      if (!isViewingSameCard) {
+        setAIFrameJobToast({ jobId: job.jobId, status: job.status });
+      }
+      break;
+    }
+  }, [activeAIFrameTargetKey, aiFrameJobs, currentScreen, dismissedAIFrameJobIds, storyView]);
 
   // DB에서 스토리/좋아요/댓글/카드 복원 (시드 댓글 위에 DB 댓글을 덧붙임)
   const loadStories = useCallback(() => {
@@ -138,6 +172,15 @@ export default function App() {
     saveFeedbackTimers.current = [hideTimer, clearTimer];
   };
 
+  const getResumableAIFrameJob = () =>
+    aiFrameJobs
+      .filter((job) =>
+        (job.status === 'generating' || job.status === 'ready') &&
+        !job.superseded &&
+        !dismissedAIFrameJobIds.includes(job.jobId)
+      )
+      .sort((a, b) => b.startedAt - a.startedAt)[0] ?? null;
+
   const handleNavigate = (
     screen: string,
     options?: { activity?: ActivitySaveRecord; returnScreen?: Screen; savedTab?: SavedArchiveTab; cardStory?: StoryItem }
@@ -160,6 +203,13 @@ export default function App() {
 
     if (screen === 'story' && options?.cardStory) {
       setPendingCardStory(options.cardStory);
+    }
+
+    if (screen === 'story' && !options?.cardStory) {
+      const resumableJob = getResumableAIFrameJob();
+      if (resumableJob) {
+        setPendingAIFrameJobId(resumableJob.jobId);
+      }
     }
 
     setCurrentScreen(screen as Screen);
@@ -260,6 +310,25 @@ export default function App() {
     return [...activities, activity];
   }, []);
 
+  const savedTravelCards = [
+    ...localSavedTravelCards,
+    ...myCards.filter((card) => {
+      if (card.storyId !== null && localSavedTravelCards.some((localCard) => localCard.storyId === card.storyId)) {
+        return false;
+      }
+      return !localSavedTravelCards.some((localCard) => localCard.id === card.id);
+    }),
+  ];
+  const activeGeneratingAIFrameJob = aiFrameJobs
+    .filter((job) => job.status === 'generating' && !job.superseded && !dismissedAIFrameJobIds.includes(job.jobId))
+    .sort((a, b) => b.startedAt - a.startedAt)[0] ?? null;
+  const isViewingGeneratingAIFrameCard =
+    !!activeGeneratingAIFrameJob &&
+    currentScreen === 'story' &&
+    storyView === 'card' &&
+    activeAIFrameTargetKey === activeGeneratingAIFrameJob.targetKey;
+  const shouldShowAIFrameGlobalBar = !!activeGeneratingAIFrameJob && !isViewingGeneratingAIFrameCard;
+
   const handleCreateStory = (story: StoryItem) => {
     const ownedStory: StoryItem = { ...story, author: profileNickname, authorName: profileNickname, isMine: true };
     setUserStories((current) => [ownedStory, ...current]);
@@ -286,6 +355,23 @@ export default function App() {
     if (wasMine && deviceKey) {
       storyApi.deleteStory(deviceKey, story.id).catch((error) => console.error('delete story failed', error));
     }
+  };
+
+  const handleSaveTravelCard = (card: StoryCardItem) => {
+    setLocalSavedTravelCards((currentCards) => {
+      const nextCards = currentCards.filter((currentCard) => {
+        if (card.storyId !== null && currentCard.storyId === card.storyId) return false;
+        return currentCard.id !== card.id;
+      });
+
+      return [card, ...nextCards];
+    });
+  };
+
+  const handleDismissAIFrameJob = (jobId: string) => {
+    setDismissedAIFrameJobIds((currentIds) => (
+      currentIds.includes(jobId) ? currentIds : [...currentIds, jobId]
+    ));
   };
 
   const storyInteractions: StoryInteractionProps = {
@@ -418,6 +504,12 @@ export default function App() {
           onDeleteStory={handleDeleteStory}
           pendingCardStory={pendingCardStory}
           onPendingCardConsumed={() => setPendingCardStory(null)}
+          pendingAIFrameJobId={pendingAIFrameJobId}
+          onPendingAIFrameJobConsumed={() => setPendingAIFrameJobId(null)}
+          onStoryViewChange={setStoryView}
+          onActiveAIFrameTargetChange={setActiveAIFrameTargetKey}
+          onSaveTravelCard={handleSaveTravelCard}
+          onDismissAIFrameJob={handleDismissAIFrameJob}
         />
       )}
       {currentScreen === 'saved' && (
@@ -430,7 +522,7 @@ export default function App() {
           activeArchiveTab={savedArchiveTab}
           onArchiveTabChange={setSavedArchiveTab}
           myStories={userStories}
-          myCards={myCards}
+          myCards={savedTravelCards}
           dismissedArchiveStoryIds={dismissedArchiveStoryIds}
           onDeleteArchiveStory={handleDeleteStory}
         />
@@ -461,6 +553,26 @@ export default function App() {
         />
       )}
 
+      {shouldShowAIFrameGlobalBar && activeGeneratingAIFrameJob && (
+        <div
+          className="pointer-events-none fixed inset-x-0 z-[90] flex justify-center px-5"
+          style={{ top: 'calc(env(safe-area-inset-top) + 10px)' }}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              setPendingAIFrameJobId(activeGeneratingAIFrameJob.jobId);
+              setCurrentScreen('story');
+            }}
+            className="ai-frame-global-bar pointer-events-auto inline-flex h-8 items-center justify-center gap-1.5 rounded-full border border-[#d9ccff] bg-[#f4efff]/95 px-3.5 text-[12.5px] font-semibold text-[#5f4bdb] shadow-[0_6px_18px_rgba(95,75,219,0.10)] backdrop-blur-md transition-colors hover:bg-[#eee7ff]"
+            aria-label="AI 프레임 생성 중인 카드로 이동"
+          >
+            <Sparkles className="ai-frame-global-bar-icon h-3.5 w-3.5" strokeWidth={2} />
+            <span>AI 프레임 생성 중</span>
+          </button>
+        </div>
+      )}
+
       {saveFeedback && (
         <div className="pointer-events-none fixed inset-x-0 bottom-[92px] z-[80] flex justify-center px-5">
           <div
@@ -471,6 +583,50 @@ export default function App() {
             aria-live="polite"
           >
             {saveFeedback.message}
+          </div>
+        </div>
+      )}
+
+      {aiFrameJobToast && (
+        <div className="fixed inset-x-0 bottom-[92px] z-[95] flex justify-center px-5">
+          <div
+            className="w-full max-w-[360px] rounded-2xl border border-white/55 bg-[#2f3430]/92 px-4 py-3 text-white shadow-[0_10px_30px_rgba(34,39,34,0.18)] backdrop-blur-md"
+            role="status"
+            aria-live="polite"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[13px] font-semibold leading-5">
+                  {aiFrameJobToast.status === 'ready' ? 'AI 프레임이 완성됐어요' : 'AI 프레임 생성에 실패했어요'}
+                </p>
+                <p className="text-[11.5px] leading-4 text-white/70">
+                  {aiFrameJobToast.status === 'ready' ? '지금 확인해볼까요?' : '다시 시도해볼까요?'}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setAIFrameJobToast(null)}
+                  className="rounded-full px-2.5 py-1.5 text-[11.5px] font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  나중에
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const job = getAIFrameJobById(aiFrameJobToast.jobId);
+                    if (job) {
+                      setPendingAIFrameJobId(job.jobId);
+                      setCurrentScreen('story');
+                    }
+                    setAIFrameJobToast(null);
+                  }}
+                  className="rounded-full bg-white px-3 py-1.5 text-[11.5px] font-semibold text-[#4f46c8] transition-colors hover:bg-[#f3eeff]"
+                >
+                  {aiFrameJobToast.status === 'ready' ? '보러가기' : '다시 시도'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

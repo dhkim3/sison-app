@@ -3,9 +3,12 @@ import { RegionMapView } from './story/RegionMapView';
 import { MyActivitiesView } from './story/MyActivitiesView';
 import { StoryUploadView } from './story/StoryUploadView';
 import { CardCreationView } from './story/CardCreationView';
-import { storyApi, type StoryInteractionProps } from '../storyInteractionState';
+import { storyApi, type StoryCardItem, type StoryInteractionProps } from '../storyInteractionState';
+import { getAIFrameJobById } from '../aiFrameJobState';
 import type { StoryItem } from './story/storyTypes';
 import { scrollToTop } from '../utils/scrollToTop';
+
+type StoryView = 'map' | 'my-activities' | 'upload' | 'card';
 
 interface StoryCreationProps {
   onNavigate: (screen: string) => void;
@@ -16,11 +19,30 @@ interface StoryCreationProps {
   onDeleteStory: (story: StoryItem) => void;
   pendingCardStory?: StoryItem | null;
   onPendingCardConsumed?: () => void;
+  pendingAIFrameJobId?: string | null;
+  onPendingAIFrameJobConsumed?: () => void;
+  onStoryViewChange?: (view: StoryView | null) => void;
+  onActiveAIFrameTargetChange?: (targetKey: string | null) => void;
+  onSaveTravelCard?: (card: StoryCardItem) => void;
+  onDismissAIFrameJob?: (jobId: string) => void;
 }
 
-type StoryView = 'map' | 'my-activities' | 'upload' | 'card';
-
-export function StoryCreation({ onNavigate, storyInteractions, userStories, profileNickname, onCreateStory, onDeleteStory, pendingCardStory, onPendingCardConsumed }: StoryCreationProps) {
+export function StoryCreation({
+  onNavigate,
+  storyInteractions,
+  userStories,
+  profileNickname,
+  onCreateStory,
+  onDeleteStory,
+  pendingCardStory,
+  onPendingCardConsumed,
+  pendingAIFrameJobId,
+  onPendingAIFrameJobConsumed,
+  onStoryViewChange,
+  onActiveAIFrameTargetChange,
+  onSaveTravelCard,
+  onDismissAIFrameJob,
+}: StoryCreationProps) {
   const [currentView, setCurrentView] = useState<StoryView>('map');
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
@@ -34,6 +56,11 @@ export function StoryCreation({ onNavigate, storyInteractions, userStories, prof
   useLayoutEffect(() => {
     scrollToTop();
   }, [currentView]);
+
+  useEffect(() => {
+    onStoryViewChange?.(currentView);
+    return () => onStoryViewChange?.(null);
+  }, [currentView, onStoryViewChange]);
 
   useEffect(() => {
     return () => {
@@ -64,9 +91,9 @@ export function StoryCreation({ onNavigate, storyInteractions, userStories, prof
       title: '광안리 해변 환경정화',
       location: '부산 수영구 광안리해수욕장',
       region: '부산',
-      recruitmentStartDate: '2026.07.10',
-      recruitmentEndDate: '2026.07.18',
-      date: '2026.07.20',
+      recruitmentStartDate: '2026.04.02',
+      recruitmentEndDate: '2026.04.10',
+      date: '2026.06.20',
       time: '09:00 - 11:00',
       status: '참여 완료',
       participants: '15명',
@@ -103,9 +130,9 @@ export function StoryCreation({ onNavigate, storyInteractions, userStories, prof
       title: '안목해변 플로깅',
       location: '강원 강릉시 안목해변',
       region: '강원',
-      recruitmentStartDate: '2026.07.28',
-      recruitmentEndDate: '2026.08.03',
-      date: '2026.08.05',
+      recruitmentStartDate: '2026.06.10',
+      recruitmentEndDate: '2026.06.18',
+      date: '2026.04.12',
       time: '08:00 - 10:00',
       status: '참여 예정',
       participants: '12명',
@@ -163,7 +190,9 @@ export function StoryCreation({ onNavigate, storyInteractions, userStories, prof
     return activity.status === '참여 완료' || activity.status === '종료됨' || (activityDate !== null && activityDate < today);
   };
 
-  const storySelectableActivities = myActivities.filter(isPastActivity);
+  const storySelectableActivities = myActivities
+    .filter(isPastActivity)
+    .sort((a, b) => b.date.localeCompare(a.date));
 
   const handleCreateStory = () => {
     setCurrentView('my-activities');
@@ -237,6 +266,20 @@ export function StoryCreation({ onNavigate, storyInteractions, userStories, prof
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingCardStory]);
+
+  useEffect(() => {
+    if (!pendingAIFrameJobId) return;
+    const job = getAIFrameJobById(pendingAIFrameJobId);
+    if (job) {
+      setSelectedActivity(job.activity);
+      setUploadedPhotos([job.photo]);
+      setStoryTitle(job.storyTitle);
+      setCardStoryId(job.storyId);
+      setCurrentView('card');
+    }
+    onPendingAIFrameJobConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAIFrameJobId]);
 
   const handleSaveStory = async () => {
     if (storyTitle.trim().length === 0) {
@@ -336,6 +379,9 @@ export function StoryCreation({ onNavigate, storyInteractions, userStories, prof
           onBack={() => handleBackToMap()}
           onSaved={() => handleBackToMap()}
           onNavigate={onNavigate}
+          onActiveAIFrameTargetChange={onActiveAIFrameTargetChange}
+          onSaveTravelCard={onSaveTravelCard}
+          onDismissAIFrameJob={onDismissAIFrameJob}
         />
       )}
     </>
