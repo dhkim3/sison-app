@@ -15,7 +15,7 @@ interface StoryCreationProps {
   storyInteractions: StoryInteractionProps;
   userStories: StoryItem[];
   profileNickname: string;
-  onCreateStory: (story: StoryItem) => void;
+  onCreateStory: (story: StoryItem) => void | Promise<void>;
   onDeleteStory: (story: StoryItem) => void;
   pendingCardStory?: StoryItem | null;
   onPendingCardConsumed?: () => void;
@@ -295,6 +295,8 @@ export function StoryCreation({
         imageUrl = await storyApi.uploadPhoto(imageUrl);
       } catch (error) {
         console.error('photo upload failed', error);
+        setSaveMessage('사진 저장에 실패했어요. 잠시 후 다시 시도해주세요.');
+        return;
       }
     }
 
@@ -319,8 +321,13 @@ export function StoryCreation({
       tags: [],
     };
 
-    onCreateStory(nextStory);
-    handleBackToMap(true);
+    try {
+      await onCreateStory(nextStory);
+      handleBackToMap(true);
+    } catch (error) {
+      console.error('story save failed', error);
+      setSaveMessage('스토리를 저장하지 못했어요. 잠시 후 다시 시도해주세요.');
+    }
   };
 
   return (

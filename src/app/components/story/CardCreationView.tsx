@@ -4,7 +4,7 @@ import { BottomTabBar } from '../BottomTabBar';
 import { PageShell } from '../PageShell';
 import { getCompactLocationLabel } from '../TravelCardCarousel';
 import { captureElementAsPng, downloadBlob } from '../../utils/captureElementAsImage';
-import { getDeviceKey } from '../../storyInteractionState';
+import { getDeviceKey, storyApi } from '../../storyInteractionState';
 import {
   makeAIFrameJobTargetKey,
   startAIFrameJob,
@@ -128,7 +128,7 @@ export function CardCreationView({
       downloadBlob(blob, `sison-card-${storyId ?? activity.id ?? 'my-card'}.png`);
       const activityId = Number(activity.id);
       const savedCardId = storyId ?? (Number.isFinite(activityId) && activityId > 0 ? activityId : Date.now());
-      onSaveTravelCard?.({
+      const draftCard = {
         id: savedCardId,
         storyId: storyId ?? null,
         title: cardTitle,
@@ -143,6 +143,15 @@ export function CardCreationView({
         region: activity.region || '',
         date: activity.date || '',
         createdAt: new Date().toISOString(),
+      };
+      const savedCard = await storyApi.saveCard(deviceKey, draftCard);
+      onSaveTravelCard?.({
+        ...draftCard,
+        ...savedCard,
+        frameType: draftCard.frameType,
+        photoUrl: savedCard.photoUrl || draftCard.photoUrl,
+        region: savedCard.region || draftCard.region,
+        date: savedCard.date || draftCard.date,
       });
       setDownloadMessage('여행 카드가 저장됐어요.');
       dismissCurrentAIFrameJob();

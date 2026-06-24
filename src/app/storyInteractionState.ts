@@ -333,7 +333,10 @@ export const storyApi = {
       cards: Array.isArray(data.cards) ? data.cards : [],
     };
   },
-  createStory: (key: string, story: Partial<StoryItem>) => postStoryAction('create', { key, story }),
+  createStory: async (key: string, story: Partial<StoryItem>): Promise<StoryItem> => {
+    const data = await postStoryAction('create', { key, story });
+    return data.story as StoryItem;
+  },
   deleteStory: (key: string, id: number | string) => postStoryAction('delete', { key, id: String(id) }),
   addComment: (key: string, storyId: number | string, authorName: string, body: string) =>
     postStoryAction('comment', { key, storyId: String(storyId), authorName, body }),
@@ -344,6 +347,10 @@ export const storyApi = {
   uploadPhoto: async (dataUrl: string): Promise<string> => {
     const data = await postStoryAction('upload', { dataUrl });
     return data.url as string;
+  },
+  saveCard: async (key: string, card: StoryCardItem): Promise<StoryCardItem> => {
+    const data = await postStoryAction('card-save', { key, ...card });
+    return data.card as StoryCardItem;
   },
   generateCard: (
     key: string,

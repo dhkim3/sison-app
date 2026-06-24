@@ -329,12 +329,16 @@ export default function App() {
     activeAIFrameTargetKey === activeGeneratingAIFrameJob.targetKey;
   const shouldShowAIFrameGlobalBar = !!activeGeneratingAIFrameJob && !isViewingGeneratingAIFrameCard;
 
-  const handleCreateStory = (story: StoryItem) => {
+  const handleCreateStory = async (story: StoryItem) => {
     const ownedStory: StoryItem = { ...story, author: profileNickname, authorName: profileNickname, isMine: true };
-    setUserStories((current) => [ownedStory, ...current]);
     if (deviceKey) {
-      storyApi.createStory(deviceKey, ownedStory).catch((error) => console.error('create story failed', error));
+      const savedStory = await storyApi.createStory(deviceKey, ownedStory);
+      const nextStory: StoryItem = { ...ownedStory, ...savedStory, isMine: true };
+      setUserStories((current) => [nextStory, ...current.filter((item) => item.id !== nextStory.id)]);
+      loadStories();
+      return;
     }
+    setUserStories((current) => [ownedStory, ...current]);
   };
 
   const handleDeleteStory = (story: StoryItem) => {

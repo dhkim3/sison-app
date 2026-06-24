@@ -110,7 +110,7 @@ const handleList = async (res: VercelResponse, deviceKey: string) => {
     ),
     db.query(`select story_id, liker_key from story_likes`),
     db.query(
-      `select id, story_id, title, subtitle, generated_image_url, created_at
+      `select id, story_id, template_type, title, subtitle, generated_image_url, created_at
        from story_cards order by created_at desc`,
     ),
   ]);
@@ -162,6 +162,9 @@ const handleList = async (res: VercelResponse, deviceKey: string) => {
     title: str(row.title),
     subtitle: str(row.subtitle),
     imageUrl: str(row.generated_image_url),
+    frameType: str(row.template_type) === 'ai' ? 'AI' : str(row.template_type),
+    cardPreviewDataUrl: str(row.generated_image_url),
+    finalCardImageUrl: str(row.generated_image_url),
     createdAt: row.created_at,
   }));
 
@@ -196,7 +199,27 @@ const handleCreate = async (res: VercelResponse, deviceKey: string, body: Record
       str(story.activityDate) || null,
     ],
   );
-  res.status(200).json({ ok: true, id: Number(id) });
+  res.status(200).json({
+    ok: true,
+    story: {
+      id: Number(id),
+      title,
+      region: str(story.region) || '',
+      city: str(story.city) || undefined,
+      location: str(story.location) || undefined,
+      author: str(story.authorName) || str(story.author) || '여행자',
+      authorName: str(story.authorName) || str(story.author) || '여행자',
+      body: str(story.body) || str(story.content) || '',
+      content: str(story.body) || str(story.content) || '',
+      imageUrl: str(story.imageUrl) || '',
+      activityTitle: str(story.activityTitle) || undefined,
+      activityDate: str(story.activityDate) || undefined,
+      createdAt: '방금 전',
+      likes: 0,
+      comments: 0,
+      isMine: true,
+    },
+  });
 };
 
 const handleDeleteStory = async (res: VercelResponse, deviceKey: string, body: Record<string, unknown>) => {
@@ -473,6 +496,66 @@ const handleUpload = async (res: VercelResponse, body: Record<string, unknown>) 
     token,
   });
   res.status(200).json({ ok: true, url: blobProxyUrl(blob.pathname), pathname: blob.pathname });
+};
+
+const handleCardSave = async (res: VercelResponse, deviceKey: string, body: Record<string, unknown>) => {
+  const blobToken = getBlobToken();
+  if (!blobToken) return sendError(res, 500, '이미지 저장소가 설정되지 않았어요.');
+  if (!getConnectionString()) return sendError(res, 500, '카드 저장 DB가 설정되지 않았어요.');
+
+  const dataUrl = str(body.cardPreviewDataUrl) || str(body.finalCardImageUrl) || str(body.dataUrl);
+  const decoded = dataUrlToBuffer(dataUrl);
+  if (!decoded) return sendError(res, 400, '저장할 카드 이미지를 보내주세요.');
+
+  const frameType = str(body.frameType) || '기본';
+  const storyId = str(body.storyId);
+  const cardId = str(body.id) || String(Date.now());
+  const title = str(body.title) || '여행 카드';
+  const subtitle = str(body.subtitle) || str(body.region) || '';
+  const ext = decoded.contentType.split('/')[1] || 'png';
+  const blob = await put(
+    `story-cards/final-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`,
+    decoded.buffer,
+    {
+      access: 'private',
+      contentType: decoded.contentType,
+      token: blobToken,
+    },
+  );
+  const finalCardUrl = blobProxyUrl(blob.pathname);
+
+  const db = getPool();
+  if (storyId) {
+    await db.query('delete from story_cards where story_id = $1', [storyId]);
+  }
+  await db.query(
+    `insert into story_cards (id, story_id, author_key, template_type, title, subtitle, generated_image_url)
+     values ($1,$2,$3,$4,$5,$6,$7)`,
+    [
+      cardId,
+      storyId || null,
+      deviceKey || null,
+      frameType === 'AI' ? 'ai' : frameType,
+      title,
+      subtitle,
+      finalCardUrl,
+    ],
+  );
+
+  res.status(200).json({
+    ok: true,
+    card: {
+      id: Number(cardId),
+      storyId: storyId ? Number(storyId) : null,
+      title,
+      subtitle,
+      imageUrl: finalCardUrl,
+      frameType,
+      cardPreviewDataUrl: finalCardUrl,
+      finalCardImageUrl: finalCardUrl,
+      createdAt: new Date().toISOString(),
+    },
+  });
 };
 
 // ---- AI card generation (OpenAI Images Edits API, gpt-image-1) ----
@@ -914,27 +997,6 @@ const handleCardGenerate = async (res: VercelResponse, deviceKey: string, body: 
   const elapsedMs = Date.now() - start;
   const generatedLayers = 1 + (overlayBase64 ? 1 : 0);
   const estimatedTotalCostUsd = estimatedCostPerImageUsd == null ? null : estimatedCostPerImageUsd * generatedLayers;
-  if (getConnectionString()) {
-    try {
-      await getPool().query(
-        `insert into story_cards (id, story_id, author_key, template_type, title, subtitle, generated_image_url)
-         values ($1,$2,$3,$4,$5,$6,$7)`,
-        [
-          String(Date.now()),
-          str(body.storyId) || String(Date.now()),
-          deviceKey || null,
-          str(body.templateType) || 'ai',
-          str(body.title) || null,
-          str(body.subtitle) || null,
-          backgroundUrl,
-        ],
-      );
-    } catch (error) {
-      console.error('story_cards insert failed:', error instanceof Error ? error.message : String(error));
-    }
-  } else {
-    console.warn('story_cards insert skipped: POSTGRES_URL/DATABASE_URL is not configured');
-  }
 
   console.log(
     `[AI frame] model=${model} quality=${IMAGE_GENERATION_QUALITY} size=${IMAGE_GENERATION_SIZE} ` +
@@ -994,6 +1056,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return await handleLike(res, deviceKey, body, false);
         case 'upload':
           return await handleUpload(res, body);
+        case 'card-save':
+          return await handleCardSave(res, deviceKey, body);
         case 'card-generate':
           return await handleCardGenerate(res, deviceKey, body);
         default:
