@@ -85,15 +85,103 @@ const sendError = (res: VercelResponse, code: number, message: string) => {
   res.status(code).json({ ok: false, error: message });
 };
 
+// ---- Blob JSON manifest (shared storage fallback when DB is unavailable) ----
+const STORIES_MANIFEST_PATH = 'manifests/stories.json';
+const CARDS_MANIFEST_PATH = 'manifests/cards.json';
+
+interface ManifestStory {
+  id: number;
+  title: string;
+  region: string;
+  city?: string;
+  location?: string;
+  author: string;
+  authorKey: string;
+  body: string;
+  imageUrl: string;
+  activityTitle?: string;
+  activityDate?: string;
+  createdAt: string;
+}
+
+interface ManifestCard {
+  id: number;
+  storyId: number | null;
+  authorKey: string;
+  title: string;
+  subtitle: string;
+  imageUrl: string;
+  frameType: string;
+  createdAt: string;
+}
+
+async function readBlobJson<T>(token: string, path: string, defaultValue: T): Promise<T> {
+  try {
+    const blob = await get(path, { access: 'public', token, useCache: false });
+    if (!blob || blob.statusCode !== 200 || !blob.stream) return defaultValue;
+    const text = await new Response(blob.stream).text();
+    return JSON.parse(text) as T;
+  } catch {
+    return defaultValue;
+  }
+}
+
+async function writeBlobJson<T>(token: string, path: string, data: T): Promise<void> {
+  await put(path, JSON.stringify(data), {
+    access: 'public',
+    contentType: 'application/json; charset=utf-8',
+    token,
+    addRandomSuffix: false,
+  });
+}
+
 // ---- per-action handlers ----
 
 const handleList = async (res: VercelResponse, deviceKey: string) => {
   if (!getConnectionString()) {
-    if (!dbMissingWarnLogged) {
-      console.warn('[api/story] POSTGRES_URL/DATABASE_URL not configured — returning empty story list');
-      dbMissingWarnLogged = true;
+    const blobToken = getBlobToken();
+    if (!blobToken) {
+      if (!dbMissingWarnLogged) {
+        console.warn('[api/story] POSTGRES_URL/DATABASE_URL not configured — returning empty story list');
+        dbMissingWarnLogged = true;
+      }
+      res.status(200).json({ ok: true, ...emptyStoryList() });
+      return;
     }
-    res.status(200).json({ ok: true, ...emptyStoryList() });
+    const [storiesData, cardsData] = await Promise.all([
+      readBlobJson<ManifestStory[]>(blobToken, STORIES_MANIFEST_PATH, []),
+      readBlobJson<ManifestCard[]>(blobToken, CARDS_MANIFEST_PATH, []),
+    ]);
+    const stories = storiesData.map((s) => ({
+      id: s.id,
+      title: s.title,
+      region: s.region,
+      city: s.city,
+      location: s.location,
+      author: s.author,
+      authorName: s.author,
+      body: s.body,
+      content: s.body,
+      imageUrl: s.imageUrl,
+      activityTitle: s.activityTitle,
+      activityDate: s.activityDate,
+      createdAt: relativeTime(s.createdAt),
+      likes: 0,
+      comments: 0,
+      isMine: Boolean(deviceKey) && s.authorKey === deviceKey,
+    }));
+    const cards = cardsData.map((c) => ({
+      id: c.id,
+      storyId: c.storyId,
+      title: c.title,
+      subtitle: c.subtitle,
+      imageUrl: c.imageUrl,
+      frameType: c.frameType,
+      cardPreviewDataUrl: c.imageUrl,
+      finalCardImageUrl: c.imageUrl,
+      createdAt: c.createdAt,
+    }));
+    res.status(200).json({ ok: true, stories, comments: {}, likeCounts: {}, likedStoryIds: [], cards });
     return;
   }
 
@@ -178,21 +266,32 @@ const handleCreate = async (res: VercelResponse, deviceKey: string, body: Record
   if (!title) return sendError(res, 400, '제목이 필요해요.');
 
   if (!getConnectionString()) {
+    const blobToken = getBlobToken();
+    const author = str(story.authorName) || str(story.author) || '여행자';
+    const newManifestStory: ManifestStory = {
+      id: Number(id),
+      title,
+      region: str(story.region) || '',
+      city: str(story.city) || undefined,
+      location: str(story.location) || undefined,
+      author,
+      authorKey: deviceKey || '',
+      body: str(story.body) || str(story.content) || '',
+      imageUrl: str(story.imageUrl) || '',
+      activityTitle: str(story.activityTitle) || undefined,
+      activityDate: str(story.activityDate) || undefined,
+      createdAt: new Date().toISOString(),
+    };
+    if (blobToken) {
+      const existing = await readBlobJson<ManifestStory[]>(blobToken, STORIES_MANIFEST_PATH, []);
+      await writeBlobJson(blobToken, STORIES_MANIFEST_PATH, [newManifestStory, ...existing.filter((s) => s.id !== newManifestStory.id)]);
+    }
     res.status(200).json({
       ok: true,
       story: {
-        id: Number(id),
-        title,
-        region: str(story.region) || '',
-        city: str(story.city) || undefined,
-        location: str(story.location) || undefined,
-        author: str(story.authorName) || str(story.author) || '여행자',
-        authorName: str(story.authorName) || str(story.author) || '여행자',
-        body: str(story.body) || str(story.content) || '',
-        content: str(story.body) || str(story.content) || '',
-        imageUrl: str(story.imageUrl) || '',
-        activityTitle: str(story.activityTitle) || undefined,
-        activityDate: str(story.activityDate) || undefined,
+        ...newManifestStory,
+        authorName: author,
+        content: newManifestStory.body,
         createdAt: '방금 전',
         likes: 0,
         comments: 0,
@@ -250,6 +349,15 @@ const handleCreate = async (res: VercelResponse, deviceKey: string, body: Record
 const handleDeleteStory = async (res: VercelResponse, deviceKey: string, body: Record<string, unknown>) => {
   const id = str(body.id || body.storyId);
   if (!id) return sendError(res, 400, '스토리 id가 필요해요.');
+  if (!getConnectionString()) {
+    const blobToken = getBlobToken();
+    if (blobToken) {
+      const stories = await readBlobJson<ManifestStory[]>(blobToken, STORIES_MANIFEST_PATH, []);
+      await writeBlobJson(blobToken, STORIES_MANIFEST_PATH, stories.filter((s) => String(s.id) !== id));
+    }
+    res.status(200).json({ ok: true, deleted: 1 });
+    return;
+  }
   const db = getPool();
   const result = await db.query('delete from stories where id = $1', [id]);
   await db.query('delete from story_comments where story_id = $1', [id]);
@@ -352,136 +460,6 @@ const paethPredictor = (a: number, b: number, c: number) => {
   return c;
 };
 
-const normalizeOverlayPngTransparency = (png: Buffer) => {
-  if (!png.subarray(0, 8).equals(PNG_SIGNATURE)) return png;
-
-  let offset = 8;
-  let width = 0;
-  let height = 0;
-  let bitDepth = 0;
-  let colorType = 0;
-  const idatChunks: Buffer[] = [];
-
-  while (offset + 8 <= png.length) {
-    const length = png.readUInt32BE(offset);
-    const type = png.subarray(offset + 4, offset + 8).toString('ascii');
-    const dataStart = offset + 8;
-    const dataEnd = dataStart + length;
-    if (dataEnd + 4 > png.length) return png;
-    const data = png.subarray(dataStart, dataEnd);
-
-    if (type === 'IHDR') {
-      width = data.readUInt32BE(0);
-      height = data.readUInt32BE(4);
-      bitDepth = data[8];
-      colorType = data[9];
-      const compression = data[10];
-      const filter = data[11];
-      const interlace = data[12];
-      if (bitDepth !== 8 || compression !== 0 || filter !== 0 || interlace !== 0 || ![2, 6].includes(colorType)) {
-        return png;
-      }
-    } else if (type === 'IDAT') {
-      idatChunks.push(Buffer.from(data));
-    } else if (type === 'IEND') {
-      break;
-    }
-
-    offset = dataEnd + 4;
-  }
-
-  if (!width || !height || !idatChunks.length) return png;
-
-  const channels = colorType === 6 ? 4 : 3;
-  const bytesPerPixel = channels;
-  const scanlineLength = width * channels;
-  let inflated: Buffer;
-  try {
-    inflated = inflateSync(Buffer.concat(idatChunks));
-  } catch {
-    return png;
-  }
-  if (inflated.length < (scanlineLength + 1) * height) return png;
-
-  const rgba = Buffer.alloc(width * height * 4);
-  const previous = Buffer.alloc(scanlineLength);
-  const current = Buffer.alloc(scanlineLength);
-
-  for (let y = 0; y < height; y += 1) {
-    const rowOffset = y * (scanlineLength + 1);
-    const filterType = inflated[rowOffset];
-    const raw = inflated.subarray(rowOffset + 1, rowOffset + 1 + scanlineLength);
-
-    for (let x = 0; x < scanlineLength; x += 1) {
-      const left = x >= bytesPerPixel ? current[x - bytesPerPixel] : 0;
-      const up = previous[x] || 0;
-      const upLeft = x >= bytesPerPixel ? previous[x - bytesPerPixel] : 0;
-      const value = raw[x];
-      switch (filterType) {
-        case 0:
-          current[x] = value;
-          break;
-        case 1:
-          current[x] = (value + left) & 0xff;
-          break;
-        case 2:
-          current[x] = (value + up) & 0xff;
-          break;
-        case 3:
-          current[x] = (value + Math.floor((left + up) / 2)) & 0xff;
-          break;
-        case 4:
-          current[x] = (value + paethPredictor(left, up, upLeft)) & 0xff;
-          break;
-        default:
-          return png;
-      }
-    }
-
-    for (let x = 0; x < width; x += 1) {
-      const source = x * channels;
-      const target = (y * width + x) * 4;
-      const r = current[source];
-      const g = current[source + 1];
-      const b = current[source + 2];
-      const a = colorType === 6 ? current[source + 3] : 255;
-      const max = Math.max(r, g, b);
-      const min = Math.min(r, g, b);
-      const looksLikeCheckerboard = min >= 210 && max - min <= 24;
-      const looksLikeWhiteMatte = min >= 238 && max - min <= 36;
-
-      rgba[target] = r;
-      rgba[target + 1] = g;
-      rgba[target + 2] = b;
-      rgba[target + 3] = a < 16 || looksLikeCheckerboard || looksLikeWhiteMatte ? 0 : a;
-    }
-
-    previous.set(current);
-  }
-
-  const rawRgba = Buffer.alloc((width * 4 + 1) * height);
-  for (let y = 0; y < height; y += 1) {
-    const rowOffset = y * (width * 4 + 1);
-    rawRgba[rowOffset] = 0;
-    rgba.copy(rawRgba, rowOffset + 1, y * width * 4, (y + 1) * width * 4);
-  }
-
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(width, 0);
-  ihdr.writeUInt32BE(height, 4);
-  ihdr[8] = 8;
-  ihdr[9] = 6;
-  ihdr[10] = 0;
-  ihdr[11] = 0;
-  ihdr[12] = 0;
-
-  return Buffer.concat([
-    PNG_SIGNATURE,
-    makePngChunk('IHDR', ihdr),
-    makePngChunk('IDAT', deflateSync(rawRgba)),
-    makePngChunk('IEND', Buffer.alloc(0)),
-  ]);
-};
 
 const inferContentType = (pathname: string) => {
   if (/\.png$/i.test(pathname)) return 'image/png';
@@ -526,7 +504,6 @@ const handleUpload = async (res: VercelResponse, body: Record<string, unknown>) 
 const handleCardSave = async (res: VercelResponse, deviceKey: string, body: Record<string, unknown>) => {
   const blobToken = getBlobToken();
   if (!blobToken) return sendError(res, 500, '이미지 저장소가 설정되지 않았어요.');
-  if (!getConnectionString()) return sendError(res, 500, '카드 저장 DB가 설정되지 않았어요.');
 
   const dataUrl = str(body.cardPreviewDataUrl) || str(body.finalCardImageUrl) || str(body.dataUrl);
   const decoded = dataUrlToBuffer(dataUrl);
@@ -549,6 +526,39 @@ const handleCardSave = async (res: VercelResponse, deviceKey: string, body: Reco
   );
   const finalCardUrl = blobProxyUrl(blob.pathname);
 
+  const cardResponse = {
+    ok: true,
+    card: {
+      id: Number(cardId),
+      storyId: storyId ? Number(storyId) : null,
+      title,
+      subtitle,
+      imageUrl: finalCardUrl,
+      frameType,
+      cardPreviewDataUrl: finalCardUrl,
+      finalCardImageUrl: finalCardUrl,
+      createdAt: new Date().toISOString(),
+    },
+  };
+
+  if (!getConnectionString()) {
+    const newCard: ManifestCard = {
+      id: Number(cardId),
+      storyId: storyId ? Number(storyId) : null,
+      authorKey: deviceKey || '',
+      title,
+      subtitle,
+      imageUrl: finalCardUrl,
+      frameType,
+      createdAt: new Date().toISOString(),
+    };
+    const existing = await readBlobJson<ManifestCard[]>(blobToken, CARDS_MANIFEST_PATH, []);
+    const filtered = existing.filter((c) => c.id !== newCard.id && (storyId ? c.storyId !== Number(storyId) : true));
+    await writeBlobJson(blobToken, CARDS_MANIFEST_PATH, [newCard, ...filtered]);
+    res.status(200).json(cardResponse);
+    return;
+  }
+
   const db = getPool();
   if (storyId) {
     await db.query('delete from story_cards where story_id = $1', [storyId]);
@@ -567,20 +577,7 @@ const handleCardSave = async (res: VercelResponse, deviceKey: string, body: Reco
     ],
   );
 
-  res.status(200).json({
-    ok: true,
-    card: {
-      id: Number(cardId),
-      storyId: storyId ? Number(storyId) : null,
-      title,
-      subtitle,
-      imageUrl: finalCardUrl,
-      frameType,
-      cardPreviewDataUrl: finalCardUrl,
-      finalCardImageUrl: finalCardUrl,
-      createdAt: new Date().toISOString(),
-    },
-  });
+  res.status(200).json(cardResponse);
 };
 
 // ---- AI card generation (OpenAI Images Edits API, gpt-image-1) ----
@@ -628,10 +625,61 @@ const getCardTheme = (activity: string, region: string) => {
   };
 };
 
-const buildFrameBasePrompt = (
+const buildFramePrompt = (volunteerActivity: string, region: string) => {
+  const theme = getCardTheme(volunteerActivity, region);
+  const safeActivity = volunteerActivity || '봉사 활동';
+  return (
+    `You are creating a decorative AI background frame PNG for a Korean travel memory card.\n` +
+    `Use the supplied source.png ONLY as visual reference for mood, colors, season, and activity context.\n` +
+    `Do not reproduce, redraw, crop, edit, stylize, or include the source photo in the output.\n` +
+    `The client will composite the final card by placing the original untouched photo and React-rendered text ON TOP of this background.\n` +
+    `\n` +
+    `=== CONTEXT ===\n` +
+    `<ACTIVITY>${safeActivity}</ACTIVITY>\n` +
+    `\n` +
+    `=== CRITICAL: OPACITY REQUIREMENTS ===\n` +
+    `This image MUST be fully opaque. Every pixel must have alpha=255.\n` +
+    `Do NOT create transparent areas. Do NOT create alpha=0 regions.\n` +
+    `Do NOT create checkerboard transparency patterns.\n` +
+    `Do NOT leave empty transparent regions anywhere in the image.\n` +
+    `The entire canvas must be filled with solid color, texture, or decoration.\n` +
+    `If the model would normally output transparency, fill those areas with the card background color instead.\n` +
+    `\n` +
+    `=== BACKGROUND FRAME LAYER ===\n` +
+    `Create the full-card opaque background frame that will sit BELOW the original photo and text.\n` +
+    `Background mood: ${theme.bg}.\n` +
+    `Decorate the card outer frame, card corners, card edges, and the lower text area with: ${theme.decorations}.\n` +
+    `Keep the photo area visually simple — the client-rendered photo will cover it.\n` +
+    `Keep the lower text area calm and readable. Use subtle themed color and sparse small accents only.\n` +
+    `Do not create characters, people, large objects, or illustrated scenes that would interfere with the photo.\n` +
+    `Do not create foreground objects that need to appear on top of the photo.\n` +
+    `Do not create a separate illustrated landscape, environment, or scene.\n` +
+    `Do not create a white panel or white overlay behind the text area.\n` +
+    `Do not create inner photo frames, duplicate frame boxes, or photo placeholder boxes.\n` +
+    `\n` +
+    `=== OUTPUT ===\n` +
+    `Return ONE 1024×1536 portrait PNG.\n` +
+    `The image must be fully opaque — no transparency, no alpha channel regions, no checkerboard.\n` +
+    `STYLE: 16-bit pixel-art decorative frame, soft pastel palette, calm Korean travel-app mood.\n` +
+    `\n` +
+    `=== SAFE COMPOSITION LAYOUT (coordinates assume 1024×1536 canvas) ===\n` +
+    `PHOTO AREA: x=55–969, y=55–1110. This will be covered by the client-rendered photo. Keep it simple.\n` +
+    `LOWER TEXT AREA: x=55–969, y=1120–1536. Title, location, date, and Sison logo go here. Keep it clean.\n` +
+    `DECORATION FOCUS: card outer edges, card corners, and lower text area accents.\n` +
+    `\n` +
+    `IMPORTANT:\n` +
+    `Do not generate any text, letters, numbers, dates, captions, or logos.\n` +
+    `Do not generate inner photo frames, duplicate frame boxes, or photo placeholders.\n` +
+    `Do not create a separate illustrated scene or decorative world.\n` +
+    `Do not create transparent areas. The entire canvas must be filled and opaque.\n` +
+    `Do not generate horizontal lines, divider lines, or separator lines around the text area.\n`
+  );
+};
+
+const _noop = (
   volunteerActivity: string,
   region: string,
-  layer: 'background' | 'overlay',
+  layer: 'background',
 ) => {
   const theme = getCardTheme(volunteerActivity, region);
   const safeActivity = volunteerActivity || '봉사 활동';
@@ -886,12 +934,6 @@ const buildFrameBasePrompt = (
   );
 };
 
-const buildFramePrompt = (volunteerActivity: string, region: string) =>
-  buildFrameBasePrompt(volunteerActivity, region, 'background');
-
-const buildFrameOverlayPrompt = (volunteerActivity: string, region: string) =>
-  buildFrameBasePrompt(volunteerActivity, region, 'overlay');
-
 const IMAGE_GENERATION_SIZE = '1024x1536';
 const IMAGE_GENERATION_QUALITY = 'medium';
 
@@ -977,7 +1019,6 @@ const handleCardGenerate = async (res: VercelResponse, deviceKey: string, body: 
 
   const model = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2';
   const backgroundPrompt = buildFramePrompt(volunteerActivity, region);
-  const overlayPrompt = buildFrameOverlayPrompt(volunteerActivity, region);
   const estimatedCostPerImageUsd = getEstimatedImageCostUsd(model, IMAGE_GENERATION_QUALITY, IMAGE_GENERATION_SIZE);
 
   const start = Date.now();
@@ -991,16 +1032,6 @@ const handleCardGenerate = async (res: VercelResponse, deviceKey: string, body: 
     return sendError(res, 502, error instanceof Error ? error.message : 'AI 카드 생성에 실패했어요. 잠시 후 다시 시도해주세요.');
   }
 
-  let overlayBase64 = '';
-  let overlayElapsedMs = 0;
-  try {
-    const overlayResult = await requestOpenAIImageEdit(apiKey, model, decoded, overlayPrompt, 'transparent');
-    overlayBase64 = overlayResult.imageBase64;
-    overlayElapsedMs = overlayResult.elapsedMs;
-  } catch (error) {
-    console.warn('AI frame overlay generation skipped:', error instanceof Error ? error.message : String(error));
-  }
-
   const blob = await put(`story-cards/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-background.png`, Buffer.from(backgroundBase64, 'base64'), {
     access: 'private',
     contentType: 'image/png',
@@ -1008,44 +1039,28 @@ const handleCardGenerate = async (res: VercelResponse, deviceKey: string, body: 
   });
   const backgroundUrl = blobProxyUrl(blob.pathname);
 
-  let overlayUrl = '';
-  if (overlayBase64) {
-    const overlayBuffer = normalizeOverlayPngTransparency(Buffer.from(overlayBase64, 'base64'));
-    const overlayBlob = await put(`story-cards/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-overlay.png`, overlayBuffer, {
-      access: 'private',
-      contentType: 'image/png',
-      token: blobToken,
-    });
-    overlayUrl = blobProxyUrl(overlayBlob.pathname);
-  }
-
   const elapsedMs = Date.now() - start;
-  const generatedLayers = 1 + (overlayBase64 ? 1 : 0);
-  const estimatedTotalCostUsd = estimatedCostPerImageUsd == null ? null : estimatedCostPerImageUsd * generatedLayers;
+  const estimatedTotalCostUsd = estimatedCostPerImageUsd;
 
   console.log(
     `[AI frame] model=${model} quality=${IMAGE_GENERATION_QUALITY} size=${IMAGE_GENERATION_SIZE} ` +
-    `layers=${generatedLayers}${overlayBase64 ? ' (background+overlay)' : ' (background only)'} ` +
+    `layers=1 (background only) ` +
     `cost≈${formatCost(estimatedTotalCostUsd)} ` +
     `time=${(elapsedMs / 1000).toFixed(1)}s ` +
-    `background=${(backgroundElapsedMs / 1000).toFixed(1)}s ` +
-    `overlay=${overlayBase64 ? `${(overlayElapsedMs / 1000).toFixed(1)}s` : 'skipped'}`
+    `background=${(backgroundElapsedMs / 1000).toFixed(1)}s`
   );
   res.status(200).json({
     ok: true,
     url: backgroundUrl,
     backgroundUrl,
-    overlayUrl: overlayUrl || null,
+    overlayUrl: null,
     elapsedMs,
     imageModel: model,
     imageQuality: IMAGE_GENERATION_QUALITY,
     imageSize: IMAGE_GENERATION_SIZE,
-    generatedLayers,
+    generatedLayers: 1,
     estimatedCostUsd: estimatedTotalCostUsd,
-    layerTimingsMs: {
-      background: backgroundElapsedMs,
-      overlay: overlayBase64 ? overlayElapsedMs : null,
-    },
+    layerTimingsMs: { background: backgroundElapsedMs, overlay: null },
   });
 };
 

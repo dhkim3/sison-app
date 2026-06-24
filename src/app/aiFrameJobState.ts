@@ -12,7 +12,6 @@ export interface AIFrameJob {
   storyTitle: string;
   status: AIFrameJobStatus;
   backgroundUrl: string | null;
-  overlayUrl: string | null;
   errorMessage: string;
   startedAt: number;
   completedAt: number | null;
@@ -168,7 +167,6 @@ export const startAIFrameJob = (params: StartAIFrameJobParams) => {
     storyTitle: params.storyTitle,
     status: 'generating',
     backgroundUrl: null,
-    overlayUrl: null,
     errorMessage: '',
     startedAt,
     completedAt: null,
@@ -199,18 +197,15 @@ export const startAIFrameJob = (params: StartAIFrameJobParams) => {
         `[AI frame] model=${result.imageModel ?? 'unknown'} ` +
         `quality=${result.imageQuality ?? 'unknown'} ` +
         `size=${result.imageSize ?? 'unknown'} ` +
-        `layers=${result.generatedLayers ?? 'unknown'} ` +
         `cost≈${typeof result.estimatedCostUsd === 'number' ? `$${result.estimatedCostUsd.toFixed(3)}` : 'unknown'} ` +
         `time=${(result.elapsedMs / 1000).toFixed(1)}s ` +
-        `background=${typeof result.layerTimingsMs?.background === 'number' ? `${(result.layerTimingsMs.background / 1000).toFixed(1)}s` : 'unknown'} ` +
-        `overlay=${typeof result.layerTimingsMs?.overlay === 'number' ? `${(result.layerTimingsMs.overlay / 1000).toFixed(1)}s` : 'skipped'}`
+        `background=${typeof result.layerTimingsMs?.background === 'number' ? `${(result.layerTimingsMs.background / 1000).toFixed(1)}s` : 'unknown'}`
       );
 
       updateJob(jobId, (job) => ({
         ...job,
         status: 'ready',
         backgroundUrl: result.backgroundUrl || result.url,
-        overlayUrl: result.overlayUrl || null,
         errorMessage: '',
         completedAt: Date.now(),
         superseded: snapshot.latestJobIdByTarget[targetKey] !== jobId || job.superseded,
@@ -221,7 +216,6 @@ export const startAIFrameJob = (params: StartAIFrameJobParams) => {
         ...job,
         status: 'error',
         backgroundUrl: null,
-        overlayUrl: null,
         errorMessage: /준비 중/.test(message) ? message : 'AI 프레임 생성에 실패했어요',
         completedAt: Date.now(),
         superseded: snapshot.latestJobIdByTarget[targetKey] !== jobId || job.superseded,

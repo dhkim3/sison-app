@@ -74,7 +74,6 @@ export function CardCreationView({
   const aiFrameJob = useAIFrameJob(aiFrameTargetKey);
   const aiFrameStatus = aiFrameJob?.status ?? 'idle';
   const aiFrameBackgroundUrl = aiFrameJob?.backgroundUrl ?? null;
-  const aiFrameOverlayUrl = aiFrameJob?.overlayUrl ?? null;
   const errorMessage = aiFrameJob?.status === 'error' ? aiFrameJob.errorMessage : '';
   const [selectedFrame, setSelectedFrame] = useState<string>(() => (aiFrameJob ? AI_FRAME : '기본'));
   const didAutoSelectAIFrameRef = useRef(false);
@@ -148,7 +147,6 @@ export function CardCreationView({
         cardPreviewDataUrl: imageUrl,
         finalCardImageUrl: imageUrl,
         aiFrameBackgroundUrl,
-        aiFrameOverlayUrl,
         photoUrl: photo,
         region: activity.region || '',
         date: activity.date || '',
@@ -317,16 +315,6 @@ export function CardCreationView({
                   </div>
                 </div>
 
-                {isAiFrameReady && aiFrameOverlayUrl && (
-                  <img
-                    key={aiFrameOverlayUrl}
-                    src={aiFrameOverlayUrl}
-                    alt=""
-                    aria-hidden="true"
-                    className="ai-frame-photo-edge-overlay pointer-events-none absolute inset-0 z-20 h-full w-full select-none object-fill [-webkit-user-drag:none]"
-                  />
-                )}
-
                 {shouldShowAIPreviewAnimation && (
                   <div
                     aria-hidden="true"
@@ -334,7 +322,7 @@ export function CardCreationView({
                   />
                 )}
 
-                <div className="relative z-30">
+                <div className="relative z-20">
                   <div className="px-1.5">
                     <p className={`line-clamp-1 text-[13px] font-semibold leading-snug ${isDarkFrame ? 'text-white' : 'text-[#2a2a2a]'}`}>
                       {cardTitle}

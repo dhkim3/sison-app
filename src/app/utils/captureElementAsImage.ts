@@ -417,38 +417,7 @@ function drawImageWithObjectFit(
   }
 }
 
-function applyAIFramePhotoEdgeOverlayClip(
-  context: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-) {
-  const ellipses = [
-    { cx: 0.50, cy: 0.08, rx: 0.56, ry: 0.20 },
-    { cx: 0.84, cy: 0.12, rx: 0.34, ry: 0.24 },
-    { cx: 0.93, cy: 0.38, rx: 0.24, ry: 0.46 },
-    { cx: 0.07, cy: 0.46, rx: 0.22, ry: 0.42 },
-    { cx: 0.54, cy: 0.72, rx: 0.56, ry: 0.22 },
-    { cx: 0.78, cy: 0.70, rx: 0.38, ry: 0.24 },
-    { cx: 0.86, cy: 0.84, rx: 0.32, ry: 0.32 },
-    { cx: 0.17, cy: 0.70, rx: 0.28, ry: 0.22 },
-  ];
 
-  context.beginPath();
-  for (const ellipse of ellipses) {
-    context.ellipse(
-      x + width * ellipse.cx,
-      y + height * ellipse.cy,
-      width * ellipse.rx,
-      height * ellipse.ry,
-      0,
-      0,
-      Math.PI * 2,
-    );
-  }
-  context.clip();
-}
 
 function truncateText(context: CanvasRenderingContext2D, text: string, maxWidth: number) {
   if (context.measureText(text).width <= maxWidth) return text;
@@ -531,14 +500,7 @@ async function drawElementTree(
   if (element instanceof HTMLImageElement) {
     const drawable = await loadDrawableImage(element);
     if (drawable) {
-      if (element.classList.contains('ai-frame-photo-edge-overlay')) {
-        context.save();
-        applyAIFramePhotoEdgeOverlayClip(context, rect.x, rect.y, rect.width, rect.height);
-        drawImageWithObjectFit(context, drawable, style, rect.x, rect.y, rect.width, rect.height);
-        context.restore();
-      } else {
-        drawImageWithObjectFit(context, drawable, style, rect.x, rect.y, rect.width, rect.height);
-      }
+      drawImageWithObjectFit(context, drawable, style, rect.x, rect.y, rect.width, rect.height);
     } else {
       drawImagePlaceholder(context, rect.x, rect.y, rect.width, rect.height);
     }
@@ -580,6 +542,68 @@ function canvasToPngBlob(canvas: HTMLCanvasElement) {
       }
     }, 'image/png');
   });
+}
+
+let cachedFontFaceStyles: string | null = null;
+
+async function getFontFaceStyles(): Promise<string> {
+  if (cachedFontFaceStyles !== null) return cachedFontFaceStyles;
+
+  const rules: string[] = [];
+  for (const sheet of Array.from(document.styleSheets)) {
+    try {
+      for (const rule of Array.from(sheet.cssRules ?? [])) {
+        if (!(rule instanceof CSSFontFaceRule)) continue;
+        const src = rule.style.getPropertyValue('src');
+        const urlMatch = src.match(/url\(['"]?([^'")\s]+)['"]?\)/);
+        if (!urlMatch) { rules.push(rule.cssText); continue; }
+
+        const absoluteUrl = new URL(urlMatch[1], document.baseURI).href;
+        try {
+          const res = await fetch(absoluteUrl);
+          const blob = await res.blob();
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => typeof reader.result === 'string' ? resolve(reader.result) : reject();
+            reader.onerror = () => reject();
+            reader.readAsDataURL(blob);
+          });
+          const newSrc = src.replace(urlMatch[0], `url("${dataUrl}")`);
+          const props = Array.from(rule.style)
+            .map((p) => `${p}: ${p === 'src' ? newSrc : rule.style.getPropertyValue(p)}`)
+            .join('; ');
+          rules.push(`@font-face { ${props} }`);
+        } catch {
+          rules.push(rule.cssText);
+        }
+      }
+    } catch { /* cross-origin stylesheet */ }
+  }
+
+  cachedFontFaceStyles = rules.join('\n');
+  return cachedFontFaceStyles;
+}
+
+function applyRoundedCornerClip(
+  context: CanvasRenderingContext2D,
+  element: HTMLElement,
+  scale: number,
+) {
+  const radius = parseFloat(window.getComputedStyle(element).borderRadius) || 0;
+  if (radius <= 0) return;
+  const r = radius * scale;
+  const w = context.canvas.width;
+  const h = context.canvas.height;
+  context.globalCompositeOperation = 'destination-in';
+  context.beginPath();
+  context.moveTo(r, 0);
+  context.arcTo(w, 0, w, h, r);
+  context.arcTo(w, h, 0, h, r);
+  context.arcTo(0, h, 0, 0, r);
+  context.arcTo(0, 0, w, 0, r);
+  context.closePath();
+  context.fill();
+  context.globalCompositeOperation = 'source-over';
 }
 
 function fillCanvasBackground(context: CanvasRenderingContext2D, width: number, height: number, backgroundColor: string) {
@@ -652,8 +676,10 @@ export async function captureElementAsPng(element: HTMLElement, scale = 2, optio
     const serializedNode = new XMLSerializer().serializeToString(clone);
     const svgBackgroundRect = backgroundColor === 'transparent' ? '' : `<rect width="100%" height="100%" fill="${backgroundColor}" />`;
     const wrapperBackground = backgroundColor === 'transparent' ? 'transparent' : backgroundColor;
+    const fontFaceStyles = await getFontFaceStyles();
     const svg = `
       <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+        ${fontFaceStyles ? `<defs><style>${fontFaceStyles}</style></defs>` : ''}
         ${svgBackgroundRect}
         <foreignObject width="100%" height="100%">
           <div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;overflow:hidden;background:${wrapperBackground};">
@@ -677,6 +703,7 @@ export async function captureElementAsPng(element: HTMLElement, scale = 2, optio
     fillCanvasBackground(context, canvas.width, canvas.height, backgroundColor);
     context.scale(scale, scale);
     context.drawImage(image, 0, 0, width, height);
+    applyRoundedCornerClip(context, element, scale);
 
     return await canvasToPngBlob(canvas);
     } catch (svgError) {
