@@ -205,15 +205,14 @@ const storyCardToArchiveCard = (card: StoryCardItem): ArchiveTravelCard => ({
   locationLabel: card.subtitle || undefined,
   style: 'polaroid',
   frameType: card.frameType,
-  cardPreviewDataUrl: card.cardPreviewDataUrl,
-  finalCardImageUrl: card.finalCardImageUrl,
+  cardPreviewDataUrl: card.cardPreviewDataUrl || card.finalCardImageUrl || card.imageUrl,
+  finalCardImageUrl: card.finalCardImageUrl || card.cardPreviewDataUrl || card.imageUrl,
   aiFrameBackgroundUrl: card.aiFrameBackgroundUrl,
   aiFrameOverlayUrl: card.aiFrameOverlayUrl,
   sourcePhotoUrl: card.photoUrl,
 });
 
 const getTravelCardPreviewUrl = (card: ArchiveTravelCard) => {
-  if (card.frameType === 'AI' && card.aiFrameBackgroundUrl) return null;
   return card.cardPreviewDataUrl || card.finalCardImageUrl;
 };
 
@@ -357,12 +356,12 @@ export function SavedArchive({
   // 사용자가 삭제한 시드 스토리는 dismissedArchiveStoryIds로 영속 관리되어 화면 전환 후에도 유지된다.
   useEffect(() => {
     const dismissed = new Set(dismissedArchiveStoryIds ?? []);
-    const combined = [...(myStories ?? []), ...initialArchiveStories];
+    const combined = (myStories && myStories.length > 0) ? myStories : initialArchiveStories;
     setStories(sortStoriesByLatestDate(combined.filter((story) => !dismissed.has(story.id))));
   }, [myStories, dismissedArchiveStoryIds]);
 
   useEffect(() => {
-    setTravelCards([...(myCards ?? []).map(storyCardToArchiveCard), ...initialTravelCards]);
+    setTravelCards(myCards && myCards.length > 0 ? myCards.map(storyCardToArchiveCard) : initialTravelCards);
   }, [myCards]);
 
   useEffect(() => {

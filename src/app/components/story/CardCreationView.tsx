@@ -152,47 +152,35 @@ export function CardCreationView({
         date: activity.date || '',
         createdAt: new Date().toISOString(),
       };
-      onSaveTravelCard?.(draftCard);
+      let savedCard: Awaited<ReturnType<typeof storyApi.saveCard>>;
+      try {
+        savedCard = await storyApi.saveCard(deviceKey, draftCard);
+      } catch (serverSaveError) {
+        console.error('card server save failed, retrying with compact capture', serverSaveError);
+        const compactImageUrl = await compactImageUrlPromise;
+        savedCard = await storyApi.saveCard(deviceKey, {
+          ...draftCard,
+          imageUrl: compactImageUrl,
+          cardPreviewDataUrl: compactImageUrl,
+          finalCardImageUrl: compactImageUrl,
+        });
+      }
+      onSaveTravelCard?.({
+        ...draftCard,
+        ...savedCard,
+        frameType: savedCard.frameType || draftCard.frameType,
+        photoUrl: savedCard.photoUrl || draftCard.photoUrl,
+        region: savedCard.region || draftCard.region,
+        date: savedCard.date || draftCard.date,
+        cardPreviewDataUrl: savedCard.cardPreviewDataUrl || savedCard.finalCardImageUrl || savedCard.imageUrl,
+        finalCardImageUrl: savedCard.finalCardImageUrl || savedCard.cardPreviewDataUrl || savedCard.imageUrl,
+      });
       setDownloadMessage('여행 카드가 저장됐어요.');
       dismissCurrentAIFrameJob();
       window.setTimeout(() => {
         setDownloadMessage('');
         onSaved?.();
       }, 1000);
-      void (async () => {
-        try {
-          const savedCard = await storyApi.saveCard(deviceKey, draftCard);
-          onSaveTravelCard?.({
-            ...draftCard,
-            ...savedCard,
-            frameType: draftCard.frameType,
-            photoUrl: savedCard.photoUrl || draftCard.photoUrl,
-            region: savedCard.region || draftCard.region,
-            date: savedCard.date || draftCard.date,
-          });
-        } catch (serverSaveError) {
-          console.error('card server save failed, retrying with compact capture', serverSaveError);
-          try {
-            const compactImageUrl = await compactImageUrlPromise;
-            const savedCard = await storyApi.saveCard(deviceKey, {
-              ...draftCard,
-              imageUrl: compactImageUrl,
-              cardPreviewDataUrl: compactImageUrl,
-              finalCardImageUrl: compactImageUrl,
-            });
-            onSaveTravelCard?.({
-              ...draftCard,
-              ...savedCard,
-              frameType: draftCard.frameType,
-              photoUrl: savedCard.photoUrl || draftCard.photoUrl,
-              region: savedCard.region || draftCard.region,
-              date: savedCard.date || draftCard.date,
-            });
-          } catch (compactSaveError) {
-            console.error('card compact server save failed', compactSaveError);
-          }
-        }
-      })();
     } catch (error) {
       console.error('card save failed', error);
       setDownloadMessage('카드를 저장하지 못했어요. 잠시 후 다시 시도해주세요.');

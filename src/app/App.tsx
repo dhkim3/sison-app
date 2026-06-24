@@ -34,28 +34,6 @@ import { resolveSearchLocation } from './travelPlaceAliases';
 import { scrollToTop } from './utils/scrollToTop';
 import { getAIFrameJobById, useAIFrameJobs } from './aiFrameJobState';
 
-const LOCAL_STORIES_KEY = 'sison_local_stories';
-
-const getLocalStories = (): StoryItem[] => {
-  try {
-    const raw = localStorage.getItem(LOCAL_STORIES_KEY);
-    return raw ? (JSON.parse(raw) as StoryItem[]) : [];
-  } catch { return []; }
-};
-
-const saveLocalStory = (story: StoryItem) => {
-  try {
-    const next = [story, ...getLocalStories().filter((s) => s.id !== story.id)].slice(0, 100);
-    localStorage.setItem(LOCAL_STORIES_KEY, JSON.stringify(next));
-  } catch { /* ignore */ }
-};
-
-const removeLocalStory = (id: number) => {
-  try {
-    localStorage.setItem(LOCAL_STORIES_KEY, JSON.stringify(getLocalStories().filter((s) => s.id !== id)));
-  } catch { /* ignore */ }
-};
-
 type Screen = 'home' | 'search' | 'ai-recommendation' | 'story' | 'saved' | 'profile';
 type SearchEntrySource = 'tab' | 'home-search';
 type AIRecommendationState = 'closed' | 'open' | 'closing';
@@ -147,15 +125,13 @@ export default function App() {
     }
   }, [activeAIFrameTargetKey, aiFrameJobs, currentScreen, dismissedAIFrameJobIds, storyView]);
 
-  // DB에서 스토리/좋아요/댓글/카드 복원 (시드 댓글 위에 DB 댓글을 덧붙임)
+  // Vercel Blob manifest에서 공용 스토리/여행카드 목록 복원
   const loadStories = useCallback(() => {
     if (!deviceKey) return;
     storyApi
       .list(deviceKey)
       .then((data) => {
-        const serverIds = new Set(data.stories.map((s) => s.id));
-        const localOnly = getLocalStories().filter((s) => !serverIds.has(s.id));
-        setUserStories([...data.stories, ...localOnly]);
+        setUserStories(data.stories);
         setLikedStoryIds(data.likedStoryIds);
         setMyCards(data.cards);
         setStoryComments((currentComments) => {
@@ -355,20 +331,18 @@ export default function App() {
 
   const handleCreateStory = async (story: StoryItem) => {
     const ownedStory: StoryItem = { ...story, author: profileNickname, authorName: profileNickname, isMine: true };
-    saveLocalStory(ownedStory);
     if (deviceKey) {
       const savedStory = await storyApi.createStory(deviceKey, ownedStory);
       const nextStory: StoryItem = { ...ownedStory, ...savedStory, isMine: true };
-      saveLocalStory(nextStory);
       setUserStories((current) => [nextStory, ...current.filter((item) => item.id !== nextStory.id)]);
+      loadStories();
       return;
     }
-    setUserStories((current) => [ownedStory, ...current]);
+    throw new Error('기기 식별값을 확인하지 못했어요.');
   };
 
   const handleDeleteStory = (story: StoryItem) => {
     const wasMine = userStories.some((item) => item.id === story.id);
-    removeLocalStory(story.id);
     setUserStories((current) => current.filter((item) => item.id !== story.id));
     setLikedStoryIds((currentIds) => currentIds.filter((id) => id !== story.id));
     setStoryComments((currentComments) => {
@@ -396,6 +370,7 @@ export default function App() {
 
       return [card, ...nextCards];
     });
+    window.setTimeout(loadStories, 0);
   };
 
   const handleDismissAIFrameJob = (jobId: string) => {

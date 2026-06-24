@@ -207,10 +207,11 @@ export function RegionMapView({
   const [commentStory, setCommentStory] = useState<StoryItem | null>(null);
   const [activeStoryList, setActiveStoryList] = useState<'recent' | 'current-location' | 'selected-region' | null>(null);
   const [recentFullStoryCount, setRecentFullStoryCount] = useState(storyListPageSize);
-  // Merge user stories, archive seed stories, and mock stories — deduplicate by id
+  // Use shared API stories first. Seed/mock stories are fallback only when the shared manifest is empty.
   const stories = (() => {
     const seen = new Set<number>();
-    return [...userStories, ...initialArchiveStories, ...mockStories].filter((s) => {
+    const sourceStories = userStories.length > 0 ? userStories : [...initialArchiveStories, ...mockStories];
+    return sourceStories.filter((s) => {
       if (seen.has(s.id)) return false;
       seen.add(s.id);
       return true;

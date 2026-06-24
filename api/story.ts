@@ -85,9 +85,9 @@ const sendError = (res: VercelResponse, code: number, message: string) => {
   res.status(code).json({ ok: false, error: message });
 };
 
-// ---- Blob JSON manifest (shared storage fallback when DB is unavailable) ----
-const STORIES_MANIFEST_PATH = 'manifests/stories.json';
-const CARDS_MANIFEST_PATH = 'manifests/cards.json';
+// ---- Blob JSON manifest (shared public contest storage) ----
+const STORIES_MANIFEST_PATH = 'sison/manifests/stories.json';
+const CARDS_MANIFEST_PATH = 'sison/manifests/travel-cards.json';
 
 interface ManifestStory {
   id: number;
@@ -112,12 +112,15 @@ interface ManifestCard {
   subtitle: string;
   imageUrl: string;
   frameType: string;
+  photoUrl?: string;
+  region?: string;
+  date?: string;
   createdAt: string;
 }
 
 async function readBlobJson<T>(token: string, path: string, defaultValue: T): Promise<T> {
   try {
-    const blob = await get(path, { access: 'public', token, useCache: false });
+    const blob = await get(path, { access: 'private', token, useCache: false });
     if (!blob || blob.statusCode !== 200 || !blob.stream) return defaultValue;
     const text = await new Response(blob.stream).text();
     return JSON.parse(text) as T;
@@ -128,8 +131,8 @@ async function readBlobJson<T>(token: string, path: string, defaultValue: T): Pr
 
 async function writeBlobJson<T>(token: string, path: string, data: T): Promise<void> {
   await put(path, JSON.stringify(data), {
-    access: 'public',
-    contentType: 'application/json; charset=utf-8',
+    access: 'private',
+    contentType: 'application/json',
     token,
     addRandomSuffix: false,
   });
@@ -138,125 +141,46 @@ async function writeBlobJson<T>(token: string, path: string, data: T): Promise<v
 // ---- per-action handlers ----
 
 const handleList = async (res: VercelResponse, deviceKey: string) => {
-  if (!getConnectionString()) {
-    const blobToken = getBlobToken();
-    if (!blobToken) {
-      if (!dbMissingWarnLogged) {
-        console.warn('[api/story] POSTGRES_URL/DATABASE_URL not configured — returning empty story list');
-        dbMissingWarnLogged = true;
-      }
-      res.status(200).json({ ok: true, ...emptyStoryList() });
-      return;
-    }
-    const [storiesData, cardsData] = await Promise.all([
-      readBlobJson<ManifestStory[]>(blobToken, STORIES_MANIFEST_PATH, []),
-      readBlobJson<ManifestCard[]>(blobToken, CARDS_MANIFEST_PATH, []),
-    ]);
-    const stories = storiesData.map((s) => ({
-      id: s.id,
-      title: s.title,
-      region: s.region,
-      city: s.city,
-      location: s.location,
-      author: s.author,
-      authorName: s.author,
-      body: s.body,
-      content: s.body,
-      imageUrl: s.imageUrl,
-      activityTitle: s.activityTitle,
-      activityDate: s.activityDate,
-      createdAt: relativeTime(s.createdAt),
-      likes: 0,
-      comments: 0,
-      isMine: Boolean(deviceKey) && s.authorKey === deviceKey,
-    }));
-    const cards = cardsData.map((c) => ({
-      id: c.id,
-      storyId: c.storyId,
-      title: c.title,
-      subtitle: c.subtitle,
-      imageUrl: c.imageUrl,
-      frameType: c.frameType,
-      cardPreviewDataUrl: c.imageUrl,
-      finalCardImageUrl: c.imageUrl,
-      createdAt: c.createdAt,
-    }));
-    res.status(200).json({ ok: true, stories, comments: {}, likeCounts: {}, likedStoryIds: [], cards });
-    return;
-  }
+  const blobToken = getBlobToken();
+  if (!blobToken) return sendError(res, 500, 'BLOB_READ_WRITE_TOKEN이 설정되지 않았어요.');
 
-  const db = getPool();
-  const [storiesResult, commentsResult, likesResult, cardsResult] = await Promise.all([
-    db.query(
-      `select id, author_name, author_key, region, city, location, title, body, image_url,
-              activity_title, activity_date, created_at
-       from stories order by created_at desc`,
-    ),
-    db.query(
-      `select id, story_id, author_name, author_key, body, edited, created_at
-       from story_comments order by created_at asc`,
-    ),
-    db.query(`select story_id, liker_key from story_likes`),
-    db.query(
-      `select id, story_id, template_type, title, subtitle, generated_image_url, created_at
-       from story_cards order by created_at desc`,
-    ),
+  const [storiesData, cardsData] = await Promise.all([
+    readBlobJson<ManifestStory[]>(blobToken, STORIES_MANIFEST_PATH, []),
+    readBlobJson<ManifestCard[]>(blobToken, CARDS_MANIFEST_PATH, []),
   ]);
-
-  const stories = storiesResult.rows.map((row) => ({
-    id: Number(row.id),
-    title: str(row.title),
-    region: str(row.region),
-    city: str(row.city) || undefined,
-    location: str(row.location) || undefined,
-    author: str(row.author_name),
-    authorName: str(row.author_name),
-    body: str(row.body),
-    content: str(row.body),
-    imageUrl: str(row.image_url),
-    activityTitle: str(row.activity_title) || undefined,
-    activityDate: str(row.activity_date) || undefined,
-    createdAt: relativeTime(row.created_at),
+  const stories = storiesData.map((s) => ({
+    id: s.id,
+    title: s.title,
+    region: s.region,
+    city: s.city,
+    location: s.location,
+    author: s.author,
+    authorName: s.author,
+    body: s.body,
+    content: s.body,
+    imageUrl: s.imageUrl,
+    activityTitle: s.activityTitle,
+    activityDate: s.activityDate,
+    createdAt: relativeTime(s.createdAt),
     likes: 0,
     comments: 0,
-    isMine: true,
+    isMine: Boolean(deviceKey) && s.authorKey === deviceKey,
   }));
-
-  const comments: Record<number, unknown[]> = {};
-  for (const row of commentsResult.rows) {
-    const storyId = Number(row.story_id);
-    if (!comments[storyId]) comments[storyId] = [];
-    comments[storyId].push({
-      id: Number(row.id),
-      author: str(row.author_name),
-      body: str(row.body),
-      time: relativeTime(row.created_at),
-      edited: Boolean(row.edited),
-      isMine: Boolean(deviceKey) && row.author_key === deviceKey,
-    });
-  }
-
-  const likeCounts: Record<number, number> = {};
-  const likedStoryIds: number[] = [];
-  for (const row of likesResult.rows) {
-    const storyId = Number(row.story_id);
-    likeCounts[storyId] = (likeCounts[storyId] ?? 0) + 1;
-    if (deviceKey && row.liker_key === deviceKey) likedStoryIds.push(storyId);
-  }
-
-  const cards = cardsResult.rows.map((row: Record<string, unknown>) => ({
-    id: Number(row.id),
-    storyId: row.story_id != null ? Number(row.story_id) : null,
-    title: str(row.title),
-    subtitle: str(row.subtitle),
-    imageUrl: str(row.generated_image_url),
-    frameType: str(row.template_type) === 'ai' ? 'AI' : str(row.template_type),
-    cardPreviewDataUrl: str(row.generated_image_url),
-    finalCardImageUrl: str(row.generated_image_url),
-    createdAt: row.created_at,
+  const cards = cardsData.map((c) => ({
+    id: c.id,
+    storyId: c.storyId,
+    title: c.title,
+    subtitle: c.subtitle,
+    imageUrl: c.imageUrl,
+    frameType: c.frameType,
+    cardPreviewDataUrl: c.imageUrl,
+    finalCardImageUrl: c.imageUrl,
+    photoUrl: c.photoUrl,
+    region: c.region,
+    date: c.date,
+    createdAt: c.createdAt,
   }));
-
-  res.status(200).json({ ok: true, stories, comments, likeCounts, likedStoryIds, cards });
+  res.status(200).json({ ok: true, stories, comments: {}, likeCounts: {}, likedStoryIds: [], cards });
 };
 
 const handleCreate = async (res: VercelResponse, deviceKey: string, body: Record<string, unknown>) => {
@@ -264,42 +188,53 @@ const handleCreate = async (res: VercelResponse, deviceKey: string, body: Record
   const id = str(story.id) || String(Date.now());
   const title = str(story.title).trim();
   if (!title) return sendError(res, 400, '제목이 필요해요.');
+  const blobToken = getBlobToken();
+  if (!blobToken) return sendError(res, 500, 'BLOB_READ_WRITE_TOKEN이 설정되지 않았어요.');
 
-  if (!getConnectionString()) {
-    const blobToken = getBlobToken();
-    const author = str(story.authorName) || str(story.author) || '여행자';
-    const newManifestStory: ManifestStory = {
-      id: Number(id),
-      title,
-      region: str(story.region) || '',
-      city: str(story.city) || undefined,
-      location: str(story.location) || undefined,
-      author,
-      authorKey: deviceKey || '',
-      body: str(story.body) || str(story.content) || '',
-      imageUrl: str(story.imageUrl) || '',
-      activityTitle: str(story.activityTitle) || undefined,
-      activityDate: str(story.activityDate) || undefined,
-      createdAt: new Date().toISOString(),
-    };
-    if (blobToken) {
-      const existing = await readBlobJson<ManifestStory[]>(blobToken, STORIES_MANIFEST_PATH, []);
-      await writeBlobJson(blobToken, STORIES_MANIFEST_PATH, [newManifestStory, ...existing.filter((s) => s.id !== newManifestStory.id)]);
-    }
-    res.status(200).json({
-      ok: true,
-      story: {
-        ...newManifestStory,
-        authorName: author,
-        content: newManifestStory.body,
-        createdAt: '방금 전',
-        likes: 0,
-        comments: 0,
-        isMine: true,
-      },
+  let imageUrl = str(story.imageUrl) || '';
+  if (imageUrl.startsWith('data:')) {
+    const decoded = dataUrlToBuffer(imageUrl);
+    if (!decoded) return sendError(res, 400, '이미지 형식이 올바르지 않아요.');
+    const ext = decoded.contentType.split('/')[1] || 'png';
+    const blob = await put(`sison/stories/${id}.${ext}`, decoded.buffer, {
+      access: 'private',
+      contentType: decoded.contentType,
+      token: blobToken,
+      addRandomSuffix: false,
     });
-    return;
+    imageUrl = blobProxyUrl(blob.pathname);
   }
+
+  const author = str(story.authorName) || str(story.author) || '여행자';
+  const newManifestStory: ManifestStory = {
+    id: Number(id),
+    title,
+    region: str(story.region) || '',
+    city: str(story.city) || undefined,
+    location: str(story.location) || undefined,
+    author,
+    authorKey: deviceKey || '',
+    body: str(story.body) || str(story.content) || '',
+    imageUrl,
+    activityTitle: str(story.activityTitle) || undefined,
+    activityDate: str(story.activityDate) || undefined,
+    createdAt: new Date().toISOString(),
+  };
+  const existing = await readBlobJson<ManifestStory[]>(blobToken, STORIES_MANIFEST_PATH, []);
+  await writeBlobJson(blobToken, STORIES_MANIFEST_PATH, [newManifestStory, ...existing.filter((s) => s.id !== newManifestStory.id)]);
+  res.status(200).json({
+    ok: true,
+    story: {
+      ...newManifestStory,
+      authorName: author,
+      content: newManifestStory.body,
+      createdAt: '방금 전',
+      likes: 0,
+      comments: 0,
+      isMine: true,
+    },
+  });
+  return;
 
   const db = getPool();
   await db.query(
@@ -349,15 +284,13 @@ const handleCreate = async (res: VercelResponse, deviceKey: string, body: Record
 const handleDeleteStory = async (res: VercelResponse, deviceKey: string, body: Record<string, unknown>) => {
   const id = str(body.id || body.storyId);
   if (!id) return sendError(res, 400, '스토리 id가 필요해요.');
-  if (!getConnectionString()) {
-    const blobToken = getBlobToken();
-    if (blobToken) {
-      const stories = await readBlobJson<ManifestStory[]>(blobToken, STORIES_MANIFEST_PATH, []);
-      await writeBlobJson(blobToken, STORIES_MANIFEST_PATH, stories.filter((s) => String(s.id) !== id));
-    }
-    res.status(200).json({ ok: true, deleted: 1 });
-    return;
-  }
+  const blobToken = getBlobToken();
+  if (!blobToken) return sendError(res, 500, 'BLOB_READ_WRITE_TOKEN이 설정되지 않았어요.');
+  const stories = await readBlobJson<ManifestStory[]>(blobToken, STORIES_MANIFEST_PATH, []);
+  await writeBlobJson(blobToken, STORIES_MANIFEST_PATH, stories.filter((s) => String(s.id) !== id));
+  res.status(200).json({ ok: true, deleted: 1 });
+  return;
+
   const db = getPool();
   const result = await db.query('delete from stories where id = $1', [id]);
   await db.query('delete from story_comments where story_id = $1', [id]);
@@ -493,7 +426,7 @@ const handleUpload = async (res: VercelResponse, body: Record<string, unknown>) 
   const decoded = dataUrlToBuffer(dataUrl);
   if (!decoded) return sendError(res, 400, '이미지 형식이 올바르지 않아요.');
   const ext = decoded.contentType.split('/')[1] || 'png';
-  const blob = await put(`stories/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`, decoded.buffer, {
+  const blob = await put(`sison/stories/uploads/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`, decoded.buffer, {
     access: 'private',
     contentType: decoded.contentType,
     token,
@@ -514,14 +447,16 @@ const handleCardSave = async (res: VercelResponse, deviceKey: string, body: Reco
   const cardId = str(body.id) || String(Date.now());
   const title = str(body.title) || '여행 카드';
   const subtitle = str(body.subtitle) || str(body.region) || '';
+  const createdAt = new Date().toISOString();
   const ext = decoded.contentType.split('/')[1] || 'png';
   const blob = await put(
-    `story-cards/final-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`,
+    `sison/travel-cards/${cardId}.${ext}`,
     decoded.buffer,
     {
       access: 'private',
       contentType: decoded.contentType,
       token: blobToken,
+      addRandomSuffix: false,
     },
   );
   const finalCardUrl = blobProxyUrl(blob.pathname);
@@ -537,24 +472,31 @@ const handleCardSave = async (res: VercelResponse, deviceKey: string, body: Reco
       frameType,
       cardPreviewDataUrl: finalCardUrl,
       finalCardImageUrl: finalCardUrl,
-      createdAt: new Date().toISOString(),
+      photoUrl: str(body.photoUrl) || undefined,
+      region: str(body.region) || subtitle,
+      date: str(body.date) || '',
+      createdAt,
     },
   };
 
+  const newCard: ManifestCard = {
+    id: Number(cardId),
+    storyId: storyId ? Number(storyId) : null,
+    authorKey: deviceKey || '',
+    title,
+    subtitle,
+    imageUrl: finalCardUrl,
+    frameType,
+    photoUrl: str(body.photoUrl) || undefined,
+    region: str(body.region) || subtitle,
+    date: str(body.date) || '',
+    createdAt,
+  };
+  const existing = await readBlobJson<ManifestCard[]>(blobToken, CARDS_MANIFEST_PATH, []);
+  const filtered = existing.filter((c) => c.id !== newCard.id && (storyId ? c.storyId !== Number(storyId) : true));
+  await writeBlobJson(blobToken, CARDS_MANIFEST_PATH, [newCard, ...filtered]);
+
   if (!getConnectionString()) {
-    const newCard: ManifestCard = {
-      id: Number(cardId),
-      storyId: storyId ? Number(storyId) : null,
-      authorKey: deviceKey || '',
-      title,
-      subtitle,
-      imageUrl: finalCardUrl,
-      frameType,
-      createdAt: new Date().toISOString(),
-    };
-    const existing = await readBlobJson<ManifestCard[]>(blobToken, CARDS_MANIFEST_PATH, []);
-    const filtered = existing.filter((c) => c.id !== newCard.id && (storyId ? c.storyId !== Number(storyId) : true));
-    await writeBlobJson(blobToken, CARDS_MANIFEST_PATH, [newCard, ...filtered]);
     res.status(200).json(cardResponse);
     return;
   }
