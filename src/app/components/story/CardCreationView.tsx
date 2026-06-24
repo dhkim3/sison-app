@@ -345,7 +345,7 @@ export function CardCreationView({
                       )}
                       <p className={`text-[11px] font-normal leading-[1.35] ${isDarkFrame ? 'text-white/50' : 'text-[#b6b6b6]'}`}>{activity.date}</p>
                     </div>
-                    <div className={`mt-3 pt-2 ${isAiFrameSelected ? '' : isDarkFrame ? 'border-t border-white/15' : 'border-t border-black/5'}`}>
+                    <div className={`mt-3 pt-2 ${isDarkFrame ? 'border-t border-white/15' : 'border-t border-black/10'}`}>
                       <p className={`text-center text-[11px] opacity-70 ${isDarkFrame ? 'text-white' : 'text-[#5F6368]'}`}>시선</p>
                     </div>
                   </div>

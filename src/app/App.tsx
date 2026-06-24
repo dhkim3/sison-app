@@ -34,6 +34,28 @@ import { resolveSearchLocation } from './travelPlaceAliases';
 import { scrollToTop } from './utils/scrollToTop';
 import { getAIFrameJobById, useAIFrameJobs } from './aiFrameJobState';
 
+const LOCAL_STORIES_KEY = 'sison_local_stories';
+
+const getLocalStories = (): StoryItem[] => {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORIES_KEY);
+    return raw ? (JSON.parse(raw) as StoryItem[]) : [];
+  } catch { return []; }
+};
+
+const saveLocalStory = (story: StoryItem) => {
+  try {
+    const next = [story, ...getLocalStories().filter((s) => s.id !== story.id)].slice(0, 100);
+    localStorage.setItem(LOCAL_STORIES_KEY, JSON.stringify(next));
+  } catch { /* ignore */ }
+};
+
+const removeLocalStory = (id: number) => {
+  try {
+    localStorage.setItem(LOCAL_STORIES_KEY, JSON.stringify(getLocalStories().filter((s) => s.id !== id)));
+  } catch { /* ignore */ }
+};
+
 type Screen = 'home' | 'search' | 'ai-recommendation' | 'story' | 'saved' | 'profile';
 type SearchEntrySource = 'tab' | 'home-search';
 type AIRecommendationState = 'closed' | 'open' | 'closing';
@@ -131,7 +153,9 @@ export default function App() {
     storyApi
       .list(deviceKey)
       .then((data) => {
-        setUserStories(data.stories);
+        const serverIds = new Set(data.stories.map((s) => s.id));
+        const localOnly = getLocalStories().filter((s) => !serverIds.has(s.id));
+        setUserStories([...data.stories, ...localOnly]);
         setLikedStoryIds(data.likedStoryIds);
         setMyCards(data.cards);
         setStoryComments((currentComments) => {
@@ -331,11 +355,12 @@ export default function App() {
 
   const handleCreateStory = async (story: StoryItem) => {
     const ownedStory: StoryItem = { ...story, author: profileNickname, authorName: profileNickname, isMine: true };
+    saveLocalStory(ownedStory);
     if (deviceKey) {
       const savedStory = await storyApi.createStory(deviceKey, ownedStory);
       const nextStory: StoryItem = { ...ownedStory, ...savedStory, isMine: true };
+      saveLocalStory(nextStory);
       setUserStories((current) => [nextStory, ...current.filter((item) => item.id !== nextStory.id)]);
-      loadStories();
       return;
     }
     setUserStories((current) => [ownedStory, ...current]);
@@ -343,6 +368,7 @@ export default function App() {
 
   const handleDeleteStory = (story: StoryItem) => {
     const wasMine = userStories.some((item) => item.id === story.id);
+    removeLocalStory(story.id);
     setUserStories((current) => current.filter((item) => item.id !== story.id));
     setLikedStoryIds((currentIds) => currentIds.filter((id) => id !== story.id));
     setStoryComments((currentComments) => {
