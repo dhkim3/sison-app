@@ -1,4 +1,20 @@
-/* Fallback to system fonts */
+/*
+ * Pretendard Variable — bundled same-origin so it loads identically on screen
+ * AND can be embedded into the screenshot capture SVG (see
+ * src/app/utils/captureElementAsImage.ts → getFontFaceStyles()).
+ *
+ * A cross-origin CDN @font-face cannot be read via sheet.cssRules (SecurityError),
+ * so the capture would fall back to a system font and the text would reflow/break
+ * in the downloaded image. Keeping the font same-origin avoids that.
+ */
+@font-face {
+  font-family: "Pretendard Variable";
+  font-weight: 45 920;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/PretendardVariable.woff2") format("woff2");
+}
+
 body {
   font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
   -webkit-font-smoothing: antialiased;
