@@ -17,6 +17,7 @@ interface RegionMapViewProps {
   onSelectRegion: (region: string | null) => void;
   storyInteractions: StoryInteractionProps;
   userStories?: StoryItem[];
+  deletedStoryIds?: string[];
   onCreateCard?: (story: StoryItem) => void;
   onDeleteStory?: (story: StoryItem) => void;
 }
@@ -200,6 +201,7 @@ export function RegionMapView({
   onSelectRegion,
   storyInteractions,
   userStories = [],
+  deletedStoryIds = [],
   onCreateCard,
   onDeleteStory,
 }: RegionMapViewProps) {
@@ -210,8 +212,10 @@ export function RegionMapView({
   // Use shared API stories first, while keeping demo seed/mock stories for contest presentation.
   const stories = (() => {
     const seen = new Set<number>();
+    const deleted = new Set(deletedStoryIds);
     const sourceStories = [...userStories, ...initialArchiveStories, ...mockStories];
     return sourceStories.filter((s) => {
+      if (deleted.has(String(s.id))) return false;
       if (seen.has(s.id)) return false;
       seen.add(s.id);
       return true;
@@ -275,6 +279,12 @@ export function RegionMapView({
       onOpenComments={setCommentStory}
     />
   );
+  const selectedStoryIsMine = selectedStory !== null && (
+    Boolean(selectedStory.isMine) || userStories.some((story) => story.id === selectedStory.id)
+  );
+  const detailStory = selectedStory && selectedStoryIsMine
+    ? { ...selectedStory, isMine: true }
+    : selectedStory;
 
   return (
     <>
@@ -619,7 +629,7 @@ export function RegionMapView({
       </PageShell>
 
       <StoryDetailSheet
-        story={selectedStory}
+        story={detailStory}
         isOpen={selectedStory !== null}
         onClose={() => setSelectedStory(null)}
         isLiked={selectedStory ? storyInteractions.isStoryLiked(selectedStory.id) : false}
@@ -630,6 +640,7 @@ export function RegionMapView({
         onOpenComments={setCommentStory}
         onAddComment={(story, body) => storyInteractions.onAddStoryComment(story.id, body)}
         onDeleteComment={(story, commentId) => storyInteractions.onDeleteStoryComment(story.id, commentId)}
+        canCreateCard={Boolean(onCreateCard) && selectedStoryIsMine}
         onCreateCard={(story) => {
           setSelectedStory(null);
           onCreateCard?.(story);

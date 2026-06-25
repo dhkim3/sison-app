@@ -283,7 +283,7 @@ export const getDeviceKey = (): string => {
 
 // ---- story API client ----
 export interface StoryCardItem {
-  id: number;
+  id: number | string;
   storyId: number | null;
   title: string;
   subtitle: string;
@@ -305,6 +305,8 @@ export interface StoryListResponse {
   likeCounts: Record<number, number>;
   likedStoryIds: number[];
   cards: StoryCardItem[];
+  deletedStoryIds: string[];
+  deletedCardIds: string[];
 }
 
 const postStoryAction = async (action: string, payload: Record<string, unknown>) => {
@@ -331,6 +333,8 @@ export const storyApi = {
       likeCounts: data.likeCounts ?? {},
       likedStoryIds: Array.isArray(data.likedStoryIds) ? data.likedStoryIds : [],
       cards: Array.isArray(data.cards) ? data.cards : [],
+      deletedStoryIds: Array.isArray(data.deletedStoryIds) ? data.deletedStoryIds.map(String) : [],
+      deletedCardIds: Array.isArray(data.deletedCardIds) ? data.deletedCardIds.map(String) : [],
     };
   },
   createStory: async (key: string, story: Partial<StoryItem>): Promise<StoryItem> => {
@@ -352,6 +356,7 @@ export const storyApi = {
     const data = await postStoryAction('card-save', { key, ...card });
     return data.card as StoryCardItem;
   },
+  deleteCard: (key: string, id: number | string) => postStoryAction('card-delete', { key, id: String(id) }),
   generateCard: (
     key: string,
     params: Record<string, unknown>,

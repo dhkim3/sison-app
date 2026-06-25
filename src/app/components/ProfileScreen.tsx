@@ -20,9 +20,19 @@ interface ProfileScreenProps {
   onNavigate: (screen: string, options?: { savedTab?: SavedArchiveTab }) => void;
   nickname?: string;
   onNicknameChange?: (nickname: string) => void;
+  savedActivityCount?: number;
+  storyCount?: number;
+  travelCardCount?: number;
 }
 
-export function ProfileScreen({ onNavigate, nickname, onNicknameChange }: ProfileScreenProps) {
+export function ProfileScreen({
+  onNavigate,
+  nickname,
+  onNicknameChange,
+  savedActivityCount = 0,
+  storyCount = 0,
+  travelCardCount = 0,
+}: ProfileScreenProps) {
   const [activeSettingsDetail, setActiveSettingsDetail] = useState<SettingsDetail | null>(null);
   const [profile, setProfile] = useState({
     imageUrl: 'https://images.unsplash.com/photo-1516962126636-27ad087061cc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=200',
@@ -59,9 +69,9 @@ export function ProfileScreen({ onNavigate, nickname, onNicknameChange }: Profil
   }, []);
 
   const travelSummary = [
-    { label: '저장한 활동', count: 24, savedTab: 0 as const },
-    { label: '내 스토리', count: 7, savedTab: 1 as const },
-    { label: '여행 카드', count: 8, savedTab: 2 as const },
+    { label: '저장한 활동', count: savedActivityCount, savedTab: 0 as const },
+    { label: '내 스토리', count: storyCount, savedTab: 1 as const },
+    { label: '여행 카드', count: travelCardCount, savedTab: 2 as const },
   ];
 
   const handleBackToProfile = () => {

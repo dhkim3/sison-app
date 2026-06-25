@@ -22,12 +22,15 @@ export type SavedArchiveTab = 0 | 1 | 2;
 type TravelCardActionMode = 'actions' | 'confirm-delete';
 type ArchiveTravelCard = TravelCard & {
   id: string;
+  imageUrl?: string;
   frameType?: string;
   cardPreviewDataUrl?: string;
   finalCardImageUrl?: string;
   aiFrameBackgroundUrl?: string | null;
   aiFrameOverlayUrl?: string | null;
   sourcePhotoUrl?: string;
+  region?: string;
+  createdAt?: string;
 };
 
 export const initialArchiveStories: StoryItem[] = [
@@ -138,7 +141,7 @@ export const initialArchiveStories: StoryItem[] = [
   },
 ];
 
-const initialTravelCards: ArchiveTravelCard[] = [
+export const initialTravelCards: ArchiveTravelCard[] = [
   {
     id: 'story-105-anmok-coffee',
     photoUrl: '/activity-images/beach-cleanup-3.png',
@@ -152,6 +155,8 @@ const initialTravelCards: ArchiveTravelCard[] = [
     moodTags: ['안목해변', '플로깅', '강릉'],
     style: 'polaroid',
     frameType: '기본',
+    cardPreviewDataUrl: '/travel-card-previews/story-105-anmok-coffee.svg',
+    finalCardImageUrl: '/travel-card-previews/story-105-anmok-coffee.svg',
   },
   {
     id: 'story-107-gyeongju-light',
@@ -166,6 +171,8 @@ const initialTravelCards: ArchiveTravelCard[] = [
     moodTags: ['경주', '골목길', '문화안내'],
     style: 'polaroid',
     frameType: '블랙',
+    cardPreviewDataUrl: '/travel-card-previews/story-107-gyeongju-light.svg',
+    finalCardImageUrl: '/travel-card-previews/story-107-gyeongju-light.svg',
   },
   {
     id: 'story-106-tongyeong-harbor',
@@ -180,6 +187,8 @@ const initialTravelCards: ArchiveTravelCard[] = [
     moodTags: ['통영', '항구', '행사안내'],
     style: 'polaroid',
     frameType: '노을',
+    cardPreviewDataUrl: '/travel-card-previews/story-106-tongyeong-harbor.svg',
+    finalCardImageUrl: '/travel-card-previews/story-106-tongyeong-harbor.svg',
   },
 ];
 
@@ -199,6 +208,7 @@ const sortStoriesByLatestDate = (stories: StoryItem[]) =>
 
 const storyCardToArchiveCard = (card: StoryCardItem): ArchiveTravelCard => ({
   id: String(card.id),
+  imageUrl: card.imageUrl,
   photoUrl: card.photoUrl || card.imageUrl,
   title: card.title || '여행 카드',
   date: card.date || formatCardDate(card.createdAt),
@@ -210,22 +220,33 @@ const storyCardToArchiveCard = (card: StoryCardItem): ArchiveTravelCard => ({
   aiFrameBackgroundUrl: card.aiFrameBackgroundUrl,
   aiFrameOverlayUrl: card.aiFrameOverlayUrl,
   sourcePhotoUrl: card.photoUrl,
+  region: card.region,
+  createdAt: card.createdAt,
 });
 
 const getTravelCardPreviewUrl = (card: ArchiveTravelCard) => {
-  return card.cardPreviewDataUrl || card.finalCardImageUrl;
+  return card.finalCardImageUrl || card.cardPreviewDataUrl || card.imageUrl;
 };
 
-const getArchiveFrameStyle = (card: ArchiveTravelCard): CSSProperties => {
-  if (card.frameType === 'AI' && card.aiFrameBackgroundUrl) {
-    return {
-      backgroundImage: `url(${card.aiFrameBackgroundUrl})`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundRepeat: 'no-repeat',
-    };
-  }
+function FinalTravelCardImage({
+  src,
+  title,
+  className = 'rounded-3xl',
+}: {
+  src: string;
+  title: string;
+  className?: string;
+}) {
+  return (
+    <img
+      src={src}
+      alt={title}
+      className={`block h-auto w-full object-contain ${className}`}
+    />
+  );
+}
 
+const getArchiveFrameStyle = (card: ArchiveTravelCard): CSSProperties => {
   switch (card.frameType) {
     case '바다':
       return { background: 'linear-gradient(to bottom right, #eff6ff, #ecfeff)' };
@@ -242,18 +263,7 @@ const getArchiveFrameStyle = (card: ArchiveTravelCard): CSSProperties => {
 
 function ArchiveTravelCardPreview({ card }: { card: ArchiveTravelCard }) {
   const isDarkFrame = card.frameType === '블랙';
-  const isAIFrame = card.frameType === 'AI' && !!card.aiFrameBackgroundUrl;
   const photoUrl = card.sourcePhotoUrl || card.photoUrl;
-  const aiTitleTextStyle: CSSProperties | undefined = isAIFrame
-    ? {
-        textShadow: '0 1px 3px rgba(255,255,255,0.75), 0 1px 8px rgba(255,255,255,0.45), 0 1px 2px rgba(0,0,0,0.14)',
-      }
-    : undefined;
-  const aiSupportingTextStyle: CSSProperties | undefined = isAIFrame
-    ? {
-        textShadow: '0 1px 3px rgba(255,255,255,0.65), 0 1px 2px rgba(0,0,0,0.12)',
-      }
-    : undefined;
 
   return (
     <div
@@ -270,7 +280,6 @@ function ArchiveTravelCardPreview({ card }: { card: ArchiveTravelCard }) {
       <div className="px-0.5 pt-3">
         <p
           className={`truncate text-[15px] font-semibold leading-snug ${isDarkFrame ? 'text-white' : 'text-[#2a2a2a]'}`}
-          style={aiTitleTextStyle}
         >
           {card.title}
         </p>
@@ -278,14 +287,12 @@ function ArchiveTravelCardPreview({ card }: { card: ArchiveTravelCard }) {
           {card.locationLabel && (
             <p
               className={`truncate text-[12px] font-medium leading-[1.35] ${isDarkFrame ? 'text-white/80' : 'text-[#6f6f6f]'}`}
-              style={aiSupportingTextStyle}
             >
               {card.locationLabel}
             </p>
           )}
           <p
             className={`truncate text-[12px] font-normal leading-[1.35] ${isDarkFrame ? 'text-white/50' : 'text-[#b6b6b6]'}`}
-            style={aiSupportingTextStyle}
           >
             {card.date}
           </p>
@@ -293,7 +300,6 @@ function ArchiveTravelCardPreview({ card }: { card: ArchiveTravelCard }) {
         <div className={`mt-3 border-t pt-2.5 ${isDarkFrame ? 'border-white/15' : 'border-black/5'}`}>
           <p
             className={`text-center text-[11px] leading-none opacity-70 ${isDarkFrame ? 'text-white' : 'text-[#5F6368]'}`}
-            style={aiSupportingTextStyle}
           >
             시선
           </p>
@@ -314,7 +320,10 @@ interface SavedArchiveProps {
   myStories?: StoryItem[];
   myCards?: StoryCardItem[];
   dismissedArchiveStoryIds?: number[];
+  deletedStoryIds?: string[];
+  deletedTravelCardIds?: string[];
   onDeleteArchiveStory?: (story: StoryItem) => void;
+  onDeleteTravelCard?: (cardId: string) => void | Promise<void>;
 }
 
 export function SavedArchive({
@@ -328,7 +337,10 @@ export function SavedArchive({
   myStories,
   myCards,
   dismissedArchiveStoryIds,
+  deletedStoryIds,
+  deletedTravelCardIds,
   onDeleteArchiveStory,
+  onDeleteTravelCard,
 }: SavedArchiveProps) {
   const [activeTab, setActiveTab] = useState<SavedArchiveTab>(activeArchiveTab);
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
@@ -337,6 +349,7 @@ export function SavedArchive({
   const [selectedTravelCardAction, setSelectedTravelCardAction] = useState<ArchiveTravelCard | null>(null);
   const [travelCardActionMode, setTravelCardActionMode] = useState<TravelCardActionMode>('actions');
   const [travelCardToast, setTravelCardToast] = useState<string | null>(null);
+  const [isDeletingTravelCard, setIsDeletingTravelCard] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [stories, setStories] = useState<StoryItem[]>(() => sortStoriesByLatestDate(initialArchiveStories));
   const [travelCards, setTravelCards] = useState<ArchiveTravelCard[]>(initialTravelCards);
@@ -355,25 +368,28 @@ export function SavedArchive({
   // 내가 올린 스토리/생성한 카드를 저장 탭에 반영 (시연용 목 데이터도 함께 유지)
   // 사용자가 삭제한 시드 스토리는 dismissedArchiveStoryIds로 영속 관리되어 화면 전환 후에도 유지된다.
   useEffect(() => {
-    const dismissed = new Set(dismissedArchiveStoryIds ?? []);
+    const dismissed = new Set([...(dismissedArchiveStoryIds ?? []).map(String), ...(deletedStoryIds ?? [])]);
     const seen = new Set<number>();
     const combined = [...(myStories ?? []), ...initialArchiveStories].filter((story) => {
+      if (dismissed.has(String(story.id))) return false;
       if (seen.has(story.id)) return false;
       seen.add(story.id);
       return true;
     });
-    setStories(sortStoriesByLatestDate(combined.filter((story) => !dismissed.has(story.id))));
-  }, [myStories, dismissedArchiveStoryIds]);
+    setStories(sortStoriesByLatestDate(combined));
+  }, [myStories, dismissedArchiveStoryIds, deletedStoryIds]);
 
   useEffect(() => {
+    const deleted = new Set(deletedTravelCardIds ?? []);
     const seen = new Set<string>();
     const combined = [...(myCards ?? []).map(storyCardToArchiveCard), ...initialTravelCards].filter((card) => {
+      if (deleted.has(String(card.id))) return false;
       if (seen.has(card.id)) return false;
       seen.add(card.id);
       return true;
     });
     setTravelCards(combined);
-  }, [myCards]);
+  }, [myCards, deletedTravelCardIds]);
 
   useEffect(() => {
     return () => {
@@ -416,6 +432,7 @@ export function SavedArchive({
   };
 
   const closeTravelCardAction = () => {
+    if (isDeletingTravelCard) return;
     setSelectedTravelCardAction(null);
     setTravelCardActionMode('actions');
   };
@@ -451,10 +468,22 @@ export function SavedArchive({
     }
   };
 
-  const handleTravelCardDelete = (card: ArchiveTravelCard) => {
-    setTravelCards((currentCards) => currentCards.filter((item) => item.id !== card.id));
-    closeTravelCardAction();
-    showTravelCardToast('여행 카드를 삭제했어요.');
+  const handleTravelCardDelete = async (card: ArchiveTravelCard) => {
+    if (isDeletingTravelCard) return;
+
+    try {
+      setIsDeletingTravelCard(true);
+      await onDeleteTravelCard?.(card.id);
+      setTravelCards((currentCards) => currentCards.filter((item) => item.id !== card.id));
+      setSelectedTravelCardAction(null);
+      setTravelCardActionMode('actions');
+      showTravelCardToast('여행 카드를 삭제했어요.');
+    } catch (error) {
+      console.error('travel card delete failed', error);
+      showTravelCardToast('여행 카드를 삭제하지 못했어요. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setIsDeletingTravelCard(false);
+    }
   };
 
   return (
@@ -596,16 +625,10 @@ export function SavedArchive({
                                   className="block w-full overflow-hidden rounded-3xl bg-transparent text-left transition-opacity hover:opacity-90"
                                 >
                                   {previewUrl ? (
-                                    <div
-                                      className="overflow-hidden rounded-3xl bg-[#f7f4f8]"
-                                      style={{ aspectRatio: '2 / 3' }}
-                                    >
-                                      <img
-                                        src={previewUrl}
-                                        alt={card.title}
-                                        className="h-full w-full object-contain"
-                                      />
-                                    </div>
+                                    <FinalTravelCardImage
+                                      src={previewUrl}
+                                      title={card.title}
+                                    />
                                   ) : (
                                     <div style={{ aspectRatio: '2 / 3' }}>
                                       <ArchiveTravelCardPreview card={card} />
@@ -686,9 +709,14 @@ export function SavedArchive({
             type="button"
             aria-label="여행 카드 액션 닫기"
             onClick={closeTravelCardAction}
-            className="absolute inset-0 bg-black/15"
+            disabled={isDeletingTravelCard}
+            className="absolute inset-0 bg-black/15 disabled:cursor-default"
           />
-          <section className="relative w-full max-w-[342px] rounded-3xl border border-black/[0.04] bg-[#fdfcfa] p-4 shadow-[0_18px_42px_rgba(42,42,42,0.12)]">
+          <section className={`relative w-full rounded-3xl border border-black/[0.04] bg-[#fdfcfa] shadow-[0_18px_42px_rgba(42,42,42,0.12)] ${
+            travelCardActionMode === 'confirm-delete'
+              ? 'max-w-[314px] p-5'
+              : 'max-w-[342px] p-4'
+          }`}>
             {travelCardActionMode === 'actions' ? (
               <>
                 <div className="flex items-start justify-between gap-3">
@@ -712,18 +740,17 @@ export function SavedArchive({
                   const previewUrl = getTravelCardPreviewUrl(selectedTravelCardAction);
 
                   return (
-                    <div
-                      className="mt-4 overflow-hidden rounded-[1.35rem] bg-transparent"
-                      style={{ aspectRatio: '2 / 3' }}
-                    >
+                    <div className="mt-4">
                       {previewUrl ? (
-                        <img
+                        <FinalTravelCardImage
                           src={previewUrl}
-                          alt={selectedTravelCardAction.title}
-                          className="h-full w-full object-contain"
+                          title={selectedTravelCardAction.title}
+                          className="rounded-[1.35rem]"
                         />
                       ) : (
-                        <ArchiveTravelCardPreview card={selectedTravelCardAction} />
+                        <div style={{ aspectRatio: '2 / 3' }}>
+                          <ArchiveTravelCardPreview card={selectedTravelCardAction} />
+                        </div>
                       )}
                     </div>
                   );
@@ -748,46 +775,26 @@ export function SavedArchive({
               </>
             ) : (
               <>
-                {(() => {
-                  const previewUrl = getTravelCardPreviewUrl(selectedTravelCardAction);
-
-                  return (
-                    <div
-                      className="overflow-hidden rounded-[1.35rem] bg-transparent"
-                      style={{ aspectRatio: '2 / 3' }}
-                    >
-                      {previewUrl ? (
-                        <img
-                          src={previewUrl}
-                          alt={selectedTravelCardAction.title}
-                          className="h-full w-full object-contain opacity-90"
-                        />
-                      ) : (
-                        <div className="h-full w-full opacity-90">
-                          <ArchiveTravelCardPreview card={selectedTravelCardAction} />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-                <h3 className="mt-4 text-[17px] font-semibold leading-snug text-[#2a2a2a]">
-                  이 여행 카드를 삭제할까요?
+                <h3 className="text-[18px] font-semibold leading-snug text-[#2a2a2a]">
+                  여행 카드를 삭제할까요?
                 </h3>
-                <p className="mt-2 text-[12px] leading-5 text-[#5F6368]">삭제하면 다시 복구할 수 없어요.</p>
+                <p className="mt-2.5 text-[13px] leading-5 text-[#5F6368]">삭제한 여행 카드는 다시 볼 수 없어요.</p>
                 <div className="mt-5 flex gap-2">
                   <button
                     type="button"
                     onClick={() => setTravelCardActionMode('actions')}
-                    className="flex-1 rounded-2xl bg-[#f5f3ee] py-3 text-[14px] font-medium text-[#777] transition-colors hover:bg-[#efede7]"
+                    disabled={isDeletingTravelCard}
+                    className="flex-1 rounded-2xl bg-[#f5f3ee] py-3 text-[14px] font-medium text-[#777] transition-colors hover:bg-[#efede7] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     취소
                   </button>
                   <button
                     type="button"
                     onClick={() => handleTravelCardDelete(selectedTravelCardAction)}
-                    className="flex-1 rounded-2xl bg-[#b76e65] py-3 text-[14px] font-semibold text-white transition-colors hover:bg-[#a85f56]"
+                    disabled={isDeletingTravelCard}
+                    className="flex-1 rounded-2xl bg-[#b76e65] py-3 text-[14px] font-semibold text-white transition-colors hover:bg-[#a85f56] disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    삭제
+                    {isDeletingTravelCard ? '삭제 중...' : '삭제'}
                   </button>
                 </div>
               </>

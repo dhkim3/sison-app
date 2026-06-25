@@ -4,7 +4,7 @@ import { Home } from './components/Home';
 import { SearchTab } from './components/SearchTab';
 import { AIRecommendation } from './components/AIRecommendation';
 import { StoryCreation } from './components/StoryCreation';
-import { SavedArchive } from './components/SavedArchive';
+import { initialArchiveStories, initialTravelCards, SavedArchive } from './components/SavedArchive';
 import type { SavedArchiveTab } from './components/SavedArchive';
 import { ProfileScreen } from './components/ProfileScreen';
 import { EnhancedDetailBottomSheet } from './components/EnhancedDetailBottomSheet';
@@ -33,6 +33,7 @@ import {
 import { resolveSearchLocation } from './travelPlaceAliases';
 import { scrollToTop } from './utils/scrollToTop';
 import { getAIFrameJobById, useAIFrameJobs } from './aiFrameJobState';
+import { avoidConsecutiveActivityImages } from './utils/activityImage';
 
 type Screen = 'home' | 'search' | 'ai-recommendation' | 'story' | 'saved' | 'profile';
 type SearchEntrySource = 'tab' | 'home-search';
@@ -65,6 +66,8 @@ export default function App() {
   const [myCards, setMyCards] = useState<StoryCardItem[]>([]);
   const [localSavedTravelCards, setLocalSavedTravelCards] = useState<StoryCardItem[]>([]);
   const [dismissedArchiveStoryIds, setDismissedArchiveStoryIds] = useState<number[]>([]);
+  const [deletedStoryIds, setDeletedStoryIds] = useState<string[]>([]);
+  const [deletedTravelCardIds, setDeletedTravelCardIds] = useState<string[]>([]);
   const [dismissedAIFrameJobIds, setDismissedAIFrameJobIds] = useState<string[]>([]);
   const saveFeedbackTimers = useRef<number[]>([]);
   const seenAIFrameJobStatusesRef = useRef<Record<string, string>>({});
@@ -134,6 +137,8 @@ export default function App() {
         setUserStories(data.stories);
         setLikedStoryIds(data.likedStoryIds);
         setMyCards(data.cards);
+        setDeletedStoryIds(data.deletedStoryIds);
+        setDeletedTravelCardIds(data.deletedCardIds);
         setStoryComments((currentComments) => {
           const merged: Record<number, StoryComment[]> = { ...currentComments };
           for (const [storyId, list] of Object.entries(data.comments)) {
@@ -309,16 +314,32 @@ export default function App() {
 
     return [...activities, activity];
   }, []);
+  const resolvedSavedActivities = avoidConsecutiveActivityImages(savedActivities);
 
   const savedTravelCards = [
     ...localSavedTravelCards,
-    ...myCards.filter((card) => {
-      if (card.storyId !== null && localSavedTravelCards.some((localCard) => localCard.storyId === card.storyId)) {
-        return false;
-      }
-      return !localSavedTravelCards.some((localCard) => localCard.id === card.id);
-    }),
-  ];
+    ...myCards.filter((card) => !localSavedTravelCards.some((localCard) => String(localCard.id) === String(card.id))),
+  ].filter((card) => !deletedTravelCardIds.includes(String(card.id)));
+  const profileStoryCount = (() => {
+    const deleted = new Set([...(dismissedArchiveStoryIds ?? []).map(String), ...deletedStoryIds]);
+    const seen = new Set<number>();
+    return [...userStories, ...initialArchiveStories].filter((story) => {
+      if (deleted.has(String(story.id))) return false;
+      if (seen.has(story.id)) return false;
+      seen.add(story.id);
+      return true;
+    }).length;
+  })();
+  const profileTravelCardCount = (() => {
+    const deleted = new Set(deletedTravelCardIds);
+    const seen = new Set<string>();
+    return [...savedTravelCards, ...initialTravelCards].filter((card) => {
+      if (deleted.has(String(card.id))) return false;
+      if (seen.has(String(card.id))) return false;
+      seen.add(String(card.id));
+      return true;
+    }).length;
+  })();
   const activeGeneratingAIFrameJob = aiFrameJobs
     .filter((job) => job.status === 'generating' && !job.superseded && !dismissedAIFrameJobIds.includes(job.jobId))
     .sort((a, b) => b.startedAt - a.startedAt)[0] ?? null;
@@ -342,8 +363,10 @@ export default function App() {
   };
 
   const handleDeleteStory = (story: StoryItem) => {
-    const wasMine = userStories.some((item) => item.id === story.id);
     setUserStories((current) => current.filter((item) => item.id !== story.id));
+    setDeletedStoryIds((currentIds) => (
+      currentIds.includes(String(story.id)) ? currentIds : [...currentIds, String(story.id)]
+    ));
     setLikedStoryIds((currentIds) => currentIds.filter((id) => id !== story.id));
     setStoryComments((currentComments) => {
       if (!currentComments[story.id]) return currentComments;
@@ -351,26 +374,40 @@ export default function App() {
       delete nextComments[story.id];
       return nextComments;
     });
-    if (!wasMine) {
-      setDismissedArchiveStoryIds((currentIds) =>
-        currentIds.includes(story.id) ? currentIds : [...currentIds, story.id],
-      );
-    }
-    if (wasMine && deviceKey) {
-      storyApi.deleteStory(deviceKey, story.id).catch((error) => console.error('delete story failed', error));
+    setDismissedArchiveStoryIds((currentIds) =>
+      currentIds.includes(story.id) ? currentIds : [...currentIds, story.id],
+    );
+    if (deviceKey) {
+      storyApi
+        .deleteStory(deviceKey, story.id)
+        .then(() => loadStories())
+        .catch((error) => console.error('delete story failed', error));
     }
   };
 
   const handleSaveTravelCard = (card: StoryCardItem) => {
     setLocalSavedTravelCards((currentCards) => {
-      const nextCards = currentCards.filter((currentCard) => {
-        if (card.storyId !== null && currentCard.storyId === card.storyId) return false;
-        return currentCard.id !== card.id;
-      });
+      const nextCards = currentCards.filter((currentCard) => String(currentCard.id) !== String(card.id));
 
       return [card, ...nextCards];
     });
     window.setTimeout(loadStories, 0);
+  };
+
+  const handleDeleteTravelCard = async (cardId: string | number) => {
+    const id = String(cardId);
+
+    if (deviceKey) {
+      await storyApi.deleteCard(deviceKey, id);
+    }
+
+    setDeletedTravelCardIds((currentIds) => (currentIds.includes(id) ? currentIds : [...currentIds, id]));
+    setLocalSavedTravelCards((currentCards) => currentCards.filter((card) => String(card.id) !== id));
+    setMyCards((currentCards) => currentCards.filter((card) => String(card.id) !== id));
+
+    if (deviceKey) {
+      window.setTimeout(loadStories, 0);
+    }
   };
 
   const handleDismissAIFrameJob = (jobId: string) => {
@@ -504,6 +541,7 @@ export default function App() {
           onNavigate={handleNavigate}
           storyInteractions={storyInteractions}
           userStories={userStories}
+          deletedStoryIds={deletedStoryIds}
           profileNickname={profileNickname}
           onCreateStory={handleCreateStory}
           onDeleteStory={handleDeleteStory}
@@ -529,7 +567,10 @@ export default function App() {
           myStories={userStories}
           myCards={savedTravelCards}
           dismissedArchiveStoryIds={dismissedArchiveStoryIds}
+          deletedStoryIds={deletedStoryIds}
+          deletedTravelCardIds={deletedTravelCardIds}
           onDeleteArchiveStory={handleDeleteStory}
+          onDeleteTravelCard={handleDeleteTravelCard}
         />
       )}
       {currentScreen === 'profile' && (
@@ -537,6 +578,9 @@ export default function App() {
           onNavigate={handleNavigate}
           nickname={profileNickname}
           onNicknameChange={setProfileNickname}
+          savedActivityCount={resolvedSavedActivities.length}
+          storyCount={profileStoryCount}
+          travelCardCount={profileTravelCardCount}
         />
       )}
 

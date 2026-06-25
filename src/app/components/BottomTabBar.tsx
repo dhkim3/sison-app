@@ -19,7 +19,7 @@ export const bottomNavigationItems: readonly BottomNavigationItem[] = [
 
 interface BottomNavigationProps {
   activeTab?: BottomNavigationKey;
-  onNavigate?: (screen: string) => void;
+  onNavigate?: (screen: string, options?: any) => void;
 }
 
 export function BottomNavigation({ activeTab = 'home', onNavigate }: BottomNavigationProps) {

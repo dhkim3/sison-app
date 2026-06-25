@@ -11,9 +11,10 @@ import { scrollToTop } from '../utils/scrollToTop';
 type StoryView = 'map' | 'my-activities' | 'upload' | 'card';
 
 interface StoryCreationProps {
-  onNavigate: (screen: string) => void;
+  onNavigate: (screen: string, options?: { savedTab?: 0 | 1 | 2 }) => void;
   storyInteractions: StoryInteractionProps;
   userStories: StoryItem[];
+  deletedStoryIds?: string[];
   profileNickname: string;
   onCreateStory: (story: StoryItem) => void | Promise<void>;
   onDeleteStory: (story: StoryItem) => void;
@@ -31,6 +32,7 @@ export function StoryCreation({
   onNavigate,
   storyInteractions,
   userStories,
+  deletedStoryIds,
   profileNickname,
   onCreateStory,
   onDeleteStory,
@@ -340,6 +342,7 @@ export function StoryCreation({
           onSelectRegion={setSelectedRegion}
           storyInteractions={storyInteractions}
           userStories={userStories}
+          deletedStoryIds={deletedStoryIds}
           onCreateCard={handleCreateCardFromStory}
           onDeleteStory={onDeleteStory}
         />

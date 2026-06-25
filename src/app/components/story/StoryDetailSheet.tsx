@@ -17,6 +17,7 @@ interface StoryDetailSheetProps {
   onAddComment?: (story: StoryItem, body: string) => void;
   onDeleteComment?: (story: StoryItem, commentId: number) => void;
   onCreateCard?: (story: StoryItem) => void;
+  canCreateCard?: boolean;
   onDelete?: (story: StoryItem) => void;
 }
 
@@ -33,6 +34,7 @@ export function StoryDetailSheet({
   onAddComment,
   onDeleteComment,
   onCreateCard,
+  canCreateCard,
   onDelete,
 }: StoryDetailSheetProps) {
   const [visibleCommentCount, setVisibleCommentCount] = useState(2);
@@ -52,6 +54,7 @@ export function StoryDetailSheet({
 
   const visibleComments = comments.slice(0, visibleCommentCount);
   const hasMoreComments = visibleCommentCount < comments.length;
+  const showCreateCardButton = Boolean(onCreateCard) && (canCreateCard ?? Boolean(story.isMine));
 
   const handleAddComment = () => {
     const nextComment = draftComment.trim();
@@ -83,10 +86,10 @@ export function StoryDetailSheet({
               <span>{story.region}</span>
             </div>
             <div className="flex items-center gap-2">
-              {story.isMine && onCreateCard && (
+              {showCreateCardButton && (
                 <button
                   type="button"
-                  onClick={() => onCreateCard(story)}
+                  onClick={() => onCreateCard?.(story)}
                   className="flex items-center gap-1.5 rounded-full bg-[#efecfc] px-3 py-1.5 text-[12px] font-medium text-[#5a56d0] transition-colors hover:bg-[#e5e1fa]"
                 >
                   <Sparkles className="h-3.5 w-3.5" strokeWidth={2} />

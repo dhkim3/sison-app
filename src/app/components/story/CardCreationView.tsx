@@ -18,11 +18,11 @@ interface CardCreationViewProps {
   storyId?: number;
   onBack: () => void;
   onSaved?: () => void;
-  onNavigate: (screen: string) => void;
+  onNavigate: (screen: string, options?: { savedTab?: 0 | 1 | 2 }) => void;
   onActiveAIFrameTargetChange?: (targetKey: string | null) => void;
   onDismissAIFrameJob?: (jobId: string) => void;
   onSaveTravelCard?: (card: {
-    id: number;
+    id: number | string;
     storyId: number | null;
     title: string;
     subtitle: string;
@@ -41,6 +41,14 @@ interface CardCreationViewProps {
 
 const BASE_FRAMES = ['기본', '바다', '숲', '노을', '블랙'];
 const AI_FRAME = 'AI';
+const FRAME_ID_KEYS: Record<string, string> = {
+  기본: 'default',
+  바다: 'sea',
+  숲: 'forest',
+  노을: 'sunset',
+  블랙: 'black',
+  [AI_FRAME]: 'ai',
+};
 
 const blobToDataUrl = (blob: Blob) => new Promise<string>((resolve, reject) => {
   const reader = new FileReader();
@@ -58,14 +66,17 @@ export function CardCreationView({
   storyTitle = '',
   storyId,
   onBack,
-  onSaved,
   onNavigate,
   onActiveAIFrameTargetChange,
   onDismissAIFrameJob,
   onSaveTravelCard,
 }: CardCreationViewProps) {
   const [downloadMessage, setDownloadMessage] = useState('');
+  const [isAIFrameStartToastVisible, setIsAIFrameStartToastVisible] = useState(false);
+  const [isSaveCompletePromptVisible, setIsSaveCompletePromptVisible] = useState(false);
+  const [isSavingCard, setIsSavingCard] = useState(false);
   const cardPreviewRef = useRef<HTMLDivElement | null>(null);
+  const aiFrameStartToastTimerRef = useRef<number | null>(null);
   const deviceKey = getDeviceKey();
 
   const compactLocation = getCompactLocationLabel(activity.location) || activity.region;
@@ -97,10 +108,32 @@ export function CardCreationView({
     didAutoSelectAIFrameRef.current = true;
   }, [aiFrameJob]);
 
+  useEffect(() => {
+    return () => {
+      if (aiFrameStartToastTimerRef.current !== null) {
+        window.clearTimeout(aiFrameStartToastTimerRef.current);
+      }
+    };
+  }, []);
+
+  const showAIFrameStartToast = () => {
+    setIsAIFrameStartToastVisible(true);
+
+    if (aiFrameStartToastTimerRef.current !== null) {
+      window.clearTimeout(aiFrameStartToastTimerRef.current);
+    }
+
+    aiFrameStartToastTimerRef.current = window.setTimeout(() => {
+      setIsAIFrameStartToastVisible(false);
+      aiFrameStartToastTimerRef.current = null;
+    }, 2600);
+  };
+
   const handleGenerateAIFrame = () => {
     if (isGeneratingAIFrame) return;
     setSelectedFrame(AI_FRAME);
     didAutoSelectAIFrameRef.current = true;
+    showAIFrameStartToast();
     startAIFrameJob({
       deviceKey,
       storyId,
@@ -121,6 +154,12 @@ export function CardCreationView({
   };
 
   const handleDownload = async () => {
+    if (isSavingCard) return;
+
+    setIsSavingCard(true);
+    setDownloadMessage('');
+    setIsSaveCompletePromptVisible(false);
+
     try {
       // 클라이언트에서 합성한 카드 전체를 캡처한다. AI 이미지는 장식 레이어로만 포함된다.
       const previewElement = cardPreviewRef.current;
@@ -136,7 +175,12 @@ export function CardCreationView({
         });
       downloadBlob(blob, `sison-card-${storyId ?? activity.id ?? 'my-card'}.png`);
       const activityId = Number(activity.id);
-      const savedCardId = storyId ?? (Number.isFinite(activityId) && activityId > 0 ? activityId : Date.now());
+      const sourceId = storyId ?? (Number.isFinite(activityId) && activityId > 0 ? activityId : 'draft');
+      const frameKey = FRAME_ID_KEYS[selectedFrame] || 'custom';
+      const uniqueCardSuffix = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const savedCardId = `${sourceId}-${frameKey}-${uniqueCardSuffix}`;
       const draftCard = {
         id: savedCardId,
         storyId: storyId ?? null,
@@ -175,17 +219,22 @@ export function CardCreationView({
         cardPreviewDataUrl: savedCard.cardPreviewDataUrl || savedCard.finalCardImageUrl || savedCard.imageUrl,
         finalCardImageUrl: savedCard.finalCardImageUrl || savedCard.cardPreviewDataUrl || savedCard.imageUrl,
       });
-      setDownloadMessage('여행 카드가 저장됐어요.');
+      setDownloadMessage('');
+      setIsSaveCompletePromptVisible(true);
       dismissCurrentAIFrameJob();
-      window.setTimeout(() => {
-        setDownloadMessage('');
-        onSaved?.();
-      }, 1000);
     } catch (error) {
       console.error('card save failed', error);
+      setIsSaveCompletePromptVisible(false);
       setDownloadMessage('카드를 저장하지 못했어요. 잠시 후 다시 시도해주세요.');
       window.setTimeout(() => setDownloadMessage(''), 2200);
+    } finally {
+      setIsSavingCard(false);
     }
+  };
+
+  const handleViewSavedCards = () => {
+    setIsSaveCompletePromptVisible(false);
+    onNavigate('saved', { savedTab: 2 });
   };
 
   const getFrameStyle = (): React.CSSProperties => {
@@ -375,10 +424,24 @@ export function CardCreationView({
             <button
               type="button"
               onClick={handleDownload}
-              className="w-full bg-white border border-black/10 text-[#2a2a2a] py-3.5 rounded-xl transition-all hover:bg-[#f8f8f5] flex items-center justify-center gap-2 text-[14px] font-medium"
+              disabled={isSavingCard}
+              aria-busy={isSavingCard}
+              className="w-full bg-white border border-black/10 text-[#2a2a2a] py-3.5 rounded-xl transition-all hover:bg-[#f8f8f5] disabled:cursor-wait disabled:bg-[#f5f3ee] disabled:text-[#8d8982] flex items-center justify-center gap-2 text-[14px] font-medium"
             >
-              <Download className="w-4.5 h-4.5" strokeWidth={2} />
-              <span>저장</span>
+              {isSavingCard ? (
+                <>
+                  <span
+                    aria-hidden="true"
+                    className="h-4 w-4 rounded-full border-2 border-[#c7c2b8] border-t-[#6f6a61] animate-spin"
+                  />
+                  <span>저장 중...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-4.5 h-4.5" strokeWidth={2} />
+                  <span>저장</span>
+                </>
+              )}
             </button>
 
             {downloadMessage && (
@@ -391,6 +454,48 @@ export function CardCreationView({
       </PageShell>
 
       <BottomTabBar activeTab="story" onNavigate={onNavigate} />
+
+      {isAIFrameStartToastVisible && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-[92px] z-[90] flex justify-center px-5">
+          <div
+            className="w-full max-w-[340px] rounded-2xl border border-white/55 bg-[#2f3430]/92 px-4 py-3 text-white shadow-[0_10px_30px_rgba(34,39,34,0.18)] backdrop-blur-md"
+            role="status"
+            aria-live="polite"
+          >
+            <p className="text-[13px] font-semibold leading-5">AI 프레임을 만들고 있어요</p>
+            <p className="mt-0.5 text-[12px] leading-5 text-white/72">다른 탭을 둘러보셔도 괜찮아요.</p>
+          </div>
+        </div>
+      )}
+
+      {isSaveCompletePromptVisible && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-[92px] z-[95] flex justify-center px-5">
+          <div
+            className="pointer-events-auto w-full max-w-[340px] rounded-2xl border border-white/55 bg-[#2f3430]/92 px-4 py-3 text-white shadow-[0_10px_30px_rgba(34,39,34,0.18)] backdrop-blur-md"
+            role="status"
+            aria-live="polite"
+          >
+            <p className="text-[13px] font-semibold leading-5">여행 카드가 저장됐어요</p>
+            <p className="mt-0.5 text-[12px] leading-5 text-white/72">나중에 저장 탭에서 다시 볼 수 있어요.</p>
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setIsSaveCompletePromptVisible(false)}
+                className="flex-1 rounded-xl bg-white/12 py-2.5 text-[12.5px] font-semibold text-white transition-colors hover:bg-white/18"
+              >
+                나중에
+              </button>
+              <button
+                type="button"
+                onClick={handleViewSavedCards}
+                className="flex-1 rounded-xl bg-white py-2.5 text-[12.5px] font-semibold text-[#2f3430] transition-colors hover:bg-[#f2f2ee]"
+              >
+                저장 탭으로
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

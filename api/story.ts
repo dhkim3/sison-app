@@ -105,18 +105,30 @@ interface ManifestStory {
 }
 
 interface ManifestCard {
-  id: number;
+  id: number | string;
   storyId: number | null;
   authorKey: string;
   title: string;
   subtitle: string;
   imageUrl: string;
+  cardPreviewDataUrl?: string;
+  finalCardImageUrl?: string;
   frameType: string;
   photoUrl?: string;
   region?: string;
   date?: string;
+  aiFrameBackgroundUrl?: string | null;
+  aiFrameOverlayUrl?: string | null;
   createdAt: string;
 }
+
+interface BlobManifest<T> {
+  initialized: true;
+  items: T[];
+  deletedIds: string[];
+}
+
+const emptyBlobManifest = <T>(): BlobManifest<T> => ({ initialized: true, items: [], deletedIds: [] });
 
 async function readBlobJson<T>(token: string, path: string, defaultValue: T): Promise<T> {
   try {
@@ -135,7 +147,50 @@ async function writeBlobJson<T>(token: string, path: string, data: T): Promise<v
     contentType: 'application/json',
     token,
     addRandomSuffix: false,
+    allowOverwrite: true,
   });
+}
+
+async function readBlobManifest<T>(token: string, path: string): Promise<{ exists: boolean; manifest: BlobManifest<T> }> {
+  try {
+    const blob = await get(path, { access: 'private', token, useCache: false });
+    if (!blob || blob.statusCode !== 200 || !blob.stream) {
+      return { exists: false, manifest: emptyBlobManifest<T>() };
+    }
+
+    const text = await new Response(blob.stream).text();
+    const parsed = JSON.parse(text) as unknown;
+    if (Array.isArray(parsed)) {
+      return {
+        exists: true,
+        manifest: {
+          initialized: true,
+          items: parsed as T[],
+          deletedIds: [],
+        },
+      };
+    }
+
+    if (parsed && typeof parsed === 'object') {
+      const record = parsed as { items?: unknown; deletedIds?: unknown };
+      return {
+        exists: true,
+        manifest: {
+          initialized: true,
+          items: Array.isArray(record.items) ? record.items as T[] : [],
+          deletedIds: Array.isArray(record.deletedIds) ? record.deletedIds.map(String) : [],
+        },
+      };
+    }
+  } catch {
+    // Missing or malformed manifest starts from the bundled demo seed on the client.
+  }
+
+  return { exists: false, manifest: emptyBlobManifest<T>() };
+}
+
+async function writeBlobManifest<T>(token: string, path: string, manifest: BlobManifest<T>): Promise<void> {
+  await writeBlobJson(token, path, manifest);
 }
 
 // ---- per-action handlers ----
@@ -144,10 +199,38 @@ const handleList = async (res: VercelResponse, deviceKey: string) => {
   const blobToken = getBlobToken();
   if (!blobToken) return sendError(res, 500, 'BLOB_READ_WRITE_TOKEN이 설정되지 않았어요.');
 
-  const [storiesData, cardsData] = await Promise.all([
-    readBlobJson<ManifestStory[]>(blobToken, STORIES_MANIFEST_PATH, []),
-    readBlobJson<ManifestCard[]>(blobToken, CARDS_MANIFEST_PATH, []),
+  const [storiesManifestResult, cardsManifestResult] = await Promise.all([
+    readBlobManifest<ManifestStory>(blobToken, STORIES_MANIFEST_PATH),
+    readBlobManifest<ManifestCard>(blobToken, CARDS_MANIFEST_PATH),
   ]);
+  if (!storiesManifestResult.exists) {
+    await writeBlobManifest(blobToken, STORIES_MANIFEST_PATH, storiesManifestResult.manifest);
+  }
+  if (!cardsManifestResult.exists) {
+    await writeBlobManifest(blobToken, CARDS_MANIFEST_PATH, cardsManifestResult.manifest);
+  }
+  const storiesData = storiesManifestResult.manifest.items;
+  const cardsData = cardsManifestResult.manifest.items;
+  const normalizedCardsData = cardsData.map((card) => {
+    const finalImageUrl = card.finalCardImageUrl || card.cardPreviewDataUrl || card.imageUrl;
+    return {
+      ...card,
+      imageUrl: finalImageUrl,
+      cardPreviewDataUrl: card.cardPreviewDataUrl || finalImageUrl,
+      finalCardImageUrl: card.finalCardImageUrl || finalImageUrl,
+    };
+  });
+  const shouldPersistNormalizedCards = normalizedCardsData.some((card, index) => (
+    card.imageUrl !== cardsData[index]?.imageUrl ||
+    card.cardPreviewDataUrl !== cardsData[index]?.cardPreviewDataUrl ||
+    card.finalCardImageUrl !== cardsData[index]?.finalCardImageUrl
+  ));
+  if (shouldPersistNormalizedCards) {
+    await writeBlobManifest(blobToken, CARDS_MANIFEST_PATH, {
+      ...cardsManifestResult.manifest,
+      items: normalizedCardsData,
+    });
+  }
   const stories = storiesData.map((s) => ({
     id: s.id,
     title: s.title,
@@ -166,21 +249,32 @@ const handleList = async (res: VercelResponse, deviceKey: string) => {
     comments: 0,
     isMine: Boolean(deviceKey) && s.authorKey === deviceKey,
   }));
-  const cards = cardsData.map((c) => ({
+  const cards = normalizedCardsData.map((c) => ({
     id: c.id,
     storyId: c.storyId,
     title: c.title,
     subtitle: c.subtitle,
-    imageUrl: c.imageUrl,
+    imageUrl: c.finalCardImageUrl,
     frameType: c.frameType,
-    cardPreviewDataUrl: c.imageUrl,
-    finalCardImageUrl: c.imageUrl,
+    cardPreviewDataUrl: c.cardPreviewDataUrl,
+    finalCardImageUrl: c.finalCardImageUrl,
     photoUrl: c.photoUrl,
     region: c.region,
     date: c.date,
+    aiFrameBackgroundUrl: c.aiFrameBackgroundUrl,
+    aiFrameOverlayUrl: c.aiFrameOverlayUrl,
     createdAt: c.createdAt,
   }));
-  res.status(200).json({ ok: true, stories, comments: {}, likeCounts: {}, likedStoryIds: [], cards });
+  res.status(200).json({
+    ok: true,
+    stories,
+    comments: {},
+    likeCounts: {},
+    likedStoryIds: [],
+    cards,
+    deletedStoryIds: storiesManifestResult.manifest.deletedIds,
+    deletedCardIds: cardsManifestResult.manifest.deletedIds,
+  });
 };
 
 const handleCreate = async (res: VercelResponse, deviceKey: string, body: Record<string, unknown>) => {
@@ -201,6 +295,7 @@ const handleCreate = async (res: VercelResponse, deviceKey: string, body: Record
       contentType: decoded.contentType,
       token: blobToken,
       addRandomSuffix: false,
+      allowOverwrite: true,
     });
     imageUrl = blobProxyUrl(blob.pathname);
   }
@@ -220,8 +315,12 @@ const handleCreate = async (res: VercelResponse, deviceKey: string, body: Record
     activityDate: str(story.activityDate) || undefined,
     createdAt: new Date().toISOString(),
   };
-  const existing = await readBlobJson<ManifestStory[]>(blobToken, STORIES_MANIFEST_PATH, []);
-  await writeBlobJson(blobToken, STORIES_MANIFEST_PATH, [newManifestStory, ...existing.filter((s) => s.id !== newManifestStory.id)]);
+  const { manifest } = await readBlobManifest<ManifestStory>(blobToken, STORIES_MANIFEST_PATH);
+  await writeBlobManifest(blobToken, STORIES_MANIFEST_PATH, {
+    initialized: true,
+    items: [newManifestStory, ...manifest.items.filter((s) => s.id !== newManifestStory.id)],
+    deletedIds: manifest.deletedIds.filter((deletedId) => deletedId !== String(newManifestStory.id)),
+  });
   res.status(200).json({
     ok: true,
     story: {
@@ -286,8 +385,13 @@ const handleDeleteStory = async (res: VercelResponse, deviceKey: string, body: R
   if (!id) return sendError(res, 400, '스토리 id가 필요해요.');
   const blobToken = getBlobToken();
   if (!blobToken) return sendError(res, 500, 'BLOB_READ_WRITE_TOKEN이 설정되지 않았어요.');
-  const stories = await readBlobJson<ManifestStory[]>(blobToken, STORIES_MANIFEST_PATH, []);
-  await writeBlobJson(blobToken, STORIES_MANIFEST_PATH, stories.filter((s) => String(s.id) !== id));
+  const { manifest } = await readBlobManifest<ManifestStory>(blobToken, STORIES_MANIFEST_PATH);
+  const deletedIds = manifest.deletedIds.includes(id) ? manifest.deletedIds : [...manifest.deletedIds, id];
+  await writeBlobManifest(blobToken, STORIES_MANIFEST_PATH, {
+    initialized: true,
+    items: manifest.items.filter((s) => String(s.id) !== id),
+    deletedIds,
+  });
   res.status(200).json({ ok: true, deleted: 1 });
   return;
 
@@ -408,13 +512,35 @@ const handleImage = async (res: VercelResponse, pathname: string) => {
     res.status(404).json({ ok: false, error: '이미지를 찾을 수 없어요.' });
     return;
   }
-  const blob = await get(pathname, { access: 'private', token, useCache: false });
+  const pathCandidates = [pathname];
+  let candidatePathname = pathname;
+  for (let i = 0; i < 2; i += 1) {
+    try {
+      const decodedPathname = decodeURIComponent(candidatePathname);
+      if (decodedPathname === candidatePathname) break;
+      if (!pathCandidates.includes(decodedPathname)) pathCandidates.push(decodedPathname);
+      candidatePathname = decodedPathname;
+    } catch {
+      break;
+    }
+  }
+
+  let blob: Awaited<ReturnType<typeof get>> | null = null;
+  let resolvedPathname = pathname;
+  for (const candidate of pathCandidates) {
+    blob = await get(candidate, { access: 'private', token, useCache: false });
+    if (blob && blob.statusCode === 200 && blob.stream) {
+      resolvedPathname = candidate;
+      break;
+    }
+  }
+
   if (!blob || blob.statusCode !== 200 || !blob.stream) {
     res.status(404).json({ ok: false, error: '이미지를 찾을 수 없어요.' });
     return;
   }
   const buffer = Buffer.from(await new Response(blob.stream).arrayBuffer());
-  res.setHeader('Content-Type', blob.blob.contentType || inferContentType(pathname));
+  res.setHeader('Content-Type', blob.blob.contentType || inferContentType(resolvedPathname));
   res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
   res.status(200).send(buffer);
 };
@@ -438,7 +564,7 @@ const handleCardSave = async (res: VercelResponse, deviceKey: string, body: Reco
   const blobToken = getBlobToken();
   if (!blobToken) return sendError(res, 500, '이미지 저장소가 설정되지 않았어요.');
 
-  const dataUrl = str(body.cardPreviewDataUrl) || str(body.finalCardImageUrl) || str(body.dataUrl);
+  const dataUrl = str(body.finalCardImageUrl) || str(body.cardPreviewDataUrl) || str(body.dataUrl);
   const decoded = dataUrlToBuffer(dataUrl);
   if (!decoded) return sendError(res, 400, '저장할 카드 이미지를 보내주세요.');
 
@@ -447,6 +573,8 @@ const handleCardSave = async (res: VercelResponse, deviceKey: string, body: Reco
   const cardId = str(body.id) || String(Date.now());
   const title = str(body.title) || '여행 카드';
   const subtitle = str(body.subtitle) || str(body.region) || '';
+  const aiFrameBackgroundUrl = str(body.aiFrameBackgroundUrl) || null;
+  const aiFrameOverlayUrl = str(body.aiFrameOverlayUrl) || null;
   const createdAt = new Date().toISOString();
   const ext = decoded.contentType.split('/')[1] || 'png';
   const blob = await put(
@@ -457,6 +585,7 @@ const handleCardSave = async (res: VercelResponse, deviceKey: string, body: Reco
       contentType: decoded.contentType,
       token: blobToken,
       addRandomSuffix: false,
+      allowOverwrite: true,
     },
   );
   const finalCardUrl = blobProxyUrl(blob.pathname);
@@ -464,7 +593,7 @@ const handleCardSave = async (res: VercelResponse, deviceKey: string, body: Reco
   const cardResponse = {
     ok: true,
     card: {
-      id: Number(cardId),
+      id: cardId,
       storyId: storyId ? Number(storyId) : null,
       title,
       subtitle,
@@ -475,26 +604,36 @@ const handleCardSave = async (res: VercelResponse, deviceKey: string, body: Reco
       photoUrl: str(body.photoUrl) || undefined,
       region: str(body.region) || subtitle,
       date: str(body.date) || '',
+      aiFrameBackgroundUrl,
+      aiFrameOverlayUrl,
       createdAt,
     },
   };
 
   const newCard: ManifestCard = {
-    id: Number(cardId),
+    id: cardId,
     storyId: storyId ? Number(storyId) : null,
     authorKey: deviceKey || '',
     title,
     subtitle,
     imageUrl: finalCardUrl,
+    cardPreviewDataUrl: finalCardUrl,
+    finalCardImageUrl: finalCardUrl,
     frameType,
     photoUrl: str(body.photoUrl) || undefined,
     region: str(body.region) || subtitle,
     date: str(body.date) || '',
+    aiFrameBackgroundUrl,
+    aiFrameOverlayUrl,
     createdAt,
   };
-  const existing = await readBlobJson<ManifestCard[]>(blobToken, CARDS_MANIFEST_PATH, []);
-  const filtered = existing.filter((c) => c.id !== newCard.id && (storyId ? c.storyId !== Number(storyId) : true));
-  await writeBlobJson(blobToken, CARDS_MANIFEST_PATH, [newCard, ...filtered]);
+  const { manifest } = await readBlobManifest<ManifestCard>(blobToken, CARDS_MANIFEST_PATH);
+  const filtered = manifest.items.filter((c) => String(c.id) !== String(newCard.id));
+  await writeBlobManifest(blobToken, CARDS_MANIFEST_PATH, {
+    initialized: true,
+    items: [newCard, ...filtered],
+    deletedIds: manifest.deletedIds.filter((deletedId) => deletedId !== String(newCard.id)),
+  });
 
   if (!getConnectionString()) {
     res.status(200).json(cardResponse);
@@ -502,9 +641,6 @@ const handleCardSave = async (res: VercelResponse, deviceKey: string, body: Reco
   }
 
   const db = getPool();
-  if (storyId) {
-    await db.query('delete from story_cards where story_id = $1', [storyId]);
-  }
   await db.query(
     `insert into story_cards (id, story_id, author_key, template_type, title, subtitle, generated_image_url)
      values ($1,$2,$3,$4,$5,$6,$7)`,
@@ -520,6 +656,23 @@ const handleCardSave = async (res: VercelResponse, deviceKey: string, body: Reco
   );
 
   res.status(200).json(cardResponse);
+};
+
+const handleCardDelete = async (res: VercelResponse, body: Record<string, unknown>) => {
+  const blobToken = getBlobToken();
+  if (!blobToken) return sendError(res, 500, 'BLOB_READ_WRITE_TOKEN이 설정되지 않았어요.');
+
+  const id = str(body.id || body.cardId);
+  if (!id) return sendError(res, 400, '여행 카드 id가 필요해요.');
+
+  const { manifest } = await readBlobManifest<ManifestCard>(blobToken, CARDS_MANIFEST_PATH);
+  const deletedIds = manifest.deletedIds.includes(id) ? manifest.deletedIds : [...manifest.deletedIds, id];
+  await writeBlobManifest(blobToken, CARDS_MANIFEST_PATH, {
+    initialized: true,
+    items: manifest.items.filter((card) => String(card.id) !== id),
+    deletedIds,
+  });
+  res.status(200).json({ ok: true, deleted: 1 });
 };
 
 // ---- AI card generation (OpenAI Images Edits API, gpt-image-1) ----
@@ -1040,6 +1193,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return await handleUpload(res, body);
         case 'card-save':
           return await handleCardSave(res, deviceKey, body);
+        case 'card-delete':
+          return await handleCardDelete(res, body);
         case 'card-generate':
           return await handleCardGenerate(res, deviceKey, body);
         default:
