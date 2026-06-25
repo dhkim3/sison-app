@@ -740,7 +740,7 @@ export function SavedArchive({
                   const previewUrl = getTravelCardPreviewUrl(selectedTravelCardAction);
 
                   return (
-                    <div className="mt-4">
+                    <div className="mt-4 rounded-[1.35rem] shadow-[0_16px_34px_rgba(42,42,42,0.13),0_3px_10px_rgba(42,42,42,0.08)]">
                       {previewUrl ? (
                         <FinalTravelCardImage
                           src={previewUrl}
@@ -748,7 +748,7 @@ export function SavedArchive({
                           className="rounded-[1.35rem]"
                         />
                       ) : (
-                        <div style={{ aspectRatio: '2 / 3' }}>
+                        <div className="rounded-[1.35rem]" style={{ aspectRatio: '2 / 3' }}>
                           <ArchiveTravelCardPreview card={selectedTravelCardAction} />
                         </div>
                       )}
