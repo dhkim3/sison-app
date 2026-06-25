@@ -464,6 +464,14 @@ const getShortRecommendationReason = (reason: string) => {
   return '여행 중 가볍게 참여해요';
 };
 
+// Cache the MediaQueryList so we don't call matchMedia() once per card per drag frame.
+let cachedReducedMotionMql: MediaQueryList | null = null;
+const prefersReducedMotionNow = () => {
+  if (typeof window === 'undefined') return false;
+  if (!cachedReducedMotionMql) cachedReducedMotionMql = window.matchMedia('(prefers-reduced-motion: reduce)');
+  return cachedReducedMotionMql.matches;
+};
+
 const getDeckCardStyle = (
   depth: number,
   dragOffset: number,
@@ -474,8 +482,7 @@ const getDeckCardStyle = (
 ) => {
   const isActive = depth === 0;
   const clampedDepth = Math.min(depth, 3);
-  const prefersReducedMotion = typeof window !== 'undefined'
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const prefersReducedMotion = prefersReducedMotionNow();
   const scaleByDepth = [1, 0.97, 0.94, 0.9];
   const translateYByDepth = [0, -12, -22, -30];
   const opacityByDepth = [1, 0.9, 0.76, 0];
@@ -500,8 +507,7 @@ const getDeckCardStyle = (
 };
 
 const getExitingDeckCardStyle = (direction: 1 | -1) => {
-  const prefersReducedMotion = typeof window !== 'undefined'
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const prefersReducedMotion = prefersReducedMotionNow();
   const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 430;
   // Use 100% viewport width so exit card goes just off-screen (not 1.12x)
   // to avoid increasing the document scroll width on Android
@@ -965,6 +971,13 @@ export function HomeAIRecommendationFlow({
   const deckDragFrameRef = useRef<number | null>(null);
   const deckPendingDragOffsetRef = useRef(0);
   const deckSuppressClickRef = useRef(false);
+  // Drag state in refs (not React state) so pointer handlers never read a stale
+  // value mid-gesture — the source of dropped first-moves / missed taps on Android.
+  const deckDraggingRef = useRef(false);
+  // 'none' until the gesture commits to an axis; 'v' = let the sheet scroll, 'h' = swipe.
+  const deckAxisRef = useRef<'none' | 'h' | 'v'>('none');
+  // Largest movement (either axis) seen during the gesture — used for tap detection.
+  const deckMaxMoveRef = useRef(0);
   // Prevents pointerUp + pointerCancel double-firing on the same gesture
   const deckSwipeHandledRef = useRef(false);
   // Ref-based transition lock: prevents concurrent moveRecommendation calls
@@ -1708,24 +1721,42 @@ export function HomeAIRecommendationFlow({
     if (target.closest('button')) return;
 
     deckSwipeHandledRef.current = false;
+    deckDraggingRef.current = true;
+    deckAxisRef.current = 'none';
     deckDragStartXRef.current = event.clientX;
     deckDragStartYRef.current = event.clientY;
     deckDragLastXRef.current = event.clientX;
     deckDragLastTimeRef.current = event.timeStamp || performance.now();
     deckDragVelocityXRef.current = 0;
     deckPendingDragOffsetRef.current = 0;
+    deckMaxMoveRef.current = 0;
     deckSuppressClickRef.current = false;
     setIsDeckDragging(true);
     setDeckDragOffset(0);
-    event.currentTarget.setPointerCapture(event.pointerId);
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // setPointerCapture can throw on some older WebViews; the gesture still works without it.
+    }
   };
 
   const handleDeckPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!isDeckDragging) return;
-    const rawOffset = event.clientX - deckDragStartXRef.current;
-    const verticalOffset = event.clientY - deckDragStartYRef.current;
+    // Gate on the ref, not React state: on Android the first move can arrive before
+    // the setIsDeckDragging(true) commit lands, and a stale `false` would drop it.
+    if (!deckDraggingRef.current) return;
+    const dx = event.clientX - deckDragStartXRef.current;
+    const dy = event.clientY - deckDragStartYRef.current;
+    deckMaxMoveRef.current = Math.max(deckMaxMoveRef.current, Math.abs(dx), Math.abs(dy));
+
+    // Lock the axis once movement is unambiguous. A vertical gesture is a scroll —
+    // hand it back to the sheet and stop tracking so the card doesn't jitter.
+    if (deckAxisRef.current === 'none' && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+      deckAxisRef.current = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+    }
+    if (deckAxisRef.current === 'v') return;
+
     const horizontalLimit = typeof window !== 'undefined' ? window.innerWidth : 430;
-    const nextOffset = Math.max(Math.min(rawOffset, horizontalLimit), -horizontalLimit);
+    const nextOffset = Math.max(Math.min(dx, horizontalLimit), -horizontalLimit);
     const now = event.timeStamp || performance.now();
     const elapsed = Math.max(now - deckDragLastTimeRef.current, 1);
 
@@ -1734,7 +1765,8 @@ export function HomeAIRecommendationFlow({
     deckDragLastTimeRef.current = now;
     deckPendingDragOffsetRef.current = nextOffset;
 
-    if (Math.abs(rawOffset) > Math.abs(verticalOffset) && Math.abs(rawOffset) > 4) {
+    // Once committed to a horizontal swipe, consistently claim the gesture.
+    if (deckAxisRef.current === 'h' && event.cancelable) {
       event.preventDefault();
     }
 
@@ -1746,15 +1778,20 @@ export function HomeAIRecommendationFlow({
     }
   };
 
-  const settleDeckDrag = (shouldOpenOnTap = false) => {
-    if (!isDeckDragging) return;
-    // Prevent pointerUp + pointerCancel from both processing the same gesture
+  // Handles both pointerup and pointercancel. Android (notably Samsung/Galaxy)
+  // frequently delivers a tap as `pointercancel` rather than `pointerup`; treating
+  // a negligible-movement cancel as a tap is what makes the cards openable there.
+  const endDeckGesture = (reason: 'up' | 'cancel') => {
+    if (!deckDraggingRef.current) return;
+    // Prevent pointerup + pointercancel from both processing the same gesture
     if (deckSwipeHandledRef.current) return;
     deckSwipeHandledRef.current = true;
+    deckDraggingRef.current = false;
     if (deckDragFrameRef.current) {
       window.cancelAnimationFrame(deckDragFrameRef.current);
       deckDragFrameRef.current = null;
     }
+    const axis = deckAxisRef.current;
     const cardWidth = 332;
     const threshold = cardWidth * 0.25;
     const finalDragOffset = deckPendingDragOffsetRef.current;
@@ -1767,14 +1804,25 @@ export function HomeAIRecommendationFlow({
       deckSuppressClickRef.current = true;
     }
 
-    if ((dragDistance >= threshold || Math.abs(velocityX) > 0.45) && canMoveRecommendation) {
+    // Horizontal swipe past the threshold → advance. Not on a browser-issued cancel,
+    // which means the browser claimed the gesture (e.g. scroll), not a deliberate swipe.
+    if (
+      reason === 'up'
+      && axis === 'h'
+      && (dragDistance >= threshold || Math.abs(velocityX) > 0.45)
+      && canMoveRecommendation
+    ) {
       const direction = finalDragOffset < 0 || velocityX < -0.45 ? 1 : -1;
       setDeckDragOffset(finalDragOffset);
       moveRecommendation(direction, direction, 'swipe');
       return;
     }
 
-    if (shouldOpenOnTap && dragDistance <= 12) {
+    // Tap → open the active card. A tap is a gesture that barely moved (either axis),
+    // so this opens on pointerup AND on the spurious pointercancel Android emits, while
+    // a real scroll/swipe (which moves well past this) is excluded. `axis` intentionally
+    // does not gate this, so a tap that drifts a few px vertically still opens.
+    if (deckMaxMoveRef.current <= 10) {
       const activeRecommendation = recommendationDisplayItems[activeRecommendationIndex];
       const activeActivity = activeRecommendation
         ? { ...activeRecommendation.activity, imageUrl: activeRecommendation.imageUrl }
@@ -2214,8 +2262,8 @@ export function HomeAIRecommendationFlow({
                       className="relative z-10 mx-auto h-[364px] max-w-[332px] touch-pan-y select-none overflow-visible overscroll-x-none [touch-action:pan-y] [-webkit-user-select:none]"
                       onPointerDown={handleDeckPointerDown}
                       onPointerMove={handleDeckPointerMove}
-                      onPointerUp={() => settleDeckDrag(true)}
-                      onPointerCancel={() => settleDeckDrag(false)}
+                      onPointerUp={() => endDeckGesture('up')}
+                      onPointerCancel={() => endDeckGesture('cancel')}
                     >
                       {recommendationDisplayItems.map(({ activity, reason, imageUrl, moodTip }, index) => {
                         const depth = recommendationCount > 0
