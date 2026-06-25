@@ -2259,11 +2259,16 @@ export function HomeAIRecommendationFlow({
                         Android horizontal scroll. overflowX clip does not affect vertical overflow. */}
                     <div className="-mx-5 px-5" style={{ overflowX: 'clip', overflowY: 'visible' }}>
                     <div
-                      className="relative z-10 mx-auto h-[364px] max-w-[332px] touch-pan-y select-none overflow-visible overscroll-x-none [touch-action:pan-y] [-webkit-user-select:none]"
+                      className="relative z-10 mx-auto h-[364px] max-w-[332px] select-none overflow-visible overscroll-none [touch-action:none] [-webkit-user-select:none]"
                       onPointerDown={handleDeckPointerDown}
                       onPointerMove={handleDeckPointerMove}
+<<<<<<< HEAD
                       onPointerUp={() => endDeckGesture('up')}
                       onPointerCancel={() => endDeckGesture('cancel')}
+=======
+                      onPointerUp={() => settleDeckDrag(true)}
+                      onPointerCancel={() => settleDeckDrag(true)}
+>>>>>>> fccb247 (AI 활동 추천 에러 개선1)
                     >
                       {recommendationDisplayItems.map(({ activity, reason, imageUrl, moodTip }, index) => {
                         const depth = recommendationCount > 0
