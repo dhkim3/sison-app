@@ -67,10 +67,9 @@ export function StoryCard({
         <p
           className="text-[13px] font-semibold text-[#2a2a2a] leading-snug mb-0.5"
           style={{
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
             overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
           }}
         >
           {story.title}
@@ -78,10 +77,9 @@ export function StoryCard({
         <p
           className={`${showEngagement ? 'mb-1.5' : ''} text-[11px] text-[#5F6368] leading-snug`}
           style={{
-            display: '-webkit-box',
-            WebkitLineClamp: 1,
-            WebkitBoxOrient: 'vertical',
             overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
           }}
         >
           {metadataMode === 'history'

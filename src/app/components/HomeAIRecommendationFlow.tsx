@@ -1,4 +1,4 @@
-import { type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Bookmark, Calendar, ChevronLeft, ChevronRight, Clock, Lightbulb, MapPin, Route, Sparkles, X } from 'lucide-react';
 import { useBottomSheetScrollLock } from './useBottomSheetScrollLock';
 import { getSearchSuggestions, locationSuggestions } from '../locationSuggestions';
@@ -474,11 +474,6 @@ const prefersReducedMotionNow = () => {
 
 const getDeckCardStyle = (
   depth: number,
-  dragOffset: number,
-  isDragging: boolean,
-  _enterDirection: 1 | -1 | null,
-  _isEntering: boolean,
-  interactionType: 'button' | 'swipe' | null,
 ) => {
   const isActive = depth === 0;
   const clampedDepth = Math.min(depth, 3);
@@ -488,39 +483,19 @@ const getDeckCardStyle = (
   const opacityByDepth = [1, 0.9, 0.76, 0];
   const scale = scaleByDepth[clampedDepth] ?? 0.9;
   const translateY = translateYByDepth[clampedDepth] ?? -30;
-  const translateX = isActive && interactionType !== 'button' ? dragOffset : 0;
-  const rotate = isActive && interactionType !== 'button' ? dragOffset / 48 : 0;
 
   return {
     zIndex: 30 - clampedDepth,
     opacity: opacityByDepth[clampedDepth] ?? 0,
-    transform: `translate3d(${translateX}px, ${translateY}px, 0) scale(${scale}) rotate(${rotate}deg)`,
+    transform: `translate3d(0, ${translateY}px, 0) scale(${scale}) rotate(0deg)`,
     boxShadow: isActive
       ? '0 18px 36px rgba(38,28,66,0.15)'
       : clampedDepth === 1
         ? '0 10px 24px rgba(56,42,92,0.08)'
         : '0 6px 16px rgba(56,42,92,0.045)',
-    transition: prefersReducedMotion || (isDragging && isActive)
-      ? 'none'
-      : 'transform 320ms cubic-bezier(0.22, 1, 0.36, 1), opacity 280ms ease-out, box-shadow 320ms cubic-bezier(0.22, 1, 0.36, 1)',
-  };
-};
-
-const getExitingDeckCardStyle = (direction: 1 | -1) => {
-  const prefersReducedMotion = prefersReducedMotionNow();
-  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 430;
-  // Use 100% viewport width so exit card goes just off-screen (not 1.12x)
-  // to avoid increasing the document scroll width on Android
-  const exitOffset = direction === 1 ? -viewportWidth : viewportWidth;
-
-  return {
-    zIndex: 40,
-    opacity: 1,
-    transform: `translate3d(${exitOffset}px, 0, 0) scale(0.96) rotate(${direction === 1 ? -9 : 9}deg)`,
-    boxShadow: '0 12px 28px rgba(38,28,66,0.10)',
     transition: prefersReducedMotion
       ? 'none'
-      : 'transform 300ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 300ms ease-out',
+      : 'transform 320ms cubic-bezier(0.22, 1, 0.36, 1), opacity 280ms ease-out, box-shadow 320ms cubic-bezier(0.22, 1, 0.36, 1)',
   };
 };
 
@@ -948,12 +923,7 @@ export function HomeAIRecommendationFlow({
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [isAiLoadingTextVisible, setIsAiLoadingTextVisible] = useState(true);
   const [activeRecommendationIndex, setActiveRecommendationIndex] = useState(0);
-  const [deckDragOffset, setDeckDragOffset] = useState(0);
-  const [isDeckDragging, setIsDeckDragging] = useState(false);
   const [deckTransitionDirection, setDeckTransitionDirection] = useState<1 | -1 | null>(null);
-  const [deckInteractionType, setDeckInteractionType] = useState<'button' | 'swipe' | null>(null);
-  const [isDeckEntering, setIsDeckEntering] = useState(false);
-  const [exitingRecommendationIndex, setExitingRecommendationIndex] = useState<number | null>(null);
   const [fallingPhase, setFallingPhase] = useState<'hidden' | 'in' | 'hold' | 'out'>('hidden');
   const calendarAdvanceTimerRef = useRef<number | null>(null);
   const fallingPhaseTimerRef = useRef<number | null>(null);
@@ -963,23 +933,6 @@ export function HomeAIRecommendationFlow({
   const loadingStartedAtRef = useRef(0);
   const sheetScrollRef = useRef<HTMLDivElement | null>(null);
   const moodInputRef = useRef<HTMLInputElement | null>(null);
-  const deckDragStartXRef = useRef(0);
-  const deckDragStartYRef = useRef(0);
-  const deckDragLastXRef = useRef(0);
-  const deckDragLastTimeRef = useRef(0);
-  const deckDragVelocityXRef = useRef(0);
-  const deckDragFrameRef = useRef<number | null>(null);
-  const deckPendingDragOffsetRef = useRef(0);
-  const deckSuppressClickRef = useRef(false);
-  // Drag state in refs (not React state) so pointer handlers never read a stale
-  // value mid-gesture — the source of dropped first-moves / missed taps on Android.
-  const deckDraggingRef = useRef(false);
-  // 'none' until the gesture commits to an axis; 'v' = let the sheet scroll, 'h' = swipe.
-  const deckAxisRef = useRef<'none' | 'h' | 'v'>('none');
-  // Largest movement (either axis) seen during the gesture — used for tap detection.
-  const deckMaxMoveRef = useRef(0);
-  // Prevents pointerUp + pointerCancel double-firing on the same gesture
-  const deckSwipeHandledRef = useRef(false);
   // Ref-based transition lock: prevents concurrent moveRecommendation calls
   // (state-based deckTransitionDirection is async and can't guard synchronous double calls)
   const deckTransitionActiveRef = useRef(false);
@@ -1054,13 +1007,7 @@ export function HomeAIRecommendationFlow({
     setAiLoadingMessage(loadingMessages[0]);
     setLoadingMessageIndex(0);
     setActiveRecommendationIndex(0);
-    setDeckDragOffset(0);
-    setIsDeckDragging(false);
     setDeckTransitionDirection(null);
-    setDeckInteractionType(null);
-    setIsDeckEntering(false);
-    setExitingRecommendationIndex(null);
-    deckSwipeHandledRef.current = false;
     deckTransitionActiveRef.current = false;
   };
 
@@ -1665,191 +1612,27 @@ export function HomeAIRecommendationFlow({
 
   useEffect(() => {
     setActiveRecommendationIndex(0);
-    setDeckDragOffset(0);
-    setIsDeckDragging(false);
     setDeckTransitionDirection(null);
-    setIsDeckEntering(false);
-    setExitingRecommendationIndex(null);
-    if (deckDragFrameRef.current) {
-      window.cancelAnimationFrame(deckDragFrameRef.current);
-      deckDragFrameRef.current = null;
-    }
   }, [recommendationCount]);
 
   const moveRecommendation = (
     direction: 1 | -1 = 1,
     indexDelta: 1 | -1 = direction,
-    interactionType: 'button' | 'swipe' = 'button',
   ) => {
     // Use ref-based lock to guard against stale-closure double calls
     // (state-based deckTransitionDirection is async — two synchronous calls both see null)
     if (!canMoveRecommendation || deckTransitionActiveRef.current) return;
     deckTransitionActiveRef.current = true;
 
-    setIsDeckDragging(false);
-    // For swipe: keep deckDragOffset at its current position so the exit animation
-    // starts from where the finger left off, not from center. Reset in timeout.
-    if (interactionType !== 'swipe') {
-      setDeckDragOffset(0);
-      deckPendingDragOffsetRef.current = 0;
-    }
-    deckDragVelocityXRef.current = 0;
-    setDeckInteractionType(interactionType);
-    setExitingRecommendationIndex(interactionType === 'swipe' ? activeRecommendationIndex : null);
     setDeckTransitionDirection(direction);
-    setIsDeckEntering(false);
     setActiveRecommendationIndex((current) =>
       (current + indexDelta + recommendationCount) % recommendationCount,
     );
 
     window.setTimeout(() => {
       deckTransitionActiveRef.current = false;
-      setDeckDragOffset(0);
-      deckPendingDragOffsetRef.current = 0;
-      deckDragVelocityXRef.current = 0;
       setDeckTransitionDirection(null);
-      setDeckInteractionType(null);
-      setIsDeckEntering(false);
-      setExitingRecommendationIndex(null);
-      deckSuppressClickRef.current = false;
-    }, interactionType === 'swipe' ? 360 : 320);
-  };
-
-  const handleDeckPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (recommendationCount <= 1) return;
-    const target = event.target as HTMLElement;
-    if (target.closest('button')) return;
-
-    deckSwipeHandledRef.current = false;
-    deckDraggingRef.current = true;
-    deckAxisRef.current = 'none';
-    deckDragStartXRef.current = event.clientX;
-    deckDragStartYRef.current = event.clientY;
-    deckDragLastXRef.current = event.clientX;
-    deckDragLastTimeRef.current = event.timeStamp || performance.now();
-    deckDragVelocityXRef.current = 0;
-    deckPendingDragOffsetRef.current = 0;
-    deckMaxMoveRef.current = 0;
-    deckSuppressClickRef.current = false;
-    setIsDeckDragging(true);
-    setDeckDragOffset(0);
-    try {
-      event.currentTarget.setPointerCapture(event.pointerId);
-    } catch {
-      // setPointerCapture can throw on some older WebViews; the gesture still works without it.
-    }
-  };
-
-  const handleDeckPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    // Gate on the ref, not React state: on Android the first move can arrive before
-    // the setIsDeckDragging(true) commit lands, and a stale `false` would drop it.
-    if (!deckDraggingRef.current) return;
-    const dx = event.clientX - deckDragStartXRef.current;
-    const dy = event.clientY - deckDragStartYRef.current;
-    deckMaxMoveRef.current = Math.max(deckMaxMoveRef.current, Math.abs(dx), Math.abs(dy));
-
-    // Lock the axis once movement is unambiguous. A vertical gesture is a scroll —
-    // hand it back to the sheet and stop tracking so the card doesn't jitter.
-    if (deckAxisRef.current === 'none' && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
-      deckAxisRef.current = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
-    }
-    if (deckAxisRef.current === 'v') return;
-
-    const horizontalLimit = typeof window !== 'undefined' ? window.innerWidth : 430;
-    const nextOffset = Math.max(Math.min(dx, horizontalLimit), -horizontalLimit);
-    const now = event.timeStamp || performance.now();
-    const elapsed = Math.max(now - deckDragLastTimeRef.current, 1);
-
-    deckDragVelocityXRef.current = (event.clientX - deckDragLastXRef.current) / elapsed;
-    deckDragLastXRef.current = event.clientX;
-    deckDragLastTimeRef.current = now;
-    deckPendingDragOffsetRef.current = nextOffset;
-
-    // Once committed to a horizontal swipe, consistently claim the gesture.
-    if (deckAxisRef.current === 'h' && event.cancelable) {
-      event.preventDefault();
-    }
-
-    if (!deckDragFrameRef.current) {
-      deckDragFrameRef.current = window.requestAnimationFrame(() => {
-        deckDragFrameRef.current = null;
-        setDeckDragOffset(deckPendingDragOffsetRef.current);
-      });
-    }
-  };
-
-  // Handles both pointerup and pointercancel. Android (notably Samsung/Galaxy)
-  // frequently delivers a tap as `pointercancel` rather than `pointerup`; treating
-  // a negligible-movement cancel as a tap is what makes the cards openable there.
-  const endDeckGesture = (reason: 'up' | 'cancel') => {
-    if (!deckDraggingRef.current) return;
-    // Prevent pointerup + pointercancel from both processing the same gesture
-    if (deckSwipeHandledRef.current) return;
-    deckSwipeHandledRef.current = true;
-    deckDraggingRef.current = false;
-    if (deckDragFrameRef.current) {
-      window.cancelAnimationFrame(deckDragFrameRef.current);
-      deckDragFrameRef.current = null;
-    }
-    const axis = deckAxisRef.current;
-    const cardWidth = 332;
-    const threshold = cardWidth * 0.25;
-    const finalDragOffset = deckPendingDragOffsetRef.current;
-    const dragDistance = Math.abs(finalDragOffset);
-    const velocityX = deckDragVelocityXRef.current;
-
-    // Use 12px tap threshold instead of 8px for Android compatibility
-    // (Android touch events can report slight movement even for taps)
-    if (dragDistance > 12) {
-      deckSuppressClickRef.current = true;
-    }
-
-    // Horizontal swipe past the threshold → advance. Not on a browser-issued cancel,
-    // which means the browser claimed the gesture (e.g. scroll), not a deliberate swipe.
-    if (
-      reason === 'up'
-      && axis === 'h'
-      && (dragDistance >= threshold || Math.abs(velocityX) > 0.45)
-      && canMoveRecommendation
-    ) {
-      const direction = finalDragOffset < 0 || velocityX < -0.45 ? 1 : -1;
-      setDeckDragOffset(finalDragOffset);
-      moveRecommendation(direction, direction, 'swipe');
-      return;
-    }
-
-    // Tap → open the active card. A tap is a gesture that barely moved (either axis),
-    // so this opens on pointerup AND on the spurious pointercancel Android emits, while
-    // a real scroll/swipe (which moves well past this) is excluded. `axis` intentionally
-    // does not gate this, so a tap that drifts a few px vertically still opens.
-    if (deckMaxMoveRef.current <= 10) {
-      const activeRecommendation = recommendationDisplayItems[activeRecommendationIndex];
-      const activeActivity = activeRecommendation
-        ? { ...activeRecommendation.activity, imageUrl: activeRecommendation.imageUrl }
-        : null;
-      if (activeActivity) {
-        deckSuppressClickRef.current = true;
-        setDeckDragOffset(0);
-        deckPendingDragOffsetRef.current = 0;
-        deckDragVelocityXRef.current = 0;
-        setIsDeckDragging(false);
-        onOpenActivity(activeActivity);
-        window.setTimeout(() => {
-          deckSuppressClickRef.current = false;
-        }, 120);
-        return;
-      }
-    }
-
-    setDeckDragOffset(0);
-    deckPendingDragOffsetRef.current = 0;
-    deckDragVelocityXRef.current = 0;
-    setIsDeckDragging(false);
-    if (dragDistance > 12) {
-      window.setTimeout(() => {
-        deckSuppressClickRef.current = false;
-      }, 120);
-    }
+    }, 320);
   };
 
   const activeLoadingConditionIndex = Math.min(loadingMessageIndex, loadingConditionBubbles.length);
@@ -2259,19 +2042,13 @@ export function HomeAIRecommendationFlow({
                         Android horizontal scroll. overflowX clip does not affect vertical overflow. */}
                     <div className="-mx-5 px-5" style={{ overflowX: 'clip', overflowY: 'visible' }}>
                     <div
-                      className="relative z-10 mx-auto h-[364px] max-w-[332px] select-none overflow-visible overscroll-none [touch-action:none] [-webkit-user-select:none]"
-                      onPointerDown={handleDeckPointerDown}
-                      onPointerMove={handleDeckPointerMove}
-                      onPointerUp={() => endDeckGesture('up')}
-                      onPointerCancel={() => endDeckGesture('cancel')}
+                      className="relative z-10 mx-auto h-[364px] max-w-[332px] select-none overflow-visible [-webkit-user-select:none]"
                     >
                       {recommendationDisplayItems.map(({ activity, reason, imageUrl, moodTip }, index) => {
                         const depth = recommendationCount > 0
                           ? (index - activeRecommendationIndex + recommendationCount) % recommendationCount
                           : 0;
-                        const isExitingCard = exitingRecommendationIndex === index;
-                        const isActiveCard = depth === 0 && !isExitingCard;
-                        const isEnteringCard = isActiveCard && isDeckEntering;
+                        const isActiveCard = depth === 0;
                         const reasonText = getEditorialRecommendationReason(activity, reason, index, mood);
                         const displayActivity = { ...activity, imageUrl };
 
@@ -2282,11 +2059,7 @@ export function HomeAIRecommendationFlow({
                             tabIndex={isActiveCard ? 0 : -1}
                             aria-label={`${activity.title} 상세 보기`}
                             onClick={() => {
-                              if (deckSuppressClickRef.current) {
-                                deckSuppressClickRef.current = false;
-                                return;
-                              }
-                              if (isActiveCard && Math.abs(deckPendingDragOffsetRef.current) < 8) onOpenActivity(displayActivity);
+                              if (isActiveCard) onOpenActivity(displayActivity);
                             }}
                             onKeyDown={(event) => {
                               if (!isActiveCard) return;
@@ -2296,20 +2069,9 @@ export function HomeAIRecommendationFlow({
                               }
                             }}
                             className={`absolute inset-x-0 top-4 h-[342px] overflow-hidden rounded-[24px] border border-white/80 bg-white outline-none transition-transform focus-visible:ring-2 focus-visible:ring-[#8b5cf6]/45 ${
-                              isActiveCard ? 'cursor-grab active:cursor-grabbing' : 'pointer-events-none'
+                              isActiveCard ? 'cursor-pointer' : 'pointer-events-none'
                             }`}
-                            style={
-                              isExitingCard && deckTransitionDirection && deckInteractionType === 'swipe'
-                                ? getExitingDeckCardStyle(deckTransitionDirection)
-                                : getDeckCardStyle(
-                                  depth,
-                                  deckDragOffset,
-                                  isDeckDragging,
-                                  deckTransitionDirection,
-                                  isEnteringCard,
-                                  deckInteractionType,
-                                )
-                            }
+                            style={getDeckCardStyle(depth)}
                             aria-hidden={!isActiveCard}
                           >
                             <div className="block h-full w-full text-left transition-transform duration-150 active:scale-[0.99]">
@@ -2325,7 +2087,6 @@ export function HomeAIRecommendationFlow({
                                 <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/28 to-transparent" aria-hidden="true" />
                                 <button
                                   type="button"
-                                  onPointerDown={(event) => event.stopPropagation()}
                                   onClick={(event) => {
                                     event.stopPropagation();
                                     onToggleSavedActivity(displayActivity);
@@ -2395,7 +2156,7 @@ export function HomeAIRecommendationFlow({
                     <div className="relative z-[60] mt-7 flex items-center justify-center gap-4">
                       <button
                         type="button"
-                        onClick={() => moveRecommendation(-1, -1, 'button')}
+                        onClick={() => moveRecommendation(-1, -1)}
                         disabled={!canMoveRecommendation || deckTransitionDirection !== null}
                         className="relative z-[61] flex h-9 w-9 items-center justify-center rounded-full border border-[rgba(139,92,246,0.15)] bg-[rgba(139,92,246,0.08)] text-[#8b5cf6] transition-all hover:bg-[rgba(139,92,246,0.15)] active:scale-95 disabled:opacity-30"
                         aria-label="이전 추천 활동"
@@ -2416,7 +2177,7 @@ export function HomeAIRecommendationFlow({
                       </div>
                       <button
                         type="button"
-                        onClick={() => moveRecommendation(1, 1, 'button')}
+                        onClick={() => moveRecommendation(1, 1)}
                         disabled={!canMoveRecommendation || deckTransitionDirection !== null}
                         className="relative z-[61] flex h-9 w-9 items-center justify-center rounded-full border border-[rgba(139,92,246,0.15)] bg-[rgba(139,92,246,0.08)] text-[#8b5cf6] transition-all hover:bg-[rgba(139,92,246,0.15)] active:scale-95 disabled:opacity-30"
                         aria-label="다음 추천 활동"

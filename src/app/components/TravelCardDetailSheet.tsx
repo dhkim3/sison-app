@@ -1,6 +1,7 @@
 import { Calendar, Download, Leaf, MapPin, X } from 'lucide-react';
 import { useState } from 'react';
 import type { TravelCard } from './TravelCardCarousel';
+import { TravelCardPreview } from './TravelCardPreview';
 import { useBottomSheetScrollLock } from './useBottomSheetScrollLock';
 
 interface TravelCardDetailSheetProps {
@@ -44,17 +45,13 @@ export function TravelCardDetailSheet({ card, isOpen, onClose }: TravelCardDetai
           data-bottom-sheet-scrollable="true"
         >
           <div className="px-5 pt-4">
-            <div className="relative overflow-hidden rounded-[1.75rem] bg-[#f0f0eb]" style={{ aspectRatio: '4 / 5' }}>
-              <img
-                src={card.photoUrl}
-                alt={card.title}
-                className="absolute inset-0 w-full h-full object-cover"
-              />
-              <div className="absolute inset-x-0 bottom-0 p-5 bg-gradient-to-t from-black/45 to-transparent">
-                <p className="text-[12px] text-white/80">시선으로 저장한 여행</p>
-                <h3 className="mt-1 text-[24px] font-semibold leading-tight text-white">{card.title}</h3>
-              </div>
-            </div>
+            <TravelCardPreview
+              photoUrl={card.photoUrl}
+              title={card.title}
+              date={card.date}
+              locationLabel={card.locationLabel}
+              frameType={card.frameType}
+            />
           </div>
 
           <div className="px-6 pt-5 pb-6 space-y-5">

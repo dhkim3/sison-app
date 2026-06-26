@@ -1,9 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
 import { Download, X } from 'lucide-react';
 import { SegmentedTabs } from './SegmentedTabs';
 import { CompactActivityCard } from './CompactActivityCard';
 import type { TravelCard } from './TravelCardCarousel';
+import { TravelCardPreview } from './TravelCardPreview';
+import { travelCardRadiusStyle } from './travelCardStyles';
 import { EmptyState } from './EmptyState';
 import { BottomTabBar } from './BottomTabBar';
 import { PageShell } from './PageShell';
@@ -155,8 +156,6 @@ export const initialTravelCards: ArchiveTravelCard[] = [
     moodTags: ['안목해변', '플로깅', '강릉'],
     style: 'polaroid',
     frameType: '기본',
-    cardPreviewDataUrl: '/travel-card-previews/story-105-anmok-coffee.svg',
-    finalCardImageUrl: '/travel-card-previews/story-105-anmok-coffee.svg',
   },
   {
     id: 'story-107-gyeongju-light',
@@ -171,8 +170,6 @@ export const initialTravelCards: ArchiveTravelCard[] = [
     moodTags: ['경주', '골목길', '문화안내'],
     style: 'polaroid',
     frameType: '블랙',
-    cardPreviewDataUrl: '/travel-card-previews/story-107-gyeongju-light.svg',
-    finalCardImageUrl: '/travel-card-previews/story-107-gyeongju-light.svg',
   },
   {
     id: 'story-106-tongyeong-harbor',
@@ -187,8 +184,6 @@ export const initialTravelCards: ArchiveTravelCard[] = [
     moodTags: ['통영', '항구', '행사안내'],
     style: 'polaroid',
     frameType: '노을',
-    cardPreviewDataUrl: '/travel-card-previews/story-106-tongyeong-harbor.svg',
-    finalCardImageUrl: '/travel-card-previews/story-106-tongyeong-harbor.svg',
   },
 ];
 
@@ -231,7 +226,7 @@ const getTravelCardPreviewUrl = (card: ArchiveTravelCard) => {
 function FinalTravelCardImage({
   src,
   title,
-  className = 'rounded-3xl',
+  className = '',
 }: {
   src: string;
   title: string;
@@ -242,70 +237,22 @@ function FinalTravelCardImage({
       src={src}
       alt={title}
       className={`block h-auto w-full object-contain ${className}`}
+      style={travelCardRadiusStyle}
     />
   );
 }
 
-const getArchiveFrameStyle = (card: ArchiveTravelCard): CSSProperties => {
-  switch (card.frameType) {
-    case '바다':
-      return { background: 'linear-gradient(to bottom right, #eff6ff, #ecfeff)' };
-    case '숲':
-      return { background: 'linear-gradient(to bottom right, #f0fdf4, #ecfdf5)' };
-    case '노을':
-      return { background: 'linear-gradient(to bottom right, #fff7ed, #fdf2f8)' };
-    case '블랙':
-      return { background: 'linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%)' };
-    default:
-      return { background: 'linear-gradient(180deg, #ffffff 0%, #fdfbf8 100%)' };
-  }
-};
-
 function ArchiveTravelCardPreview({ card }: { card: ArchiveTravelCard }) {
-  const isDarkFrame = card.frameType === '블랙';
   const photoUrl = card.sourcePhotoUrl || card.photoUrl;
 
   return (
-    <div
-      className="relative h-full w-full overflow-hidden rounded-3xl p-3 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.03)]"
-      style={getArchiveFrameStyle(card)}
-    >
-      <div className="aspect-square overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
-        <img
-          src={photoUrl}
-          alt={card.title}
-          className="h-full w-full object-cover"
-        />
-      </div>
-      <div className="px-0.5 pt-3">
-        <p
-          className={`truncate text-[15px] font-semibold leading-snug ${isDarkFrame ? 'text-white' : 'text-[#2a2a2a]'}`}
-        >
-          {card.title}
-        </p>
-        <div className="mt-3 space-y-1">
-          {card.locationLabel && (
-            <p
-              className={`truncate text-[12px] font-medium leading-[1.35] ${isDarkFrame ? 'text-white/80' : 'text-[#6f6f6f]'}`}
-            >
-              {card.locationLabel}
-            </p>
-          )}
-          <p
-            className={`truncate text-[12px] font-normal leading-[1.35] ${isDarkFrame ? 'text-white/50' : 'text-[#b6b6b6]'}`}
-          >
-            {card.date}
-          </p>
-        </div>
-        <div className={`mt-3 border-t pt-2.5 ${isDarkFrame ? 'border-white/15' : 'border-black/5'}`}>
-          <p
-            className={`text-center text-[11px] leading-none opacity-70 ${isDarkFrame ? 'text-white' : 'text-[#5F6368]'}`}
-          >
-            시선
-          </p>
-        </div>
-      </div>
-    </div>
+    <TravelCardPreview
+      photoUrl={photoUrl}
+      title={card.title}
+      date={card.date}
+      locationLabel={card.locationLabel}
+      frameType={card.frameType}
+    />
   );
 }
 
@@ -607,22 +554,24 @@ export function SavedArchive({
                             return (
                               <div
                                 key={card.id}
-                                ref={(element) => {
-                                  travelCardRefs.current[card.id] = element;
-                                }}
-                                className="flex-none overflow-visible rounded-3xl shadow-[0_12px_26px_rgba(0,0,0,0.095),0_2px_8px_rgba(0,0,0,0.055)]"
+                                className="flex-none overflow-visible shadow-[0_12px_26px_rgba(0,0,0,0.095),0_2px_8px_rgba(0,0,0,0.055)]"
                                 style={{
                                   width: 'min(62vw, 246px)',
                                   scrollSnapAlign: 'start',
+                                  ...travelCardRadiusStyle,
                                 }}
                               >
                                 <button
                                   type="button"
+                                  ref={(element) => {
+                                    travelCardRefs.current[card.id] = element;
+                                  }}
                                   onClick={() => {
                                     setSelectedTravelCardAction(card);
                                     setTravelCardActionMode('actions');
                                   }}
-                                  className="block w-full overflow-hidden rounded-3xl bg-transparent text-left transition-opacity hover:opacity-90"
+                                  className="block w-full overflow-hidden bg-transparent text-left transition-opacity hover:opacity-90"
+                                  style={travelCardRadiusStyle}
                                 >
                                   {previewUrl ? (
                                     <FinalTravelCardImage
@@ -630,9 +579,7 @@ export function SavedArchive({
                                       title={card.title}
                                     />
                                   ) : (
-                                    <div style={{ aspectRatio: '2 / 3' }}>
-                                      <ArchiveTravelCardPreview card={card} />
-                                    </div>
+                                    <ArchiveTravelCardPreview card={card} />
                                   )}
                                 </button>
                               </div>
@@ -740,17 +687,17 @@ export function SavedArchive({
                   const previewUrl = getTravelCardPreviewUrl(selectedTravelCardAction);
 
                   return (
-                    <div className="mt-4 rounded-[1.35rem] shadow-[0_16px_34px_rgba(42,42,42,0.13),0_3px_10px_rgba(42,42,42,0.08)]">
+                    <div
+                      className="mt-4 overflow-hidden shadow-[0_16px_34px_rgba(42,42,42,0.13),0_3px_10px_rgba(42,42,42,0.08)]"
+                      style={travelCardRadiusStyle}
+                    >
                       {previewUrl ? (
                         <FinalTravelCardImage
                           src={previewUrl}
                           title={selectedTravelCardAction.title}
-                          className="rounded-[1.35rem]"
                         />
                       ) : (
-                        <div className="rounded-[1.35rem]" style={{ aspectRatio: '2 / 3' }}>
-                          <ArchiveTravelCardPreview card={selectedTravelCardAction} />
-                        </div>
+                        <ArchiveTravelCardPreview card={selectedTravelCardAction} />
                       )}
                     </div>
                   );

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Download, Sparkles } from 'lucide-react';
 import { BottomTabBar } from '../BottomTabBar';
 import { PageShell } from '../PageShell';
-import { getCompactLocationLabel } from '../TravelCardCarousel';
+import { TravelCardPreview } from '../TravelCardPreview';
+import { getCompactLocationLabel } from '../travelCardStyles';
 import { captureElementAsPng, downloadBlob } from '../../utils/captureElementAsImage';
 import { getDeviceKey, storyApi } from '../../storyInteractionState';
 import {
@@ -237,27 +238,6 @@ export function CardCreationView({
     onNavigate('saved', { savedTab: 2 });
   };
 
-  const getFrameStyle = (): React.CSSProperties => {
-    if (selectedFrame === AI_FRAME) {
-      if (aiFrameStatus !== 'idle') {
-        return { background: '#ffffff' };
-      }
-      return { background: 'linear-gradient(180deg, #fdfcfa 0%, #f8f8f5 100%)' };
-    }
-    switch (selectedFrame) {
-      case '바다':
-        return { background: 'linear-gradient(to bottom right, #eff6ff, #ecfeff)' };
-      case '숲':
-        return { background: 'linear-gradient(to bottom right, #f0fdf4, #ecfdf5)' };
-      case '노을':
-        return { background: 'linear-gradient(to bottom right, #fff7ed, #fdf2f8)' };
-      case '블랙':
-        return { background: 'linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%)' };
-      default:
-        return { background: 'linear-gradient(180deg, #ffffff 0%, #fdfbf8 100%)' };
-    }
-  };
-
   return (
     <>
       <PageShell>
@@ -327,55 +307,22 @@ export function CardCreationView({
           {/* Card Preview */}
           <section>
             <div className="flex justify-center">
-              <div
+              <TravelCardPreview
                 ref={cardPreviewRef}
-                className="relative overflow-hidden rounded-xl p-4 shadow-[0_2px_8px_rgba(0,0,0,0.08)]"
-                style={{ width: '300px', ...getFrameStyle() }}
-              >
-                {isAiFrameReady && aiFrameBackgroundUrl && (
-                  <img
-                    key={aiFrameBackgroundUrl}
-                    src={aiFrameBackgroundUrl}
-                    alt=""
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 z-0 h-full w-full select-none object-fill [-webkit-user-drag:none]"
-                  />
-                )}
-
-                <div className="relative z-10 mb-3">
-                  <div className="aspect-[3/4] overflow-hidden rounded-lg bg-white shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
-                    <img
-                      src={photo}
-                      alt="Travel memory"
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                </div>
-
-                {shouldShowAIPreviewAnimation && (
-                  <div
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 z-[25] rounded-xl ai-frame-preview-aurora-border"
-                  />
-                )}
-
-                <div className="relative z-20">
-                  <div className="px-1.5">
-                    <p className={`line-clamp-1 text-[13px] font-semibold leading-snug ${isDarkFrame ? 'text-white' : 'text-[#2a2a2a]'}`}>
-                      {cardTitle}
-                    </p>
-                    <div className="mt-3 space-y-1">
-                      {compactLocation && (
-                        <p className={`text-[11px] font-medium leading-[1.35] ${isDarkFrame ? 'text-white/80' : 'text-[#6f6f6f]'}`}>{compactLocation}</p>
-                      )}
-                      <p className={`text-[11px] font-normal leading-[1.35] ${isDarkFrame ? 'text-white/50' : 'text-[#b6b6b6]'}`}>{activity.date}</p>
-                    </div>
-                    <div className={`mt-3 pt-2 ${isDarkFrame ? 'border-t border-white/15' : 'border-t border-black/10'}`}>
-                      <p className={`text-center text-[11px] opacity-70 ${isDarkFrame ? 'text-white' : 'text-[#5F6368]'}`}>시선</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                photoUrl={photo}
+                title={cardTitle}
+                date={activity.date}
+                locationLabel={activity.location || activity.region}
+                frameType={selectedFrame}
+                aiFrameBackgroundUrl={isAiFrameReady ? aiFrameBackgroundUrl : null}
+                showAiFrameAnimation={shouldShowAIPreviewAnimation}
+                style={{
+                  width: '300px',
+                  ...(selectedFrame === AI_FRAME && aiFrameStatus !== 'idle'
+                    ? { background: '#ffffff' }
+                    : {}),
+                }}
+              />
             </div>
           </section>
 
